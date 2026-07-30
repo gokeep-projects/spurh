@@ -421,8 +421,24 @@ pub fn run(cli_args: Vec<String>) {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(TrayState(AtomicBool::new(false)))
         .setup(move |app| {
+            use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState, Modifiers, Code};
+            let ctrl_shift_space = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
+            match app.global_shortcut().register(ctrl_shift_space) {
+                Ok(_) => {
+                    app.global_shortcut().on_shortcut(move |_app, shortcut, event| {
+                        if shortcut == &ctrl_shift_space && event.state == ShortcutState::Pressed {
+                            if let Some(window) = _app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    });
+                }
+                Err(e) => eprintln!("Failed to register global shortcut: {e}"),
+            }
             if let Some(path) = open_file_path {
                 if let Ok(content) = std::fs::read_to_string(&path) {
                     if let Some(window) = app.get_webview_window("main") {

@@ -3,6 +3,9 @@
   import { onMount } from 'svelte';
   import { AI_PRESETS, createAiProfile, fetchAiModels, isAiConfigured, loadAiProfileStore, processWithAi, saveAiProfileStore, testAiConnection, type AiModel, type AiProfile } from './lib/ai';
   import ResultView from './lib/components/ResultView.svelte';
+  import CronPanel from './lib/panels/CronPanel.svelte';
+  import CryptoPanel from './lib/panels/CryptoPanel.svelte';
+  import RegexPanel from './lib/panels/RegexPanel.svelte';
   import { runtime, type PluginResult } from './lib/plugins';
 
   type ToolSession = {
@@ -405,7 +408,6 @@
       const result = await processWithAi(aiConfig!, session.input, { tool: plugin.name, action, localError: session.error || undefined, expectJson, userPrompt: session.options.aiPrompt }, ({ reasoning, content }) => { patchSession(pluginId, { aiReasoning: reasoning, aiStreamContent: content }); scrollToLatestStream(); });
       const aiResult: PluginResult = { output: result.output, language: expectJson ? 'json' : 'text', view: expectJson ? 'code' : 'text', summary: result.parseError ?? 'AI 处理完成', meta: { 来源: 'AI', 模型: aiConfig!.model, ...(result.parseError ? { 解析: result.parseError } : {}) } };
       patchSession(pluginId, { aiProcessing: false, aiResult });
-      if (expectJson && pluginId === 'spurh.json' && !result.parseError) requestAnimationFrame(() => applyAiResult());
     } catch (cause) { patchSession(pluginId, { aiProcessing: false, aiError: cause instanceof Error ? cause.message : String(cause) }); }
   }
 
@@ -521,27 +523,38 @@
       </div>
 
       <div class="tool-controls">
-        <div class="actions" aria-label="操作">
-          {#each activePlugin.actions as action}
-            <button class:active={activeSession.actionId === action.id} title={action.description} on:click={() => changeAction(action.id)}>{action.label}</button>
-          {/each}
-        </div>
-        {#if activePlugin.options?.length}
-          <div class="options">
-            {#each activePlugin.options.filter((option) => (!option.actions || option.actions.includes(activeSession.actionId)) && (!option.showWhen || option.showWhen.values.includes(activeSession.options[option.showWhen.optionId]))) as option}
-              <label><span>{option.label}</span>
-                {#if option.type === 'select'}
-                  <select value={activeSession.options[option.id]} on:change={(event) => changeOption(option.id, event.currentTarget.value)}>
-                    {#each option.choices ?? [] as choice}<option value={choice.value}>{choice.label}</option>{/each}
-                  </select>
-                {:else}
-                  <input value={activeSession.options[option.id]} placeholder={option.placeholder} on:input={(event) => changeOption(option.id, event.currentTarget.value)} />
-                {/if}
-              </label>
+        {#if activePluginId === 'spurh.cron'}
+          <CronPanel session={activeSession} onChangeAction={changeAction} onChangeOption={changeOption} onClear={clearActive} />
+        {:else if activePluginId === 'spurh.crypto'}
+          <CryptoPanel session={activeSession} onChangeAction={changeAction} onChangeOption={changeOption} onClear={clearActive} />
+        {:else if activePluginId === 'spurh.regex'}
+          <RegexPanel session={activeSession} onChangeAction={changeAction} onChangeOption={changeOption} onChangeInput={changeInput} onClear={clearActive} />
+        {:else}
+          <div class="actions" aria-label="操作">
+            {#each activePlugin.actions as action}
+              <button class:active={activeSession.actionId === action.id} title={action.description} on:click={() => changeAction(action.id)}>{action.label}</button>
             {/each}
           </div>
+          {#if activePlugin.options?.length}
+            <div class="options">
+              {#each activePlugin.options.filter((option) => (!option.actions || option.actions.includes(activeSession.actionId)) && (!option.showWhen || option.showWhen.values.includes(activeSession.options[option.showWhen.optionId]))) as option}
+                <label><span>{option.label}</span>
+                  {#if option.type === 'select'}
+                    <select value={activeSession.options[option.id]} on:change={(event) => changeOption(option.id, event.currentTarget.value)}>
+                      {#each option.choices ?? [] as choice}<option value={choice.value}>{choice.label}</option>{/each}
+                    </select>
+                  {:else}
+                    <input value={activeSession.options[option.id]} placeholder={option.placeholder} on:input={(event) => changeOption(option.id, event.currentTarget.value)} />
+                  {/if}
+                </label>
+              {/each}
+            </div>
+          {/if}
+          <div class="control-spacer"></div>
         {/if}
-        <div class="control-spacer"></div>
+        {#if activePluginId !== 'spurh.cron' && activePluginId !== 'spurh.crypto' && activePluginId !== 'spurh.regex'}
+          <div class="control-spacer"></div>
+        {/if}
         <button class="ai-button" disabled={!activeSession.input.trim() || activeSession.aiProcessing} on:click={runAiProcessing}><span>✦</span>{activeSession.aiProcessing ? 'AI 中' : 'AI 处理'}</button>
         <button class="quiet-button" on:click={clearActive}>清空</button>
       </div>
