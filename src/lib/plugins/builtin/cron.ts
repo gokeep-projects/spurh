@@ -1,153 +1,99 @@
 import type { PluginResult, SpurhPlugin } from '../types';
 
-const FIELD_NAMES = ['分钟', '小时', '日期', '月份', '星期'];
-
-function describeField(value: string, unit: string): string {
-  if (value === '*') return `每${unit}`;
-  if (value.includes(',')) return `${unit}为 ${value.replaceAll(',', '、')}`;
-  const step = value.match(/^\*\/(\d+)$/);
-  if (step) return `每 ${step[1]} ${unit}`;
-  const range = value.match(/^(\d+)-(\d+)$/);
-  if (range) return `${unit}从 ${range[1]} 到 ${range[2]}`;
-  return `${unit}为 ${value}`;
-}
-
-function explainCron(expression: string): string {
-  const fields = expression.trim().split(/\s+/);
-  if (fields.length !== 5) throw new Error('当前支持标准的 5 段 Cron 表达式');
-  if (fields.some((field) => !/^[\d*/?,\-]+$/.test(field))) throw new Error('Cron 中包含不支持的字符');
-
-  const [minute, hour, day, month, weekday] = fields;
-  if (minute === '0' && hour === '*' && day === '*' && month === '*' && weekday === '*') return '每小时整点执行';
-  if (minute === '0' && /^\*\/\d+$/.test(hour) && day === '*' && month === '*' && weekday === '*') return `每 ${hour.slice(2)} 小时执行一次（整点）`;
-  if (/^\*\/\d+$/.test(minute) && hour === '*' && day === '*' && month === '*' && weekday === '*') return `每 ${minute.slice(2)} 分钟执行一次`;
-  if (/^\d+$/.test(minute) && /^\d+$/.test(hour) && day === '*' && month === '*' && weekday === '*') return `每天 ${hour.padStart(2, '0')}:${minute.padStart(2, '0')} 执行`;
-  if (/^\d+$/.test(minute) && /^\d+$/.test(hour) && weekday === '1-5') return `每个工作日 ${hour.padStart(2, '0')}:${minute.padStart(2, '0')} 执行`;
-  return fields.map((field, index) => describeField(field, FIELD_NAMES[index])).join('；');
-}
-
 function matchesField(value: number, field: string): boolean {
-  if (field === '*') return true;
+  if (field === '*' || field === '?') return true;
   return field.split(',').some((part) => {
     const step = part.match(/^\*\/(\d+)$/);
     if (step) return value % Number(step[1]) === 0;
     const range = part.match(/^(\d+)-(\d+)$/);
     if (range) return value >= Number(range[1]) && value <= Number(range[2]);
-    return value === Number(part);
+    return String(value) === part;
   });
 }
 
-function nextRuns(expression: string, count = 5): Date[] {
-  const fields = expression.trim().split(/\s+/);
-  if (fields.length !== 5) throw new Error('当前支持标准的 5 段 Cron 表达式');
-  const output: Date[] = [];
-  const cursor = new Date();
-  cursor.setSeconds(0, 0);
-  cursor.setMinutes(cursor.getMinutes() + 1);
-  for (let checked = 0; checked < 525_600 && output.length < count; checked++) {
-    if (
-      matchesField(cursor.getMinutes(), fields[0])
-      && matchesField(cursor.getHours(), fields[1])
-      && matchesField(cursor.getDate(), fields[2])
-      && matchesField(cursor.getMonth() + 1, fields[3])
-      && matchesField(cursor.getDay(), fields[4])
-    ) output.push(new Date(cursor));
-    cursor.setMinutes(cursor.getMinutes() + 1);
+function nextRuns(expr: string, count = 10): Date[] {
+  const f = expr.trim().split(/\s+/);
+  if (f.length === 6) f.shift();
+  if (f.length !== 5) throw new Error('需要5段Cron');
+  const out: Date[] = [];
+  const cur = new Date();
+  cur.setSeconds(0, 0); cur.setMinutes(cur.getMinutes() + 1);
+  for (let n = 0; n < 525600 && out.length < count; n++) {
+    if (matchesField(cur.getMinutes(),f[0]) && matchesField(cur.getHours(),f[1])
+      && matchesField(cur.getDate(),f[2]) && matchesField(cur.getMonth()+1,f[3])
+      && matchesField(cur.getDay(),f[4])) out.push(new Date(cur));
+    cur.setMinutes(cur.getMinutes() + 1);
   }
-  return output;
+  return out;
 }
 
-function parseTime(value: string): [string, string] {
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})$/);
-  if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) throw new Error('时间请输入 HH:mm，例如 09:30');
-  return [String(Number(match[2])), String(Number(match[1]))];
+function explainCron(expr: string): string {
+  const f = expr.trim().split(/\s+/);
+  if (f.length === 6) f.shift();
+  if (f.length !== 5) throw new Error('需要5段Cron');
+  const [m, h, d, mo, w] = f;
+  if (m === '0' && h === '*' && d === '*' && mo === '*' && w === '*') return '每小时整点';
+  if (/^\*\/\d+$/.test(h) && d === '*' && mo === '*' && w === '*') return `每${h.slice(2)}小时`;
+  if (/^\*\/\d+$/.test(m) && h === '*' && d === '*' && mo === '*' && w === '*') return `每${m.slice(2)}分钟`;
+  if (/^\d+$/.test(m) && /^\d+$/.test(h) && d === '*' && mo === '*' && w === '*') return `每天${h.padStart(2,'0')}:${m.padStart(2,'0')}`;
+  if (/^\d+$/.test(m) && /^\d+$/.test(h) && d === '*' && mo === '*' && w === '1-5') return `工作日${h.padStart(2,'0')}:${m.padStart(2,'0')}`;
+  if (/^\d+$/.test(m) && /^\d+$/.test(h) && /^\d+$/.test(d) && mo === '*' && w === '*') return `每月${d}号${h.padStart(2,'0')}:${m.padStart(2,'0')}`;
+  return `分:${m} 时:${h} 日:${d} 月:${mo} 周:${w}`;
 }
 
-function generateCron(input: string, options: Record<string, string>): string {
-  const type = options.scheduleType || 'natural';
-  if (type === 'minutes') {
-    const interval = Number(options.interval || 5);
-    if (!Number.isInteger(interval) || interval < 1 || interval > 59) throw new Error('分钟间隔请输入 1 到 59');
-    return `*/${interval} * * * *`;
-  }
-  if (type === 'hourly') return '0 * * * *';
-  if (['daily', 'workdays', 'weekly', 'monthly'].includes(type)) {
-    const [minute, hour] = parseTime(options.time || '09:00');
-    if (type === 'daily') return `${minute} ${hour} * * *`;
-    if (type === 'workdays') return `${minute} ${hour} * * 1-5`;
-    if (type === 'weekly') return `${minute} ${hour} * * ${options.weekday || '1'}`;
-    const day = Number(options.monthDay || 1);
-    if (!Number.isInteger(day) || day < 1 || day > 31) throw new Error('每月日期请输入 1 到 31');
-    return `${minute} ${hour} ${day} * *`;
-  }
-
-  const value = input.trim();
-  let match = value.match(/^每\s*(\d+)\s*分钟/);
-  if (match) return `*/${match[1]} * * * *`;
-  if (/每小时/.test(value)) return '0 * * * *';
-  match = value.match(/^每天\s*(\d{1,2}):(\d{2})/);
-  if (match) return `${Number(match[2])} ${Number(match[1])} * * *`;
-  match = value.match(/^工作日\s*(\d{1,2}):(\d{2})/);
-  if (match) return `${Number(match[2])} ${Number(match[1])} * * 1-5`;
-  throw new Error('暂未识别这段调度描述，可选择生成预设，或使用 AI 处理自然语言');
-}
+const H = Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
+const M = Array.from({length:60},(_,i)=>String(i).padStart(2,'0'));
+const D = Array.from({length:31},(_,i)=>String(i+1));
 
 export const cronPlugin: SpurhPlugin = {
-  id: 'spurh.cron',
-  name: 'Cron 表达式',
-  description: 'Cron 与中文调度描述双向转换',
-  icon: '⌁',
-  version: '0.1.0',
-  category: '开发',
-  priority: 80,
+  id: 'spurh.cron', name: 'Cron 表达式', description: '下拉选择条件生成 Cron，查看执行时间', icon: '⌁', version:'0.1.0', category:'开发', priority:80,
   actions: [
-    { id: 'explain', label: 'Cron → 中文', description: '生成中文执行说明' },
-    { id: 'generate', label: '中文 → Cron', description: '通过自然语言或预设生成表达式' },
-    { id: 'next', label: '后续时间', description: '计算接下来 5 次执行时间' },
+    { id: 'generate', label: '生成', description: '选择条件生成Cron' },
+    { id: 'explain', label: '解析', description: '解读已有Cron' },
+    { id: 'next', label: '执行时间', description: '未来10次' },
   ],
   options: [
-    {
-      id: 'scheduleType', label: '生成方式', type: 'select', defaultValue: 'natural', actions: ['generate'],
-      choices: [
-        { value: 'natural', label: '识别输入描述' }, { value: 'minutes', label: '每 N 分钟' },
-        { value: 'hourly', label: '每小时' }, { value: 'daily', label: '每天' },
-        { value: 'workdays', label: '工作日' }, { value: 'weekly', label: '每周' }, { value: 'monthly', label: '每月' },
-      ],
-    },
-    { id: 'interval', label: '间隔', type: 'text', defaultValue: '5', actions: ['generate'], showWhen: { optionId: 'scheduleType', values: ['minutes'] } },
-    { id: 'time', label: '时间', type: 'text', defaultValue: '09:00', actions: ['generate'], showWhen: { optionId: 'scheduleType', values: ['daily', 'workdays', 'weekly', 'monthly'] } },
-    {
-      id: 'weekday', label: '星期', type: 'select', defaultValue: '1', actions: ['generate'], showWhen: { optionId: 'scheduleType', values: ['weekly'] },
-      choices: [
-        { value: '1', label: '周一' }, { value: '2', label: '周二' }, { value: '3', label: '周三' }, { value: '4', label: '周四' },
-        { value: '5', label: '周五' }, { value: '6', label: '周六' }, { value: '0', label: '周日' },
-      ],
-    },
-    { id: 'monthDay', label: '日期', type: 'text', defaultValue: '1', actions: ['generate'], showWhen: { optionId: 'scheduleType', values: ['monthly'] } },
+    { id: 'type', label: '频率', type:'select', defaultValue:'daily', actions:['generate'], choices:[
+      {value:'minutes',label:'每N分钟'},{value:'hourly',label:'每小时'},{value:'daily',label:'每天'},
+      {value:'workdays',label:'工作日'},{value:'weekly',label:'每周'},{value:'monthly',label:'每月'},
+    ]},
+    { id: 'interval', label: '间隔', type:'select', defaultValue:'5', actions:['generate'], showWhen:{optionId:'type',values:['minutes']},
+      choices: Array.from({length:59},(_,i)=>({value:String(i+1),label: `${i+1} 分钟`})) },
+    { id: 'hour', label: '时', type:'select', defaultValue:'09', actions:['generate'], showWhen:{optionId:'type',values:['daily','workdays','weekly','monthly']},
+      choices: H.map(v=>({value:v,label:`${v} 时`})) },
+    { id: 'minute', label: '分', type:'select', defaultValue:'00', actions:['generate'], showWhen:{optionId:'type',values:['daily','workdays','weekly','monthly']},
+      choices: M.map(v=>({value:v,label:`${v} 分`})) },
+    { id: 'weekday', label: '星期', type:'select', defaultValue:'1', actions:['generate'], showWhen:{optionId:'type',values:['weekly']},
+      choices: [{v:'0',l:'周日'},{v:'1',l:'周一'},{v:'2',l:'周二'},{v:'3',l:'周三'},{v:'4',l:'周四'},{v:'5',l:'周五'},{v:'6',l:'周六'}].map(x=>({value:x.v,label:x.l})) },
+    { id: 'monthDay', label: '日期', type:'select', defaultValue:'1', actions:['generate'], showWhen:{optionId:'type',values:['monthly']},
+      choices: D.map(v=>({value:v,label:`${v} 号`})) },
   ],
   detect(input) {
-    const fields = input.trim().split(/\s+/);
-    if (fields.length === 5 && fields.every((field) => /^[\d*/?,\-]+$/.test(field))) return { confidence: 0.95, reason: '检测到标准 5 段 Cron 表达式' };
-    if (/^(每|工作日)/.test(input.trim())) return { confidence: 0.68, reason: '检测到中文调度描述' };
+    const v = input.trim();
+    const f = v.split(/\s+/);
+    if ((f.length===5||f.length===6) && f.every(x=>/^[\d*/?,\-]+$/.test(x))) return { confidence:.96, reason:'Cron表达式' };
     return null;
   },
   execute(actionId, input, options = {}): PluginResult {
+    let expr = input.trim();
     if (actionId === 'generate') {
-      const expression = generateCron(input, options);
-      return {
-        output: expression, language: 'text', view: 'text', summary: '已生成 Cron 表达式',
-        meta: { 表达式: expression, 说明: explainCron(expression) },
-      };
+      const t = options.type || 'daily';
+      const h = options.hour || '09';
+      const m = options.minute || '00';
+      if (t === 'minutes') expr = `*/${options.interval||'5'} * * * *`;
+      else if (t === 'hourly') expr = '0 * * * *';
+      else if (t === 'daily') expr = `${Number(m)} ${Number(h)} * * *`;
+      else if (t === 'workdays') expr = `${Number(m)} ${Number(h)} * * 1-5`;
+      else if (t === 'weekly') expr = `${Number(m)} ${Number(h)} * * ${options.weekday||'1'}`;
+      else if (t === 'monthly') expr = `${Number(m)} ${Number(h)} ${options.monthDay||'1'} * *`;
+      const runs = nextRuns(expr, 5);
+      return { output: `${expr}\n\n${explainCron(expr)}\n\n未来5次:\n${runs.map((d,i)=>`${i+1}. ${d.toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})}`).join('\n')}`, language:'text', summary:expr, meta:{表达式:expr, 说明:explainCron(expr)} };
     }
     if (actionId === 'next') {
-      const runs = nextRuns(input);
-      return {
-        output: runs.map((date, index) => `${index + 1}. ${date.toLocaleString('zh-CN', { hour12: false })}`).join('\n'),
-        language: 'text', summary: '已计算接下来 5 次执行时间', meta: { 次数: runs.length, 表达式: input.trim() },
-        view: 'list', data: runs.map((date) => date.toLocaleString('zh-CN', { hour12: false })),
-      };
+      const runs = nextRuns(expr, 10);
+      if (!runs.length) throw new Error('一年内无匹配');
+      return { output: `${explainCron(expr)}\n\n未来10次:\n${runs.map((d,i)=>`${i+1}. ${d.toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})}`).join('\n')}`, language:'text', summary:`${runs.length}次`, meta:{表达式:expr} };
     }
-    const explanation = explainCron(input);
-    return { output: explanation, language: 'text', view: 'text', summary: 'Cron 表达式有效', meta: { 表达式: input.trim(), 字段: 5 } };
+    return { output: explainCron(expr), language:'text', summary:'Cron解析', meta:{表达式:expr} };
   },
 };

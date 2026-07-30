@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    spurh_lib::run();
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    spurh_lib::run(args);
 }

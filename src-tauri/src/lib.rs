@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{collections::HashMap, process::Command, sync::atomic::{AtomicBool, Ordering}, time::{Duration, Instant}};
+use std::{process::Command, sync::atomic::{AtomicBool, Ordering}, time::Duration};
 use tauri::{Emitter, Manager};
 
 #[derive(Debug, Deserialize)]
@@ -28,35 +28,21 @@ struct AiStreamEvent {
     delta: String,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct HttpToolRequest {
-    method: String,
-    url: String,
-    headers: Option<HashMap<String, String>>,
-    body: Option<String>,
-    auth_type: Option<String>,
-    username: Option<String>,
-    password: Option<String>,
-    token: Option<String>,
-    api_key_header: Option<String>,
-    api_key_value: Option<String>,
-    timeout_seconds: Option<u64>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct HttpToolResponse {
-    status: u16,
-    status_text: String,
-    headers: HashMap<String, String>,
-    body: String,
-    duration_ms: u128,
-    content_type: String,
-    size_bytes: usize,
-}
-
 struct TrayState(AtomicBool);
+
+#[cfg(target_os = "windows")]
+fn reg_command() -> Command {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let mut cmd = Command::new("reg");
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd
+}
+
+#[cfg(not(target_os = "windows"))]
+fn reg_command() -> Command {
+    Command::new("reg")
+}
 
 fn endpoint_url(endpoint: &str, path: &str) -> Result<String, String> {
     let endpoint = endpoint.trim().trim_end_matches('/');
@@ -242,72 +228,13 @@ async fn ai_analyze_stream(
     }
 }
 
-#[tauri::command]
-async fn http_request(request: HttpToolRequest) -> Result<HttpToolResponse, String> {
-    let url = request.url.trim();
-    if !(url.starts_with("https://") || url.starts_with("http://")) {
-        return Err("请求地址必须以 http:// 或 https:// 开头".into());
-    }
-    let method = reqwest::Method::from_bytes(request.method.trim().to_uppercase().as_bytes())
-        .map_err(|_| "不支持的 HTTP 请求方法".to_string())?;
-    let timeout = request.timeout_seconds.unwrap_or(30).clamp(1, 180);
-    let http_client = client(timeout)?;
-    let mut call = http_client.request(method, url);
-
-    for (name, value) in request.headers.unwrap_or_default() {
-        call = call.header(name, value);
-    }
-    match request.auth_type.as_deref().unwrap_or("none") {
-        "bearer" => call = call.bearer_auth(request.token.unwrap_or_default()),
-        "basic" => call = call.basic_auth(request.username.unwrap_or_default(), request.password),
-        "api-key" => {
-            let name = request.api_key_header.unwrap_or_else(|| "X-API-Key".into());
-            call = call.header(name, request.api_key_value.unwrap_or_default());
-        }
-        _ => {}
-    }
-    if let Some(body) = request.body.filter(|body| !body.is_empty()) {
-        call = call.body(body);
-    }
-
-    let started = Instant::now();
-    let response = call.send().await.map_err(|error| format!("HTTP 请求失败：{error}"))?;
-    let status = response.status();
-    let content_type = response
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("")
-        .to_string();
-    let headers = response
-        .headers()
-        .iter()
-        .map(|(name, value)| (name.to_string(), value.to_str().unwrap_or("<binary>").to_string()))
-        .collect::<HashMap<_, _>>();
-    let bytes = response.bytes().await.map_err(|error| format!("读取响应失败：{error}"))?;
-    let size_bytes = bytes.len();
-    if size_bytes > 8 * 1024 * 1024 {
-        return Err(format!("响应体为 {:.1} MiB，超过 8 MiB 的安全展示上限", size_bytes as f64 / 1_048_576.0));
-    }
-    let body = String::from_utf8_lossy(&bytes).into_owned();
-    Ok(HttpToolResponse {
-        status: status.as_u16(),
-        status_text: status.canonical_reason().unwrap_or("").to_string(),
-        headers,
-        body,
-        duration_ms: started.elapsed().as_millis(),
-        content_type,
-        size_bytes,
-    })
-}
-
 #[cfg(target_os = "windows")]
 fn autostart_registry(enabled: bool) -> Result<bool, String> {
     const KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
     if enabled {
         let executable = std::env::current_exe().map_err(|error| format!("无法获取程序路径：{error}"))?;
         let value = format!("\"{}\"", executable.display());
-        let status = Command::new("reg")
+        let status = reg_command()
             .args(["add", KEY, "/v", "Spurh", "/t", "REG_SZ", "/d", &value, "/f"])
             .status()
             .map_err(|error| format!("无法写入开机启动配置：{error}"))?;
@@ -316,7 +243,7 @@ fn autostart_registry(enabled: bool) -> Result<bool, String> {
         }
         Ok(true)
     } else {
-        let _ = Command::new("reg")
+        let _ = reg_command()
             .args(["delete", KEY, "/v", "Spurh", "/f"])
             .status();
         Ok(false)
@@ -338,7 +265,7 @@ fn get_autostart() -> bool {
     #[cfg(target_os = "windows")]
     {
         const KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
-        return Command::new("reg")
+        return reg_command()
             .args(["query", KEY, "/v", "Spurh"])
             .output()
             .map(|output| output.status.success())
@@ -346,6 +273,89 @@ fn get_autostart() -> bool {
     }
     #[cfg(not(target_os = "windows"))]
     false
+}
+
+#[cfg(target_os = "windows")]
+fn register_context_menu(app_path: &str) -> Result<(), String> {
+    let icon_path = app_path.replace('\\', "\\\\");
+    let command = format!("\"{}\" \"--open\" \"%1\"", app_path.replace('\\', "\\\\"));
+
+    reg_command()
+        .args(["add", r"HKCU\Software\Classes\*\shell\Spurh", "/ve", "/t", "REG_SZ", "/d", "用 Spurh 打开", "/f"])
+        .status()
+        .map_err(|e| format!("注册右键菜单失败：{e}"))?;
+
+    reg_command()
+        .args(["add", r"HKCU\Software\Classes\*\shell\Spurh", "/v", "Icon", "/t", "REG_SZ", "/d", &icon_path, "/f"])
+        .status()
+        .map_err(|e| format!("注册右键图标失败：{e}"))?;
+
+    reg_command()
+        .args(["add", r"HKCU\Software\Classes\*\shell\Spurh\command", "/ve", "/t", "REG_SZ", "/d", &command, "/f"])
+        .status()
+        .map_err(|e| format!("注册右键命令失败：{e}"))?;
+
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn unregister_context_menu() -> Result<(), String> {
+    reg_command()
+        .args(["delete", r"HKCU\Software\Classes\*\shell\Spurh", "/f"])
+        .status()
+        .map_err(|e| format!("移除右键菜单失败：{e}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn set_context_menu_enabled(enabled: bool) -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let exe = std::env::current_exe().map_err(|e| format!("无法获取程序路径：{e}"))?;
+        let app_path = exe.to_string_lossy().to_string();
+        if enabled {
+            register_context_menu(&app_path)?;
+        } else {
+            unregister_context_menu()?;
+        }
+        Ok(enabled)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = enabled;
+        Err("右键菜单仅支持 Windows".into())
+    }
+}
+
+#[tauri::command]
+fn get_context_menu_enabled() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        reg_command()
+            .args(["query", r"HKCU\Software\Classes\*\shell\Spurh", "/ve"])
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+    }
+    #[cfg(not(target_os = "windows"))]
+    false
+}
+
+#[tauri::command]
+async fn open_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| format!("无法读取文件 {}：{e}", path))?;
+    if let Some(window) = app.get_webview_window("main") {
+        window.show().map_err(|e| format!("{e}"))?;
+        window.set_focus().map_err(|e| format!("{e}"))?;
+    }
+    Ok(content)
+}
+
+#[tauri::command]
+fn read_clipboard() -> Result<String, String> {
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板：{e}"))?;
+    clipboard.get_text().map_err(|e| format!("剪贴板为空或非文本：{e}"))
 }
 
 #[tauri::command]
@@ -401,9 +411,30 @@ fn set_tray_enabled(app: tauri::AppHandle, state: tauri::State<TrayState>, enabl
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+pub fn run(cli_args: Vec<String>) {
+    let mut open_file_path: Option<String> = None;
+    let mut args = cli_args.iter();
+    while let Some(arg) = args.next() {
+        if arg == "--open" {
+            open_file_path = args.next().cloned();
+        }
+    }
+
     tauri::Builder::default()
         .manage(TrayState(AtomicBool::new(false)))
+        .setup(move |app| {
+            if let Some(path) = open_file_path {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.eval(&format!(
+                            "window.__spurhOpenFile&&window.__spurhOpenFile({})",
+                            serde_json::to_string(&json!({ "path": path, "content": content })).unwrap_or_default()
+                        ));
+                    }
+                }
+            }
+            Ok(())
+        })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let state = window.state::<TrayState>();
@@ -416,10 +447,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             ai_list_models,
             ai_analyze_stream,
-            http_request,
             set_autostart,
             get_autostart,
-            set_tray_enabled
+            set_tray_enabled,
+            set_context_menu_enabled,
+            get_context_menu_enabled,
+            open_file,
+            read_clipboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running Spurh");

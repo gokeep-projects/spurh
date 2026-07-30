@@ -1,6 +1,7 @@
 <script lang="ts">
   import { highlightCode } from '../highlight';
   import type { PluginResult } from '../plugins';
+  import JsonView from './JsonView.svelte';
 
   export let result: PluginResult;
 
@@ -19,8 +20,17 @@
     return String(value);
   }
 
+  function isComplexJson(output: string, language?: string): boolean {
+    if (language !== 'json') return false;
+    try {
+      const parsed = JSON.parse(output);
+      return typeof parsed === 'object' && parsed !== null && Object.keys(parsed).length > 0;
+    } catch { return false; }
+  }
+
   $: data = record(result.data);
   $: items = list(result.data);
+  $: useTreeView = isComplexJson(result.output, result.language) && result.view !== 'jwt' && result.view !== 'matches';
 </script>
 
 <div class="result-view">
@@ -100,7 +110,11 @@
       <code>{display(data.digest ?? result.output)}</code>
     </div>
   {:else}
-    <pre class:plain={result.language === 'text'} class:highlighted={result.language === 'json'}>{@html highlightCode(result.output, result.language)}</pre>
+    {#if useTreeView}
+      <JsonView jsonString={result.output} />
+    {:else}
+      <pre class:plain={result.language === 'text'} class:highlighted={result.language === 'json'}>{@html highlightCode(result.output, result.language)}</pre>
+    {/if}
   {/if}
 </div>
 

@@ -106,10 +106,14 @@ export async function testAiConnection(config: AiConfig): Promise<string> {
   return models.length ? `连接成功，发现 ${models.length} 个可用模型` : '连接成功，服务未返回模型';
 }
 
-function cleanResult(content: string, expectJson: boolean): string {
+function cleanResult(content: string, expectJson: boolean): { output: string; parseError?: string } {
   const cleaned = content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  if (!expectJson) return cleaned;
-  return JSON.stringify(JSON.parse(cleaned), null, 2);
+  if (!expectJson) return { output: cleaned };
+  try {
+    return { output: JSON.stringify(JSON.parse(cleaned), null, 2) };
+  } catch {
+    return { output: cleaned, parseError: 'AI 返回了非严格 JSON，已展示原始输出' };
+  }
 }
 
 export async function processWithAi(
@@ -117,18 +121,18 @@ export async function processWithAi(
   input: string,
   context: { tool: string; action: string; localError?: string; expectJson?: boolean; userPrompt?: string },
   onUpdate: (state: { reasoning: string; content: string }) => void,
-): Promise<string> {
+): Promise<{ output: string; parseError?: string }> {
   const requestId = crypto.randomUUID();
   let reasoning = '';
   let content = '';
   const task = context.expectJson
-    ? 'Repair the supplied JSON-like content into strict valid JSON. Preserve the user data and intent. Correct malformed quotes, escaping, commas, brackets, and special characters. Return only the complete valid JSON value.'
-    : `Process the supplied content as a ${context.tool} task using the action "${context.action}". Return the useful final result in concise Chinese. If malformed, return corrected content and a short conclusion.`;
+    ? 'The user provided malformed JSON. You MUST repair it to strict RFC 8259 JSON. Fix unquoted keys, trailing commas, single quotes, unescaped characters. Return ONLY the corrected JSON — no markdown, no explanation.'
+    : `You are a developer tool assistant. Process this ${context.tool} input (action: "${context.action}") and return the useful result concisely. Focus on correctness. Return plain text or JSON as appropriate. No conversational filler.`;
   const instruction = [
     task,
-    context.userPrompt ? `User instruction: ${context.userPrompt}` : '',
-    context.localError ? `The local processor reported: ${context.localError}` : '',
-    'Keep the final answer clean and directly usable. Do not add conversational filler.',
+    context.userPrompt ? `Additional instruction: ${context.userPrompt}` : '',
+    context.localError ? `Note: local processing failed with: ${context.localError}` : '',
+    'CRITICAL: Output ONLY the result. No introductions, no summaries, no markdown code fences.',
   ].filter(Boolean).join(' ');
 
   const unlisten = await listen<StreamEvent>('ai-stream', (event) => {

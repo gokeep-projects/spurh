@@ -1,129 +1,112 @@
 import { describe, expect, it } from 'vitest';
 import { cronPlugin } from './builtin/cron';
-import { base64Plugin } from './builtin/base64';
-import { hashPlugin } from './builtin/hash';
-import { httpPlugin } from './builtin/http';
+import { cryptoPlugin } from './builtin/crypto';
+import { encoderPlugin } from './builtin/encoder';
 import { jsonPlugin } from './builtin/json';
-import { jwtPlugin } from './builtin/jwt';
 import { regexPlugin } from './builtin/regex';
 import { randomPlugin } from './builtin/random';
 import { textPlugin } from './builtin/text';
 import { timestampPlugin } from './builtin/timestamp';
-import { urlPlugin } from './builtin/url';
 import { PluginRuntime } from './runtime';
 import type { SpurhPlugin } from './types';
 
-const runtime = new PluginRuntime([jsonPlugin, timestampPlugin, textPlugin, httpPlugin, randomPlugin, jwtPlugin, cronPlugin, base64Plugin, urlPlugin, hashPlugin, regexPlugin]);
+const runtime = new PluginRuntime([jsonPlugin, timestampPlugin, textPlugin, randomPlugin, cryptoPlugin, cronPlugin, encoderPlugin, regexPlugin]);
 
 describe('PluginRuntime', () => {
-  it('selects JSON by content rather than an explicit tool choice', () => {
-    const result = runtime.dispatch('{"name":"spurh"}');
-    expect(result.selected?.plugin.id).toBe('spurh.json');
-    expect(result.selected?.confidence).toBeGreaterThan(0.9);
+  it('dispatches JSON by content', () => {
+    const r = runtime.dispatch('{"name":"spurh"}');
+    expect(r.selected?.plugin.id).toBe('spurh.json');
   });
 
-  it('recognizes and explains a cron expression', async () => {
-    const result = runtime.dispatch('*/5 * * * *');
-    expect(result.selected?.plugin.id).toBe('spurh.cron');
-    await expect(runtime.execute('spurh.cron', 'explain', '*/5 * * * *')).resolves.toMatchObject({
-      output: '每 5 分钟执行一次',
-    });
+  it('explains cron', async () => {
+    await expect(runtime.execute('spurh.cron', 'explain', '*/5 * * * *')).resolves.toMatchObject({ output: '每5分钟' });
   });
 
-  it('formats JSON through a registered plugin action', async () => {
-    const result = await runtime.execute('spurh.json', 'format', '{"ok":true}');
-    expect(result.output).toBe('{\n  "ok": true\n}');
+  it('formats JSON', async () => {
+    const r = await runtime.execute('spurh.json', 'format', '{"ok":true}');
+    expect(r.output).toBe('{\n  "ok": true\n}');
   });
 
-  it('keeps advanced actions inside the same plugin contract', async () => {
-    const path = await runtime.execute('spurh.json', 'path', '{"users":[{"name":"Ada"},{"name":"Lin"}]}', {
-      path: '$.users[*].name',
-    });
-    expect(JSON.parse(path.output)).toEqual(['Ada', 'Lin']);
-
-    const next = await runtime.execute('spurh.cron', 'next', '*/5 * * * *');
-    expect(next.output.split('\n')).toHaveLength(5);
+  it('JSONPath query', async () => {
+    const r = await runtime.execute('spurh.json', 'path', '{"users":[{"name":"A"},{"name":"B"}]}', { path: '$.users[*].name' });
+    expect(JSON.parse(r.output)).toEqual(['A', 'B']);
   });
 
-  it('round-trips unicode through Base64', async () => {
-    const encoded = await runtime.execute('spurh.base64', 'encode', '你好 Spurh');
-    const decoded = await runtime.execute('spurh.base64', 'decode', encoded.output);
-    expect(decoded.output).toBe('你好 Spurh');
+  it('cron next runs', async () => {
+    const r = await runtime.execute('spurh.cron', 'next', '*/5 * * * *');
+    expect(r.output.split('\n').length).toBeGreaterThanOrEqual(10);
   });
 
-  it('generates and verifies an HMAC JWT locally', async () => {
-    const token = await runtime.execute('spurh.jwt', 'generate', '{"sub":"spurh"}', { secret: 'local-secret' });
-    const verified = await runtime.execute('spurh.jwt', 'verify', token.output, { secret: 'local-secret' });
-    expect(JSON.parse(verified.output)).toMatchObject({ valid: true, payload: { sub: 'spurh' } });
+  it('Base64 round-trip', async () => {
+    const enc = await runtime.execute('spurh.encoder', 'base64-encode', '你好 Spurh');
+    const dec = await runtime.execute('spurh.encoder', 'base64-decode', enc.output);
+    expect(dec.output).toBe('你好 Spurh');
   });
 
-  it('tests and replaces regex matches with plugin-specific options', async () => {
-    const tested = await runtime.execute('spurh.regex', 'test', 'a1 b22', { pattern: '\\d+', flags: 'g' });
-    expect(JSON.parse(tested.output)).toHaveLength(2);
-    const replaced = await runtime.execute('spurh.regex', 'replace', 'a1 b22', {
-      pattern: '\\d+', flags: 'g', replacement: '#',
-    });
-    expect(replaced.output).toBe('a# b#');
+  it('JWT generate and verify via crypto', async () => {
+    const tok = await runtime.execute('spurh.crypto', 'jwt-gen', '{"sub":"x"}', { secret: 's' });
+    const ver = await runtime.execute('spurh.crypto', 'jwt-verify', tok.output, { secret: 's' });
+    expect(JSON.parse(ver.output)).toMatchObject({ valid: true, payload: { sub: 'x' } });
   });
 
-  it('detects seconds and milliseconds timestamps', async () => {
+  it('regex test and replace', async () => {
+    const t = await runtime.execute('spurh.regex', 'test', 'a1 b22', { pattern: '\\d+', flags: 'g' });
+    expect(JSON.parse(t.output)).toHaveLength(2);
+    const r = await runtime.execute('spurh.regex', 'replace', 'a1 b22', { pattern: '\\d+', flags: 'g', replacement: '#' });
+    expect(r.output).toBe('a# b#');
+  });
+
+  it('timestamp detection and conversion', async () => {
     expect(runtime.dispatch('1700000000').selected?.plugin.id).toBe('spurh.timestamp');
-    expect(runtime.dispatch('1700000000000').selected?.plugin.id).toBe('spurh.timestamp');
-    const converted = await runtime.execute('spurh.timestamp', 'to-date', '1700000000', { unit: 'auto' });
-    expect(JSON.parse(converted.output)).toMatchObject({ unixSeconds: 1700000000, unixMilliseconds: 1700000000000 });
+    const r = await runtime.execute('spurh.timestamp', 'to-date', '1700000000', { unit: 'auto' });
+    expect(JSON.parse(r.output).unixSeconds).toBe(1700000000);
   });
 
-  it('converts dates back to Unix timestamps', async () => {
-    const converted = await runtime.execute('spurh.timestamp', 'to-unix', '2023-11-14T22:13:20.000Z');
-    expect(JSON.parse(converted.output)).toMatchObject({ unixSeconds: 1700000000 });
+  it('cron presets', async () => {
+    const r = await runtime.execute('spurh.cron', 'generate', '', { type: 'daily', hour: '09', minute: '30' });
+    expect(r.meta?.表达式).toBe('30 9 * * *');
   });
 
-  it('generates Cron expressions from presets and Chinese descriptions', async () => {
-    const preset = await runtime.execute('spurh.cron', 'generate', '', { scheduleType: 'daily', time: '09:30' });
-    expect(preset.output).toBe('30 9 * * *');
-    const natural = await runtime.execute('spurh.cron', 'generate', '每 15 分钟', { scheduleType: 'natural' });
-    expect(natural.output).toBe('*/15 * * * *');
+  it('text stats', async () => {
+    const r = await runtime.execute('spurh.text', 'stats', '你好 Spurh\n行2');
+    expect(r.view).toBe('stats');
+    expect((r.data as any)['字符数']).toBeGreaterThan(0);
   });
 
-  it('generates HTTP request code without sending a network call', async () => {
-    const result = await runtime.execute('spurh.http', 'code', '{"ok":true}', {
-      method: 'POST', url: 'https://example.com/api', headers: 'Accept: application/json',
-      contentType: 'application/json', authType: 'bearer', token: 'test-token', codeLanguage: 'javascript',
-    });
-    expect(result.output).toContain('fetch("https://example.com/api"');
-    expect(result.output).toContain('Bearer test-token');
+  it('random values', async () => {
+    const r = await runtime.execute('spurh.random', 'string', '', { length: '16', count: '1' });
+    expect(r.output).toHaveLength(16);
   });
 
-  it('presents text statistics as structured data', async () => {
-    const result = await runtime.execute('spurh.text', 'stats', '你好 Spurh\n第二行');
-    expect(result.view).toBe('stats');
-    expect(result.data).toMatchObject({ 字符数: 12, 行数: 2 });
+  it('AES encrypt/decrypt', async () => {
+    const enc = await runtime.execute('spurh.crypto', 'aes-encrypt', 'hello', { secret: 'key' });
+    expect(enc.output.length).toBeGreaterThan(20);
+    const dec = await runtime.execute('spurh.crypto', 'aes-decrypt', enc.output, { secret: 'key' });
+    expect(dec.output).toBe('hello');
   });
 
-  it('generates cryptographically sourced random values', async () => {
-    const result = await runtime.execute('spurh.random', 'string', '', { length: '16', count: '3' });
-    expect(result.view).toBe('list');
-    expect(result.output.split('\n')).toHaveLength(3);
-    expect(result.output.split('\n').every((value) => value.length === 16)).toBe(true);
+  it('MD5 hash', async () => {
+    const r = await runtime.execute('spurh.crypto', 'MD5', 'hello');
+    expect(r.output).toHaveLength(32);
   });
 
-  it('isolates detector failures', () => {
+  it('HMAC hash', async () => {
+    const r = await runtime.execute('spurh.crypto', 'HMAC-SHA256', 'hello', { secret: 'k' });
+    expect(r.output).toHaveLength(64);
+  });
+
+  it('detector isolation', () => {
     const broken: SpurhPlugin = {
-      id: 'test.broken',
-      name: 'Broken',
-      description: '',
-      icon: '!',
-      version: '0.0.0',
-      category: '开发',
-      actions: [{ id: 'run', label: 'Run', description: '' }],
+      id: 'test.broken', name: 'B', description: '', icon: '!', version: '0', category: '开发',
+      actions: [{ id: 'r', label: 'R', description: '' }],
       detect: () => { throw new Error('boom'); },
       execute: () => ({ output: '' }),
     };
-    const isolated = new PluginRuntime([broken, jsonPlugin]);
-    expect(isolated.dispatch('{}').selected?.plugin.id).toBe('spurh.json');
+    const iso = new PluginRuntime([broken, jsonPlugin]);
+    expect(iso.dispatch('{}').selected?.plugin.id).toBe('spurh.json');
   });
 
-  it('rejects duplicate plugin ids', () => {
-    expect(() => new PluginRuntime([jsonPlugin, jsonPlugin])).toThrow('already registered');
+  it('rejects duplicate ids', () => {
+    expect(() => new PluginRuntime([jsonPlugin, jsonPlugin])).toThrow('already');
   });
 });

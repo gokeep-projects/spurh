@@ -33,14 +33,8 @@ export const randomPlugin: SpurhPlugin = {
     { id: 'hex', label: '十六进制', description: '生成十六进制随机值' },
   ],
   options: [
-    { id: 'length', label: '长度', type: 'text', defaultValue: '24', placeholder: '24', actions: ['password', 'string', 'hex'] },
-    {
-      id: 'count', label: '数量', type: 'select', defaultValue: '5',
-      choices: [
-        { value: '1', label: '1 个' }, { value: '3', label: '3 个' },
-        { value: '5', label: '5 个' }, { value: '10', label: '10 个' },
-      ],
-    },
+    { id: 'length', label: '长度', type: 'text', defaultValue: '24', placeholder: '4-512', actions: ['password', 'string', 'hex'] },
+    { id: 'count', label: '数量', type: 'text', defaultValue: '1', placeholder: '1-100' },
   ],
   detect(input) {
     if (/^(random|随机|uuid):/i.test(input.trim())) return { confidence: 0.9, reason: '检测到随机生成指令' };
@@ -48,7 +42,7 @@ export const randomPlugin: SpurhPlugin = {
   },
   execute(actionId, _input, options = {}): PluginResult {
     const length = Number.parseInt(options.length || '24', 10);
-    const count = Number.parseInt(options.count || '5', 10);
+    const count = Math.min(100, Math.max(1, Number.parseInt(options.count || '1', 10) || 1));
     if (!Number.isFinite(length) || length < 4 || length > 512) throw new Error('长度请输入 4 到 512');
     const values = Array.from({ length: count }, () => {
       if (actionId === 'uuid') return crypto.randomUUID();

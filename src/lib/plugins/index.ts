@@ -1,27 +1,21 @@
-import { base64Plugin } from './builtin/base64';
 import { cronPlugin } from './builtin/cron';
-import { hashPlugin } from './builtin/hash';
-import { httpPlugin } from './builtin/http';
+import { cryptoPlugin } from './builtin/crypto';
+import { encoderPlugin } from './builtin/encoder';
 import { jsonPlugin } from './builtin/json';
-import { jwtPlugin } from './builtin/jwt';
 import { regexPlugin } from './builtin/regex';
 import { randomPlugin } from './builtin/random';
 import { textPlugin } from './builtin/text';
 import { timestampPlugin } from './builtin/timestamp';
-import { urlPlugin } from './builtin/url';
 import { PluginRuntime } from './runtime';
 
 export const runtime = new PluginRuntime([
   jsonPlugin,
   timestampPlugin,
   textPlugin,
-  httpPlugin,
   randomPlugin,
-  jwtPlugin,
+  cryptoPlugin,
   cronPlugin,
-  base64Plugin,
-  urlPlugin,
-  hashPlugin,
+  encoderPlugin,
   regexPlugin,
 ]);
 
