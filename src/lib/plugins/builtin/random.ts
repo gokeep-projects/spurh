@@ -1,3 +1,4 @@
+import { TOOL_ICONS as ICONS } from '../../icons';
 import type { PluginResult, SpurhPlugin } from '../types';
 
 const ALPHANUMERIC = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
@@ -18,11 +19,14 @@ function secureString(length: number, alphabet: string): string {
   return result.join('');
 }
 
+const LENGTH_CHOICES = ['8', '12', '16', '20', '24', '32', '48', '64', '128'].map((value) => ({ value, label: `${value} 位` }));
+const COUNT_CHOICES = ['1', '2', '3', '4', '5', '10', '20', '50'].map((value) => ({ value, label: `${value} 个` }));
+
 export const randomPlugin: SpurhPlugin = {
   id: 'spurh.random',
   name: '随机生成',
   description: '安全生成密码、随机字符、UUID 与十六进制',
-  icon: 'Rn',
+  icon: ICONS['spurh.random'],
   version: '0.1.0',
   category: '开发',
   priority: 77,
@@ -33,8 +37,8 @@ export const randomPlugin: SpurhPlugin = {
     { id: 'hex', label: '十六进制', description: '生成十六进制随机值' },
   ],
   options: [
-    { id: 'length', label: '长度', type: 'text', defaultValue: '24', placeholder: '4-512', actions: ['password', 'string', 'hex'] },
-    { id: 'count', label: '数量', type: 'text', defaultValue: '1', placeholder: '1-100' },
+    { id: 'length', label: '长度', type: 'select', defaultValue: '24', actions: ['password', 'string', 'hex'], choices: LENGTH_CHOICES },
+    { id: 'count', label: '数量', type: 'select', defaultValue: '1', choices: COUNT_CHOICES },
   ],
   detect(input) {
     if (/^(random|随机|uuid):/i.test(input.trim())) return { confidence: 0.9, reason: '检测到随机生成指令' };

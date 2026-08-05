@@ -1,3 +1,4 @@
+import { TOOL_ICONS as ICONS } from '../../icons';
 import type { SpurhPlugin } from '../types';
 
 function encodeBase64(input: string): string {
@@ -27,7 +28,7 @@ export const encoderPlugin: SpurhPlugin = {
   id: 'spurh.encoder',
   name: '编码转换',
   description: 'Base64、URL、Hex 编解码与 SHA 摘要计算',
-  icon: '⇄',
+  icon: ICONS['spurh.encoder'],
   version: '0.1.0',
   category: '编码',
   priority: 65,

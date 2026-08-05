@@ -1,4 +1,10 @@
+import { TOOL_ICONS as ICONS } from '../../icons';
 import type { PluginResult, SpurhPlugin } from '../types';
+
+export function localDatetimeValue(date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
+}
 
 function parseTimestamp(input: string, unit: string): Date {
   const number = Number(input.trim());
@@ -23,16 +29,15 @@ function toResult(date: Date, actionId: string): PluginResult {
 }
 
 export const timestampPlugin: SpurhPlugin = {
-  id: 'spurh.timestamp', name: '时间戳转换', description: 'Unix 时间戳 ↔ 日期时间 双向转换', icon: 'T', version:'0.1.0', category:'开发', priority:92,
+  id: 'spurh.timestamp', name: '时间戳转换', description: 'Unix 时间戳 ↔ 日期时间 双向转换', icon: ICONS['spurh.timestamp'], version:'0.1.0', category:'开发', priority:92,
   actions: [
     { id: 'now', label: '当前时间', description: '显示此刻的时间和对应时间戳' },
     { id: 'to-date', label: '时间戳→日期', description: '输入秒/毫秒时间戳转为日期' },
-    { id: 'to-unix', label: '日期→时间戳', description: '输入日期时间转为 Unix 时间戳' },
+    { id: 'to-unix', label: '日期→时间戳', description: '选择日期时间转为 Unix 时间戳' },
   ],
   options: [
     { id: 'unit', label: '单位', type:'select', defaultValue:'auto', actions:['to-date'], choices:[{value:'auto',label:'自动'},{value:'seconds',label:'秒'},{value:'milliseconds',label:'毫秒'}] },
-    { id: 'pickDate', label: '日期', type:'text', defaultValue:'', placeholder:'2026-07-30', actions:['to-unix'] },
-    { id: 'pickTime', label: '时间', type:'text', defaultValue:'', placeholder:'14:30', actions:['to-unix'] },
+    { id: 'pickDateTime', label: '日期时间', type:'datetime', defaultValue: localDatetimeValue(), actions:['to-unix'], placeholder:'选择时间（默认当前时间）' },
   ],
   detect(input) {
     const v = input.trim();
@@ -44,12 +49,8 @@ export const timestampPlugin: SpurhPlugin = {
   execute(actionId, input, options = {}): PluginResult {
     if (actionId === 'now') return toResult(new Date(), actionId);
     if (actionId === 'to-unix') {
-      const d = options.pickDate?.trim() || '';
-      const t = options.pickTime?.trim() || '';
-      let dateStr = d;
-      if (t) dateStr += `T${t}`;
-      if (!dateStr && input.trim()) dateStr = input.trim();
-      if (!dateStr) return toResult(new Date(), 'now');
+      const raw = (options.pickDateTime ?? '').trim();
+      const dateStr = raw ? raw.replace('T', ' ') : (input.trim() || localDatetimeValue().replace('T', ' '));
       const date = new Date(dateStr);
       if (Number.isNaN(date.getTime())) throw new Error(`无法解析日期 "${dateStr}"，请用 YYYY-MM-DD HH:mm 格式`);
       return toResult(date, actionId);

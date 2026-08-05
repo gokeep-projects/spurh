@@ -1,7 +1,20 @@
-use serde::{Deserialize, Serialize};
+﻿use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{process::Command, sync::atomic::{AtomicBool, Ordering}, time::Duration};
+use std::{
+    process::Command,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+        Mutex,
+    },
+    time::Duration,
+};
 use tauri::{Emitter, Manager};
+
+mod clipboard;
+mod net;
+mod sql;
+mod ssh;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,7 +41,39 @@ struct AiStreamEvent {
     delta: String,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HotkeyEvent {
+    kind: String,
+    index: Option<usize>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OpenTarget {
+    path: String,
+    is_dir: bool,
+}
+
 struct TrayState(AtomicBool);
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HotkeyStatus {
+    key: String,
+    ok: bool,
+    error: Option<String>,
+}
+
+/// Tracks hotkeys registered from the frontend settings so they can be replaced.
+#[derive(Default)]
+struct HotkeyRegistry {
+    dispatch: Mutex<Option<String>>,
+    tools: Mutex<Vec<String>>,
+}
+
+/// Path passed in via the Explorer context menu before the webview is ready.
+struct PendingOpen(Mutex<Option<(String, bool)>>);
 
 #[cfg(target_os = "windows")]
 fn reg_command() -> Command {
@@ -277,33 +322,41 @@ fn get_autostart() -> bool {
 
 #[cfg(target_os = "windows")]
 fn register_context_menu(app_path: &str) -> Result<(), String> {
-    let icon_path = app_path.replace('\\', "\\\\");
-    let command = format!("\"{}\" \"--open\" \"%1\"", app_path.replace('\\', "\\\\"));
+    let escaped = app_path.replace('\\', "\\\\");
+    let file_command = format!("\"{}\" \"--open\" \"%1\"", escaped);
+    let dir_command = format!("\"{}\" \"--open-dir\" \"%1\"", escaped);
 
-    reg_command()
-        .args(["add", r"HKCU\Software\Classes\*\shell\Spurh", "/ve", "/t", "REG_SZ", "/d", "用 Spurh 打开", "/f"])
-        .status()
-        .map_err(|e| format!("注册右键菜单失败：{e}"))?;
-
-    reg_command()
-        .args(["add", r"HKCU\Software\Classes\*\shell\Spurh", "/v", "Icon", "/t", "REG_SZ", "/d", &icon_path, "/f"])
-        .status()
-        .map_err(|e| format!("注册右键图标失败：{e}"))?;
-
-    reg_command()
-        .args(["add", r"HKCU\Software\Classes\*\shell\Spurh\command", "/ve", "/t", "REG_SZ", "/d", &command, "/f"])
-        .status()
-        .map_err(|e| format!("注册右键命令失败：{e}"))?;
-
+    for (key, command) in [
+        (r"HKCU\Software\Classes\*\shell\Spurh", file_command),
+        (r"HKCU\Software\Classes\Directory\shell\Spurh", dir_command),
+    ] {
+        reg_command()
+            .args(["add", key, "/ve", "/t", "REG_SZ", "/d", "用 Spurh 打开", "/f"])
+            .status()
+            .map_err(|e| format!("注册右键菜单失败：{e}"))?;
+        reg_command()
+            .args(["add", key, "/v", "Icon", "/t", "REG_SZ", "/d", &app_path, "/f"])
+            .status()
+            .map_err(|e| format!("注册右键图标失败：{e}"))?;
+        reg_command()
+            .args(["add", &format!("{key}\\command"), "/ve", "/t", "REG_SZ", "/d", &command, "/f"])
+            .status()
+            .map_err(|e| format!("注册右键命令失败：{e}"))?;
+    }
     Ok(())
 }
 
 #[cfg(target_os = "windows")]
 fn unregister_context_menu() -> Result<(), String> {
-    reg_command()
-        .args(["delete", r"HKCU\Software\Classes\*\shell\Spurh", "/f"])
-        .status()
-        .map_err(|e| format!("移除右键菜单失败：{e}"))?;
+    for key in [
+        r"HKCU\Software\Classes\*\shell\Spurh",
+        r"HKCU\Software\Classes\Directory\shell\Spurh",
+    ] {
+        reg_command()
+            .args(["delete", key, "/f"])
+            .status()
+            .map_err(|e| format!("移除右键菜单失败：{e}"))?;
+    }
     Ok(())
 }
 
@@ -346,17 +399,19 @@ async fn open_file(app: tauri::AppHandle, path: String) -> Result<String, String
     let content = std::fs::read_to_string(&path)
         .map_err(|e| format!("无法读取文件 {}：{e}", path))?;
     if let Some(window) = app.get_webview_window("main") {
-        window.show().map_err(|e| format!("{e}"))?;
-        window.set_focus().map_err(|e| format!("{e}"))?;
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.unminimize();
     }
     Ok(content)
 }
 
+/// Consumes the file/folder passed in through the Explorer context menu.
 #[tauri::command]
-fn read_clipboard() -> Result<String, String> {
-    let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板：{e}"))?;
-    clipboard.get_text().map_err(|e| format!("剪贴板为空或非文本：{e}"))
+fn take_pending_open(state: tauri::State<PendingOpen>) -> Option<OpenTarget> {
+    state.0.lock().unwrap().take().map(|(path, is_dir)| OpenTarget { path, is_dir })
 }
+
 
 #[tauri::command]
 fn set_tray_enabled(app: tauri::AppHandle, state: tauri::State<TrayState>, enabled: bool) -> Result<bool, String> {
@@ -410,44 +465,183 @@ fn set_tray_enabled(app: tauri::AppHandle, state: tauri::State<TrayState>, enabl
     Ok(enabled)
 }
 
+#[cfg(desktop)]
+fn show_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.unminimize();
+    }
+}
+
+#[cfg(desktop)]
+fn emit_hotkey(app: &tauri::AppHandle, kind: &str, index: Option<usize>) {
+    let _ = app.emit("spurh:hotkey", HotkeyEvent { kind: kind.to_string(), index });
+}
+
+/// Applies global hotkeys from settings. Tool hotkeys are registered at OS level
+/// and delivered to the frontend as `spurh:hotkey` events.
+#[tauri::command]
+async fn apply_hotkeys(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, HotkeyRegistry>,
+    dispatch: Option<String>,
+    tools: Vec<String>,
+) -> Result<Vec<HotkeyStatus>, String> {
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+
+    let global = app.global_shortcut();
+    let mut results: Vec<HotkeyStatus> = Vec::new();
+
+    {
+        let mut prev = state.dispatch.lock().unwrap();
+        if let Some(raw) = dispatch {
+            let trimmed = raw.trim().to_string();
+            if trimmed.is_empty() || trimmed == "off" {
+                // 禁用：注销旧自定义键
+                if let Some(old) = prev.take() {
+                    if let Ok(old) = old.parse::<Shortcut>() {
+                        let _ = global.unregister(old);
+                    }
+                }
+            } else {
+                // 无论注册是否成功，先注销旧自定义键（prev 只存自定义键，不会误伤内置 toggle）
+                if let Some(old) = prev.take() {
+                    if let Ok(old) = old.parse::<Shortcut>() {
+                        let _ = global.unregister(old);
+                    }
+                }
+                if trimmed == "ctrl+shift+space" {
+                    // 内置 toggle 由 setup 管理，不写入 registry
+                    results.push(HotkeyStatus { key: trimmed.clone(), ok: true, error: None });
+                } else {
+                    match trimmed.parse::<Shortcut>() {
+                        Err(e) => results.push(HotkeyStatus { key: trimmed.clone(), ok: false, error: Some(format!("无法解析：{e}")) }),
+                        Ok(shortcut) => {
+                            // 拒绝无修饰键的组合（防御旧 localStorage 数据或直接调用）
+                            if shortcut.mods.is_empty() {
+                                results.push(HotkeyStatus { key: trimmed.clone(), ok: false, error: Some("缺少修饰键（Ctrl/Alt/Shift/Win）".into()) });
+                            } else {
+                                // 可能被其它已注册键占用（如工具键）：先注销再注册
+                                if global.is_registered(shortcut) {
+                                    let _ = global.unregister(shortcut);
+                                }
+                                match global.on_shortcut(shortcut, move |app, _s, event| {
+                                    if event.state == ShortcutState::Pressed {
+                                        show_main_window(app);
+                                        emit_hotkey(app, "dispatch", None);
+                                    }
+                                }) {
+                                    Ok(_) => {
+                                        results.push(HotkeyStatus { key: trimmed.clone(), ok: true, error: None });
+                                        *prev = Some(trimmed.clone());
+                                        // 与工具键重叠时从 tools registry 剔除，避免后续全量注销误删刚注册的 dispatch 键
+                                        state.tools.lock().unwrap().retain(|t| t != &trimmed);
+                                    }
+                                    Err(e) => results.push(HotkeyStatus { key: trimmed.clone(), ok: false, error: Some(format!("注册失败：{e}")) }),
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    {
+        let mut prev = state.tools.lock().unwrap();
+        for old in prev.iter() {
+            if let Ok(shortcut) = old.parse::<Shortcut>() {
+                let _ = global.unregister(shortcut);
+            }
+        }
+        prev.clear();
+        for (index, raw) in tools.iter().enumerate() {
+            let trimmed = raw.trim().to_string();
+            if trimmed.is_empty() || trimmed == "off" {
+                continue;
+            }
+            let shortcut = match trimmed.parse::<Shortcut>() {
+                Ok(s) => s,
+                Err(e) => {
+                    results.push(HotkeyStatus { key: format!("工具{} {trimmed}", index + 1), ok: false, error: Some(format!("无法解析：{e}")) });
+                    continue;
+                }
+            };
+            if shortcut.mods.is_empty() {
+                results.push(HotkeyStatus { key: format!("工具{} {trimmed}", index + 1), ok: false, error: Some("缺少修饰键（Ctrl/Alt/Shift/Win）".into()) });
+                continue;
+            }
+            if global.is_registered(shortcut) {
+                results.push(HotkeyStatus {
+                    key: format!("工具{} {trimmed}", index + 1),
+                    ok: false,
+                    error: Some("与其它已注册的快捷键重复（应用内）".into()),
+                });
+                continue; // reserved by the built-in window toggle or dispatch hotkey
+            }
+            match global.on_shortcut(shortcut, move |app, _s, event| {
+                if event.state == ShortcutState::Pressed {
+                    emit_hotkey(app, "tool", Some(index));
+                }
+            }) {
+                Ok(_) => {
+                    results.push(HotkeyStatus { key: format!("工具{} {trimmed}", index + 1), ok: true, error: None });
+                    prev.push(trimmed);
+                }
+                Err(e) => results.push(HotkeyStatus { key: format!("工具{} {trimmed}", index + 1), ok: false, error: Some(format!("注册失败：{e}")) }),
+            }
+        }
+    }
+    Ok(results)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run(cli_args: Vec<String>) {
     let mut open_file_path: Option<String> = None;
+    let mut open_dir_path: Option<String> = None;
     let mut args = cli_args.iter();
     while let Some(arg) = args.next() {
         if arg == "--open" {
             open_file_path = args.next().cloned();
+        } else if arg == "--open-dir" {
+            open_dir_path = args.next().cloned();
         }
     }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(TrayState(AtomicBool::new(false)))
+        .manage(HotkeyRegistry::default())
+        .manage(PendingOpen(Mutex::new(None)))
+        .manage(Arc::new(clipboard::ClipboardHistory::default()))
+        .manage(ssh::SshSessions::default())
         .setup(move |app| {
-            use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState, Modifiers, Code};
-            let ctrl_shift_space = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
-            match app.global_shortcut().register(ctrl_shift_space) {
+            use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+            // 剪贴板历史：独立线程轮询，文本变化时记录并推送事件。
+            let history = app.state::<Arc<clipboard::ClipboardHistory>>().inner().clone();
+            clipboard::start_watcher(app.handle().clone(), history);
+
+            // Always available: show the window from anywhere.
+            let toggle = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
+            match app.global_shortcut().register(toggle) {
                 Ok(_) => {
-                    app.global_shortcut().on_shortcut(move |_app, shortcut, event| {
-                        if shortcut == &ctrl_shift_space && event.state == ShortcutState::Pressed {
-                            if let Some(window) = _app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
+                    let _ = app.global_shortcut().on_shortcut(toggle, move |app, _s, event| {
+                        if event.state == ShortcutState::Pressed {
+                            show_main_window(app);
+                            emit_hotkey(app, "dispatch", None);
                         }
                     });
                 }
                 Err(e) => eprintln!("Failed to register global shortcut: {e}"),
             }
-            if let Some(path) = open_file_path {
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.eval(&format!(
-                            "window.__spurhOpenFile&&window.__spurhOpenFile({})",
-                            serde_json::to_string(&json!({ "path": path, "content": content })).unwrap_or_default()
-                        ));
-                    }
-                }
+
+            // Explorer context menu launch: remember the target, show the window.
+            let pending = open_file_path.map(|path| (path, false)).or_else(|| open_dir_path.map(|path| (path, true)));
+            if let Some((path, is_dir)) = pending {
+                *app.state::<PendingOpen>().0.lock().unwrap() = Some((path, is_dir));
+                show_main_window(app.handle());
             }
             Ok(())
         })
@@ -469,8 +663,38 @@ pub fn run(cli_args: Vec<String>) {
             set_context_menu_enabled,
             get_context_menu_enabled,
             open_file,
-            read_clipboard
+            take_pending_open,
+            clipboard::read_clipboard,
+            clipboard::clipboard_write_text,
+            clipboard::clipboard_history,
+            clipboard::clipboard_clear_history,
+            sql::sql_test,
+sql::sql_disconnect,
+            sql::sql_execute,
+            sql::sql_databases,
+            sql::sql_tables,
+            sql::sql_table_columns,
+            sql::sql_table_rows,
+            sql::sql_update_row,
+            sql::sql_insert_row,
+            sql::sql_delete_rows,
+            sql::sql_table_ddl,
+sql::sql_create_table,
+sql::sql_alter_table,
+            net::net_port_scan,
+            net::net_dns_lookup,
+            net::net_ip_geo,
+            ssh::ssh_connect,
+            ssh::ssh_write,
+            ssh::ssh_resize,
+            ssh::ssh_close,
+            apply_hotkeys
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Spurh");
+        .build(tauri::generate_context!())
+        .expect("error while building Spurh")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                ssh::close_all(&app.state::<ssh::SshSessions>());
+            }
+        });
 }

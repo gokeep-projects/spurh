@@ -33,6 +33,8 @@ export const AI_PRESETS: Record<string, Omit<AiConfig, 'apiKey'>> = {
   openai: { provider: 'openai', endpoint: 'https://api.openai.com/v1', model: 'gpt-5.6-terra' },
   deepseek: { provider: 'deepseek', endpoint: 'https://api.deepseek.com', model: 'deepseek-v4-flash' },
   qwen: { provider: 'qwen', endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen3.7-plus' },
+  anthropic: { provider: 'anthropic', endpoint: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-5' },
+  gemini: { provider: 'gemini', endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash' },
   ollama: { provider: 'ollama', endpoint: 'http://localhost:11434/v1', model: '' },
   custom: { provider: 'custom', endpoint: '', model: '' },
 };

@@ -1,3 +1,4 @@
+import { TOOL_ICONS as ICONS } from '../../icons';
 import type { PluginResult, SpurhPlugin } from '../types';
 
 function countWords(input: string): number {
@@ -33,7 +34,7 @@ export const textPlugin: SpurhPlugin = {
   id: 'spurh.text',
   name: '文本处理',
   description: '统计、换行、清理与特殊字符处理',
-  icon: 'Aa',
+  icon: ICONS['spurh.text'],
   version: '0.1.0',
   category: '数据',
   priority: 78,

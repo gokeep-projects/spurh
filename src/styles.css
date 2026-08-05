@@ -26,6 +26,8 @@ button { color: inherit; }
   --accent-soft: rgba(94, 232, 165, .09);
   --blue: #5ec8f0;
   --danger: #f5637a;
+  --warn: #e3b25e;
+  --warn-soft: rgba(227, 178, 94, .12);
   --radius: 10px;
   --transition: .18s ease;
   width: 100%;
@@ -51,6 +53,8 @@ button { color: inherit; }
   --accent-soft: rgba(8, 120, 75, .09);
   --blue: #087894;
   --danger: #c63249;
+  --warn: #96680f;
+  --warn-soft: rgba(150, 104, 15, .12);
 }
 
 .app-bar {
@@ -69,25 +73,24 @@ button { color: inherit; }
 .app-bar .app-actions { flex: 0 0 auto; }
 
 .brand { height: 38px; display: flex; align-items: center; gap: 10px; padding: 0 7px; cursor: pointer; border: 0; background: transparent; }
-.brand-mark { position: relative; width: 23px; height: 27px; }
-.brand-mark i { position: absolute; width: 6px; border-radius: 6px; transform: rotate(-9deg); background: linear-gradient(180deg, var(--accent), var(--blue)); }
-.brand-mark i:first-child { left: 5px; top: 1px; height: 24px; }
-.brand-mark i:last-child { left: 14px; top: 9px; height: 16px; opacity: .7; }
+.brand-mark { position: relative; width: 24px; height: 27px; display: grid; place-items: center; }
+.brand-mark svg { width: 23px; height: 23px; }
 .brand b { font-size: 16px; letter-spacing: -.4px; }
-.brand small { padding: 2px 5px; color: var(--muted); font: 500 8px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 4px; }
 
 .dispatcher { position: relative; height: 38px; display: flex; align-items: center; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel); box-shadow: 0 4px 16px rgba(0,0,0,.12); }
 .dispatcher:focus-within { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-.dispatcher-spark { margin: 0 10px 0 12px; color: var(--accent); font-size: 11px; }
+.dispatcher-spark { margin: 0 10px 0 12px; color: var(--accent); font-size: 11px; display: inline-flex; }
+.dispatcher-spark svg { width: 13px; height: 13px; }
 .dispatcher input { min-width: 0; flex: 1; height: 100%; padding: 0; color: var(--text); font-size: 13px; border: 0; outline: 0; background: transparent; }
 .dispatcher input::placeholder { color: var(--muted-2); }
 kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 7px; color: var(--muted); font: 500 8px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); }
 .tool-kbd { margin: 0 0 0 auto; padding: 2px 4px; color: var(--muted-2); font: 500 6px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 3px; background: transparent; flex-shrink: 0; }
-.dispatch-matches { position: absolute; z-index: 10; left: 0; right: 0; top: 45px; display: flex; flex-direction: column; gap: 2px; padding: 4px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2); box-shadow: 0 14px 40px rgba(0,0,0,.32); max-height: 280px; overflow-y: auto; }
+.dispatch-matches { position: absolute; z-index: 10; left: 0; right: 0; top: 45px; display: flex; flex-direction: column; gap: 2px; padding: 4px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2); box-shadow: 0 14px 40px rgba(0,0,0,.32); max-height: min(300px, calc(100vh - 150px)); overflow-y: auto; }
 .dispatch-matches button { height: 42px; display: flex; align-items: center; gap: 9px; padding: 0 10px; cursor: pointer; text-align: left; color: var(--text); border: 1px solid transparent; border-radius: 6px; background: transparent; font-size: 11px; }
 .dispatch-matches button:hover, .dispatch-matches button.active { border-color: var(--line); background: var(--hover); }
-.dispatch-matches button > span { width: 27px; height: 27px; display: grid; place-items: center; color: var(--accent); font: 600 8px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 6px; }
-.dispatch-matches button b { font-size: 12px; }
+.dispatch-matches button > span, .dispatch-matches .match-icon { width: 27px; height: 27px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); font: 600 8px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 6px; }
+.dispatch-matches .match-icon svg { width: 15px; height: 15px; }
+.dispatch-matches button b { flex: 1; min-width: 0; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .dispatch-matches button small { padding: 2px 5px; color: var(--accent); font-size: 8px; border-radius: 4px; background: var(--accent-soft); }
 .dispatch-matches button i { margin-left: auto; color: var(--accent); font-size: 12px; font-style: normal; }
 .dispatch-header { padding: 8px 12px; color: var(--muted); font-size: 10px; border-bottom: 1px solid var(--line); }
@@ -131,11 +134,12 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 7px; color: var(--muted); 
 
 .workspace { min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 0 20px 14px; overflow: hidden; background: radial-gradient(circle at 100% 0, rgba(94,200,240,.02), transparent 35%), radial-gradient(circle at 0% 100%, rgba(94,232,165,.015), transparent 30%), var(--bg); }
 .tool-header { height: 82px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; }
-.tool-identity { display: flex; align-items: center; gap: 11px; }
+.tool-identity { min-width: 0; display: flex; align-items: center; gap: 11px; }
+.tool-identity > div { min-width: 0; }
 .tool-identity > div > div { display: flex; align-items: center; gap: 8px; }
-.tool-identity h1 { margin: 0; font-size: 20px; letter-spacing: -.4px; }
+.tool-identity h1 { margin: 0; overflow: hidden; font-size: 20px; letter-spacing: -.4px; text-overflow: ellipsis; white-space: nowrap; }
 .tool-identity em { padding: 2px 6px; color: var(--muted); font-size: 9px; font-style: normal; border: 1px solid var(--line); border-radius: 4px; }
-.tool-identity p { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
+.tool-identity p { margin: 4px 0 0; overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .auto-state { display: flex; align-items: center; gap: 7px; padding: 7px 10px; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .auto-state.error { color: var(--danger); }
 .auto-state.error i { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
@@ -219,12 +223,50 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 7px; color: var(--muted); 
 .result-meta b { font: 500 8px 'Cascadia Code', monospace; }
 
 .status-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; color: var(--muted); font: 500 8px 'Cascadia Code', monospace; border-top: 1px solid var(--line); background: var(--sidebar); }
+.palette-backdrop { position: fixed; z-index: 45; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding: 12vh 20px 20px; background: rgba(2, 4, 6, .55); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); animation: fade-in .14s ease-out; }
+.palette { width: min(560px, 100%); overflow: hidden; border: 1px solid var(--line-2); border-radius: 14px; background: color-mix(in srgb, var(--panel-2) 92%, transparent); box-shadow: 0 34px 110px rgba(0,0,0,.6); animation: palette-in .18s cubic-bezier(.2,.9,.3,1.2); }
+@keyframes palette-in { from { opacity: 0; transform: translateY(-10px) scale(.98); } }
+.clip-overlay { width: min(640px, 100%); overflow: hidden; border: 1px solid var(--line-2); border-radius: 14px; background: color-mix(in srgb, var(--panel-2) 92%, transparent); box-shadow: 0 34px 110px rgba(0,0,0,.6); animation: palette-in .18s cubic-bezier(.2,.9,.3,1.2); }
+.clip-overlay-results { max-height: min(480px, calc(100vh - 200px)); display: flex; flex-direction: column; gap: 2px; padding: 6px; overflow-y: auto; }
+.clip-overlay-results button { min-height: 46px; display: flex; align-items: center; gap: 10px; padding: 7px 10px; cursor: pointer; text-align: left; color: var(--text); border: 1px solid transparent; border-radius: 8px; background: transparent; }
+.clip-overlay-results button:hover { background: var(--hover); }
+.clip-overlay-results button.active { border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); background: var(--accent-soft); }
+.clip-overlay-icon { width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+.clip-overlay-icon svg { width: 14px; height: 14px; }
+.clip-overlay-results code { min-width: 0; flex: 1; overflow: hidden; font: 500 11.5px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
+.clip-overlay-results small { flex: 0 0 auto; color: var(--muted); font: 500 9px 'Cascadia Code', monospace; white-space: nowrap; }
+.clip-overlay-results button i { color: var(--accent); font-size: 12px; font-style: normal; }
+
+.palette-search { display: flex; align-items: center; gap: 10px; padding: 13px 15px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.palette-spark { display: inline-flex; color: var(--accent); }
+.palette-spark svg { width: 15px; height: 15px; }
+.palette-search input { min-width: 0; flex: 1; color: var(--text); font-size: 13px; border: 0; outline: 0; background: transparent; }
+.palette-search input::placeholder { color: var(--muted-2); }
+.palette-search kbd { margin: 0; }
+.palette-results { max-height: min(420px, calc(100vh - 200px)); overflow-y: auto; padding: 6px; }
+.palette-group { display: flex; flex-direction: column; gap: 2px; padding: 5px 0; }
+.palette-group + .palette-group { border-top: 1px solid var(--line); }
+.palette-group-title { padding: 5px 10px 4px; color: var(--muted-2); font: 600 8.5px 'Cascadia Code', monospace; letter-spacing: 1.2px; }
+.palette-group button { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 10px; cursor: pointer; text-align: left; color: var(--text); border: 1px solid transparent; border-radius: 7px; background: transparent; font-size: 11.5px; }
+.palette-group button:hover { background: var(--hover); }
+.palette-group button.active { border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); background: var(--accent-soft); }
+.palette-item-icon { width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+.palette-item-icon svg { width: 15px; height: 15px; }
+.palette-group button b { min-width: 0; overflow: hidden; font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.palette-group button small { min-width: 0; flex: 1; overflow: hidden; color: var(--muted); font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
+.palette-group button i { color: var(--accent); font-size: 12px; font-style: normal; }
+.palette-empty { padding: 30px 14px; color: var(--muted); font-size: 11px; text-align: center; }
+.palette-footer { display: flex; gap: 14px; padding: 8px 14px; color: var(--muted-2); font-size: 9px; border-top: 1px solid var(--line); background: var(--panel); }
+.palette-footer span { display: flex; align-items: center; gap: 4px; }
+.palette-footer kbd { margin: 0; padding: 2px 5px; font-size: 7.5px; }
+
 .modal-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(2, 4, 6, .72); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); animation: fade-in .16s ease-out; }
 @keyframes fade-in { from { opacity: 0; } }
 .ai-modal { width: min(540px, 100%); overflow: hidden; border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel-2); box-shadow: 0 30px 100px rgba(0,0,0,.55); animation: modal-in .2s ease-out; }
 @keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(.985); } }
 .ai-modal > header { display: flex; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
 .modal-icon { width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line)); border-radius: 9px; background: var(--accent-soft); }
+.modal-icon svg { width: 19px; height: 19px; }
 .ai-modal header > div:nth-child(2) { min-width: 0; flex: 1; }
 .ai-modal h2 { margin: 0; font-size: 16px; }
 .ai-modal header p { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
@@ -254,9 +296,6 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 7px; color: var(--muted); 
   .app-body { grid-template-columns: 180px minmax(0, 1fr); }
   .workspace { padding-inline: 10px; }
   .tool-name small { display: none; }
-  .editor-grid { grid-template-columns: 1fr; overflow-y: auto; }
-  .editor-pane { min-height: 280px; }
-  .editor-pane + .editor-pane { border-left: 0; border-top: 1px solid var(--line); }
 }
 
 .model-switcher { min-width: 0; max-width: 260px; height: 36px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); flex-shrink: 0; }
@@ -272,7 +311,6 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 7px; color: var(--muted); 
 .profile-list b, .profile-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.profile-list b { font-size: 10px; }.profile-list small { font-size: 8px; }
 .profile-list > button > i { padding: 2px 4px; color: var(--accent); font-size: 7px; font-style: normal; white-space: nowrap; border-radius: 4px; background: var(--panel-2); }
 .profile-list > p { margin: 0; color: var(--muted); font-size: 10px; }
-.settings-ai-actions .delete-model { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 24%, var(--line)); }
 .settings-ai-actions .control-spacer { flex: 1; }
 
 .context-menu { position: fixed; z-index: 100; width: 180px; display: flex; flex-direction: column; gap: 2px; padding: 6px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2); box-shadow: 0 15px 45px rgba(0,0,0,.28); animation: fade-in .1s ease-out; }
@@ -302,7 +340,7 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 7px; color: var(--muted); 
 
 @media (max-width: 850px) {
   .app-bar { grid-template-columns: 135px minmax(230px, 1fr) auto; }
-  .brand small, .model-switcher { display: none; }
+  .model-switcher { display: none; }
   .app-body { grid-template-columns: 185px minmax(0, 1fr); }
   .tool-name small, .tool-identity p { display: none; }
   .tool-list button { min-height: 49px; }
@@ -376,7 +414,8 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 7px; color: var(--muted); 
 .settings-header > div:nth-child(2) { min-width: 0; flex: 1; }
 .settings-header h2 { margin: 0; font-size: 18px; }
 .settings-header p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
-.settings-header > button { width: 32px; height: 32px; cursor: pointer; color: var(--muted); font-size: 21px; border: 0; border-radius: 7px; background: transparent; }
+.settings-header > button { width: 32px; height: 32px; display: grid; place-items: center; cursor: pointer; color: var(--muted); font-size: 21px; border: 0; border-radius: 7px; background: transparent; }
+.settings-header > button svg { width: 16px; height: 16px; }
 .settings-header > button:hover { color: var(--text); background: var(--hover); }
 .settings-layout { min-height: 0; display: grid; grid-template-columns: 190px minmax(0, 1fr); }
 .settings-nav { display: flex; flex-direction: column; gap: 5px; padding: 14px 10px; border-right: 1px solid var(--line); background: var(--panel); }
@@ -384,6 +423,7 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 7px; color: var(--muted); 
 .settings-nav button:hover { background: var(--hover); }
 .settings-nav button.active { color: var(--text); border-color: var(--line); background: var(--panel-2); box-shadow: inset 2px 0 var(--accent); }
 .settings-nav button > span { width: 25px; height: 25px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); font-size: 11px; border: 1px solid var(--line); border-radius: 6px; }
+.settings-nav button > span svg { width: 14px; height: 14px; }
 .settings-nav button > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .settings-nav b { font-size: 12px; }.settings-nav small { font-size: 9px; }
 .settings-content { min-height: 0; overflow-y: auto; padding: 21px 23px; }
@@ -394,7 +434,8 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 7px; color: var(--muted); 
 .setting-copy { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .setting-copy b { font-size: 12px; }.setting-copy small { color: var(--muted); font-size: 10px; }
 .theme-choice { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
-.theme-choice button { height: 29px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 10px; border: 0; border-radius: 5px; background: transparent; }
+.theme-choice button { height: 29px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 10px; border: 0; border-radius: 5px; background: transparent; }
+.theme-choice button svg { width: 13px; height: 13px; }
 .theme-choice button.active { color: var(--text); background: var(--panel-2); box-shadow: 0 1px 5px rgba(0,0,0,.12); }
 .setting-row { cursor: pointer; }
 .setting-row input { position: absolute; opacity: 0; pointer-events: none; }
@@ -424,7 +465,7 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 7px; color: var(--muted); 
 .settings-ai-actions button:disabled { cursor: default; opacity: .4; }
 .settings-ai-actions .save-button { color: #07130e; font-weight: 700; border-color: transparent; background: var(--accent); }
 .about-hero { display: flex; align-items: center; gap: 14px; padding: 18px; border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line)); border-radius: 11px; background: linear-gradient(135deg, var(--accent-soft), transparent); }
-.brand-mark.large { width: 35px; height: 41px; }.brand-mark.large i:first-child { height: 38px; }.brand-mark.large i:last-child { top: 13px; height: 25px; }
+.brand-mark.large { width: 46px; height: 46px; }
 .about-hero > div { min-width: 0; flex: 1; }.about-hero h3 { margin: 0; font-size: 23px; }.about-hero p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
 .about-hero > b { padding: 5px 8px; color: var(--accent); font: 600 10px 'Cascadia Code', monospace; border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line)); border-radius: 6px; }
 .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
@@ -532,12 +573,139 @@ textarea::-webkit-scrollbar-thumb:hover, pre::-webkit-scrollbar-thumb:hover {
 .hk-input:focus { border-color: var(--accent); }
 .hk-save { height: 30px; padding: 0 10px; cursor: pointer; color: #07130e; font-size: 10px; font-weight: 700; border: 0; border-radius: 5px; background: var(--accent); }
 
-.shortcut-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
-.shortcut-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
-.shortcut-row kbd { margin: 0; min-width: 80px; text-align: center; }
-.shortcut-row span { color: var(--text); font-size: 12px; }
+.shortcut-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.shortcut-row { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); transition: border-color var(--transition), background var(--transition); }
+.shortcut-row.recording { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: var(--accent-soft); }
+.shortcut-name { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.shortcut-name b { font-size: 12px; }
+.shortcut-name small { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 
 .provider-badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; font: 700 11px system-ui, sans-serif; color: #fff; border-radius: 6px; flex-shrink: 0; background: var(--accent); }
 .provider-badge.small { width: 22px; height: 22px; font-size: 10px; border-radius: 5px; }
 .model-switcher .provider-badge { margin-right: 4px; }
 .dispatch-match.no-match { display: none; }
+
+/* ---- provider 品牌图标（真实 SVG） ---- */
+.provider-logo { flex: 0 0 auto; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
+.provider-logo svg { width: 100%; height: 100%; display: block; }
+.provider-logo.small { width: 22px; height: 22px; }
+.model-switcher .provider-logo { width: 18px; height: 18px; }
+
+/* ---- 切换器内的 AI 处理指示器 ---- */
+.ai-spin { flex: 0 0 auto; width: 12px; height: 12px; border: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); border-top-color: var(--accent); border-radius: 50%; animation: ai-spin-rotate .7s linear infinite; }
+@keyframes ai-spin-rotate { to { transform: rotate(360deg); } }
+
+/* ---- 全局快捷键录制 ---- */
+.shortcut-row .tool-icon.small { width: 28px; height: 28px; font-size: 10px; color: var(--accent); }
+.shortcut-row .tool-icon.small svg { width: 15px; height: 15px; }
+.hk-record { flex: 0 0 auto; min-width: 140px; height: 30px; padding: 0 10px; cursor: pointer; color: var(--text); font: 600 11px 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); transition: border-color var(--transition), color var(--transition), background var(--transition); }
+.hk-record:hover { border-color: var(--accent); }
+.hk-record.recording { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); animation: hk-blink 1.1s ease-in-out infinite; }
+.hk-cancel { height: 30px; padding: 0 10px; cursor: pointer; color: var(--danger); font-size: 10px; border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--line)); border-radius: 6px; background: transparent; transition: background var(--transition); }
+.hk-cancel:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); }
+/* 快捷键行开关（switch） */
+.hk-switch { position: relative; flex: 0 0 auto; width: 36px; height: 20px; cursor: pointer; }
+.hk-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.hk-switch i { position: absolute; inset: 0; border-radius: 11px; background: var(--line-2); transition: .18s; }
+.hk-switch i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: .18s; }
+.hk-switch input:checked + i { background: var(--accent); }
+.hk-switch input:checked + i::after { transform: translateX(16px); }
+.hk-switch:hover i { opacity: .85; }
+@keyframes hk-blink { 50% { opacity: .55; } }
+/* ── v0.2 优化：图标尺寸 / 溢出修复 / 响应式 ── */
+.tool-icon svg { width: 17px; height: 17px; }
+.tool-icon.large svg { width: 22px; height: 22px; }
+.icon-fallback { font: 600 9px 'Cascadia Code', Consolas, monospace; }
+.brand-mark.large svg { width: 42px; height: 42px; }
+.settings-button span { display: inline-flex; }
+.settings-button span svg { width: 15px; height: 15px; }
+.ai-button span { display: inline-flex; }
+.ai-button span svg { width: 12px; height: 12px; }
+.ai-loading-title > i { display: inline-flex; }
+.ai-loading-title > i svg { width: 15px; height: 15px; }
+.error-box > span { display: inline-flex; }
+.error-box > span svg { width: 13px; height: 13px; }
+.file-notice span { display: inline-flex; }
+.file-notice span svg { width: 15px; height: 15px; }
+.settings-section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.settings-section-title small { color: var(--muted); font-size: 10px; }
+.settings-section-title.model-title { align-items: center; }
+.model-title button { height: 28px; display: inline-flex; align-items: center; gap: 5px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: 11px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 6px; background: var(--accent-soft); }
+.model-title button svg { width: 12px; height: 12px; }
+.config-fields .model-field button { height: 36px; display: inline-flex; align-items: center; gap: 5px; padding: 0 11px; cursor: pointer; color: var(--text); font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); }
+.config-fields .model-field button svg { width: 12px; height: 12px; }
+.provider-list button .provider-logo { width: 16px; height: 16px; }
+.provider-list button .provider-logo svg { width: 100%; height: 100%; }
+.profile-list > button > .provider-logo { width: 26px; height: 26px; }
+.profile-list > button > .provider-logo svg { width: 100%; height: 100%; }
+
+/* 工具栏按钮固定右侧，不被动作/选项挤压 */
+.tool-controls .ai-button { margin-left: auto; flex-shrink: 0; }
+.tool-controls .quiet-button { flex-shrink: 0; }
+
+/* 结果 meta 条不挤压编辑区 */
+.result-meta { scrollbar-width: thin; }
+
+/* 窄窗口：编辑区单栏堆叠，避免内容被截断 */
+@media (max-width: 980px) {
+  .editor-grid { grid-template-columns: 1fr; overflow-y: auto; }
+  .editor-pane + .editor-pane { border-left: 0; border-top: 1px solid var(--line); }
+  .editor-pane { grid-template-rows: 38px minmax(0, 1fr); min-height: 280px; }
+  .app-body { grid-template-columns: 210px minmax(0, 1fr); }
+  .tool-controls { padding: 7px 8px; }
+}
+@media (max-width: 720px) {
+  .app-bar .dispatcher > kbd { display: none; }
+}
+.tool-search > span { display: inline-flex; }
+.tool-search > span svg { width: 13px; height: 13px; }
+.ai-spark { display: inline-flex; }
+.ai-spark svg { width: 12px; height: 12px; }
+.error-box button .btn-ai { display: inline-flex; vertical-align: -2px; margin-right: 4px; }
+.error-box button .btn-ai svg { width: 11px; height: 11px; }
+.settings-notice > span { display: inline-flex; }
+.settings-notice > span svg { width: 13px; height: 13px; }
+
+/* ── v0.2 第二轮：输入高亮 / 动作换行 / AI 设置 / Cron 紧凑 ── */
+/* 输入区语法高亮：底层 pre 显示高亮文本，上层 textarea 文字透明仅保留光标与选区 */
+.editor-input { position: relative; min-height: 0; overflow: hidden; }
+.editor-input pre.input-hl,
+.editor-input textarea {
+  margin: 0;
+  padding: 12px 14px;
+  font: 450 13px/1.6 'Cascadia Code', Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.editor-input pre.input-hl { min-height: 100%; overflow: hidden; }
+.editor-input textarea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  resize: none;
+}
+.editor-input.hli textarea { color: transparent; caret-color: var(--text); }
+.editor-input.hli textarea::selection { background: color-mix(in srgb, var(--blue) 30%, transparent); }
+.editor-input.hli textarea::placeholder { color: var(--muted-2); }
+
+/* 动作按钮过多时换行显示，不再被截断 */
+.actions { flex-wrap: wrap; max-width: none; max-height: none; overflow: visible; }
+.tool-controls .actions { align-self: center; }
+
+/* AI 设置：服务商按钮不换行、允许折行；配置卡片文字省略 */
+.settings-content .provider-list { flex-wrap: wrap; }
+.settings-content .provider-list button { flex: 1 1 auto; min-width: 88px; white-space: nowrap; }
+.settings-content .provider-list button .provider-logo { flex: 0 0 auto; }
+.profile-list > button > div { min-width: 0; }
+.profile-list > button > div b,
+.profile-list > button > div small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-list > button > div small { color: var(--muted); font-size: 9px; }
+.settings-ai-actions .delete-model { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); }
+.settings-ai-actions .delete-model:hover { background: color-mix(in srgb, var(--danger) 6%, transparent); }
+.settings-ai-actions .delete-model.confirming { color: #fff; border-color: var(--danger); background: var(--danger); animation: hk-blink 1s ease-in-out infinite; }

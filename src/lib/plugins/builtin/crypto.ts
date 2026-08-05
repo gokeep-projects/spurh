@@ -1,3 +1,4 @@
+import { TOOL_ICONS as ICONS } from '../../icons';
 import type { PluginResult, SpurhPlugin } from '../types';
 
 /* ── AES ── */
@@ -126,7 +127,7 @@ export const cryptoPlugin: SpurhPlugin = {
   id: 'spurh.crypto',
   name: '加解密',
   description: 'AES·RSA·JWT·哈希·HMAC — 本地安全工具箱',
-  icon: '🔒',
+  icon: ICONS['spurh.crypto'],
   version: '0.1.0',
   category: '安全',
   priority: 88,

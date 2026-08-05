@@ -1,64 +1,252 @@
 <script lang="ts">
   let { jsonString = '' }: { jsonString?: string } = $props();
-  let parsed: unknown = $derived.by(() => { try { return JSON.parse(jsonString); } catch { return null; } });
+
+  let parsed: unknown = $derived.by(() => {
+    try { return JSON.parse(jsonString); } catch { return null; }
+  });
+  const lineCount = $derived(jsonString.split('\n').length);
+
+  // 折叠状态：节点路径 -> boolean。路径编码：对象 $['key']（含转义），数组 $[0]，保证无歧义
   let collapsed = $state<Set<string>>(new Set());
-  function toggle(path: string) { const n = new Set(collapsed); if (n.has(path)) n.delete(path); else n.add(path); collapsed = n; }
+  // 深层结构（第 3 层起）与超大数组/对象默认折叠，避免大 JSON 一次性全部展开
+  const DEEP_FOLD = 2;
+  const MAX_ARRAY_OPEN = 500;
+  const MAX_OBJECT_OPEN = 300;
+
+  function childPath(path: string, key: string): string {
+    return `${path}['${key.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}']`;
+  }
+  function indexPath(path: string, index: number): string {
+    return `${path}[${index}]`;
+  }
+
+  function isCollapsed(path: string): boolean {
+    return collapsed.has(path);
+  }
+
+  // 首次渲染后把「隐式折叠」的节点物化进 collapsed，保证 toggle 语义一致（点展开真展开）
+  function collectAutoFold(value: unknown, path: string, depth: number, out: Set<string>): void {
+    if (Array.isArray(value)) {
+      if (value.length === 0) return;
+      if (value.length > MAX_ARRAY_OPEN || depth >= DEEP_FOLD) {
+        out.add(path);
+        return;
+      }
+      value.forEach((item, i) => {
+        if (item !== null && typeof item === 'object') collectAutoFold(item, indexPath(path, i), depth + 1, out);
+      });
+    } else if (value !== null && typeof value === 'object') {
+      const entries = Object.entries(value as Record<string, unknown>);
+      if (entries.length === 0) return;
+      if (entries.length > MAX_OBJECT_OPEN || depth >= DEEP_FOLD) {
+        out.add(path);
+        return;
+      }
+      for (const [key, item] of entries) {
+        if (item !== null && typeof item === 'object') collectAutoFold(item, childPath(path, key), depth + 1, out);
+      }
+    }
+  }
+
+  // JSON 变化时重置折叠：深层节点默认折叠；此后用户手动 toggle 的状态不会被覆盖
+  $effect(() => {
+    if (parsed != null) {
+      const next = new Set<string>();
+      collectAutoFold(parsed, '$', 0, next);
+      collapsed = next;
+    }
+  });
+
+  function toggle(path: string): void {
+    const next = new Set(collapsed);
+    if (next.has(path)) next.delete(path); else next.add(path);
+    collapsed = next;
+  }
+
+  function foldAll(): void {
+    collapsed = collectPaths(parsed, '$');
+  }
+
+  function unfoldAll(): void {
+    collapsed = new Set();
+  }
+
+  function collectPaths(value: unknown, path: string): Set<string> {
+    const paths = new Set<string>();
+    if (Array.isArray(value)) {
+      if (value.length === 0) return paths;
+      paths.add(path);
+      value.forEach((item, i) => {
+        if (item !== null && typeof item === 'object') {
+          for (const p of collectPaths(item, indexPath(path, i))) paths.add(p);
+        }
+      });
+    } else if (value !== null && typeof value === 'object') {
+      const entries = Object.entries(value as Record<string, unknown>);
+      if (entries.length === 0) return paths;
+      paths.add(path);
+      for (const [key, item] of entries) {
+        if (item !== null && typeof item === 'object') {
+          for (const p of collectPaths(item, childPath(path, key))) paths.add(p);
+        }
+      }
+    }
+    return paths;
+  }
+
+  let copied = $state(false);
+  async function copyJson(): Promise<void> {
+    try { await navigator.clipboard.writeText(jsonString); copied = true; setTimeout(() => (copied = false), 1200); } catch { /* ignore */ }
+  }
+
+  function previewKeys(value: Record<string, unknown>): string {
+    const keys = Object.keys(value).slice(0, 3);
+    const rest = Object.keys(value).length - keys.length;
+    return keys.map((k) => `"${k}"`).join(', ') + (rest > 0 ? ` … +${rest}` : '');
+  }
+
+  function previewItems(value: unknown[]): string {
+    const head = value.slice(0, 3).map((item) =>
+      typeof item === 'string' ? `"${item.length > 24 ? item.slice(0, 24) + '…' : item}"`
+      : typeof item === 'object' && item !== null ? (Array.isArray(item) ? '[…]' : '{…}')
+      : String(item));
+    const rest = value.length - head.length;
+    return head.join(', ') + (rest > 0 ? ` … +${rest}` : '');
+  }
 </script>
 
-{#snippet node(value: unknown, path: string, depth: number, key?: string, last?: boolean)}
+{#snippet node(value: unknown, path: string, depth: number, key?: string)}
   {#if value === null}
-    <div class="jv-row"><span class="jv-gutter"></span><span class="jv-content" style="padding-left:{depth*16}px">{#if key!=null}<span class="jv-key">"{key}": </span>{/if}<span class="jv-null">null</span></span></div>
+    <div class="jv-row" style="padding-left:{depth * 14}px">
+      {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
+      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-null">null</span></span>
+    </div>
   {:else if value === undefined}
-    <div class="jv-row"><span class="jv-gutter"></span><span class="jv-content" style="padding-left:{depth*16}px">{#if key!=null}<span class="jv-key">"{key}": </span>{/if}<span class="jv-null">—</span></span></div>
+    <div class="jv-row" style="padding-left:{depth * 14}px">
+      {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
+      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-null">—</span></span>
+    </div>
   {:else if typeof value === 'boolean'}
-    <div class="jv-row"><span class="jv-gutter"></span><span class="jv-content" style="padding-left:{depth*16}px">{#if key!=null}<span class="jv-key">"{key}": </span>{/if}<span class="jv-bool">{value}</span></span></div>
+    <div class="jv-row" style="padding-left:{depth * 14}px">
+      {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
+      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bool">{value}</span></span>
+    </div>
   {:else if typeof value === 'number'}
-    <div class="jv-row"><span class="jv-gutter"></span><span class="jv-content" style="padding-left:{depth*16}px">{#if key!=null}<span class="jv-key">"{key}": </span>{/if}<span class="jv-num">{value}</span></span></div>
+    <div class="jv-row" style="padding-left:{depth * 14}px">
+      {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
+      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-num">{value}</span></span>
+    </div>
   {:else if typeof value === 'string'}
     {@const s = value as string}
-    {@const d = s.length > 120 ? s.slice(0,120)+'…' : s}
-    <div class="jv-row"><span class="jv-gutter"></span><span class="jv-content" style="padding-left:{depth*16}px">{#if key!=null}<span class="jv-key">"{key}": </span>{/if}<span class="jv-str">"{d}"</span>{#if s.length > 120}<em>{s.length}</em>{/if}</span></div>
+    {@const d = s.length > 160 ? s.slice(0, 160) + '…' : s}
+    <div class="jv-row" style="padding-left:{depth * 14}px">
+      {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
+      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-str">"{d}"</span>{#if s.length > 160}<em class="jv-len">{s.length}</em>{/if}</span>
+    </div>
   {:else if Array.isArray(value)}
     {@const arr = value as unknown[]}
-    {@const f = collapsed.has(path)}
+    {@const f = isCollapsed(path)}
     {#if arr.length === 0}
-      <div class="jv-row"><span class="jv-gutter"></span><span class="jv-content" style="padding-left:{depth*16}px">{#if key!=null}<span class="jv-key">"{key}": </span>{/if}<span class="jv-bracket">[]</span></span></div>
+      <div class="jv-row" style="padding-left:{depth * 14}px">
+        {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
+        <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bracket">[ ]</span></span>
+      </div>
     {:else}
-      <div class="jv-row"><span class="jv-gutter"><button class="jv-toggle" onclick={() => toggle(path)}>{f?'▸':'▾'}</button></span><span class="jv-content" style="padding-left:{depth*16}px">{#if key!=null}<span class="jv-key">"{key}": </span>{/if}<span class="jv-bracket">[</span>{#if f}<span class="jv-ellipsis">{arr.length} items</span><span class="jv-bracket">]</span>{/if}</span></div>
-      {#if !f}{#each arr as item, i}{@render node(item, `${path}.${i}`, depth+1, undefined, i === arr.length-1)}{/each}{/if}
-      {#if !f}<div class="jv-row"><span class="jv-gutter"></span><span class="jv-content" style="padding-left:{depth*16}px"><span class="jv-bracket">]</span></span></div>{/if}
+      <div class="jv-row" style="padding-left:{depth * 14}px">
+        <button class="jv-fold" class:folded={f} onclick={() => toggle(path)} aria-label={f ? '展开' : '折叠'}>
+          <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2 5 4.5 7.5 2" /></svg>
+        </button>
+        <span class="jv-content">
+          {#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}
+          <span class="jv-bracket">[</span>
+          {#if f}<span class="jv-ellipsis">{arr.length} 项</span><span class="jv-bracket">]</span><span class="jv-preview">{previewItems(arr)}</span>{/if}
+        </span>
+      </div>
+      {#if !f}
+        {#each arr as item, i}
+          {@render node(item, indexPath(path, i), depth + 1)}
+        {/each}
+        <div class="jv-row" style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content"><span class="jv-bracket">]</span></span></div>
+      {/if}
     {/if}
   {:else if typeof value === 'object'}
-    {@const obj = value as Record<string,unknown>}
+    {@const obj = value as Record<string, unknown>}
     {@const ks = Object.keys(obj)}
-    {@const f = collapsed.has(path)}
+    {@const f = isCollapsed(path)}
     {#if ks.length === 0}
-      <div class="jv-row"><span class="jv-gutter"></span><span class="jv-content" style="padding-left:{depth*16}px">{#if key!=null}<span class="jv-key">"{key}": </span>{/if}<span class="jv-bracket">{'{}'}</span></span></div>
+      <div class="jv-row" style="padding-left:{depth * 14}px">
+        {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
+        <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bracket">{'{ }'}</span></span>
+      </div>
     {:else}
-      <div class="jv-row"><span class="jv-gutter"><button class="jv-toggle" onclick={() => toggle(path)}>{f?'▸':'▾'}</button></span><span class="jv-content" style="padding-left:{depth*16}px">{#if key!=null}<span class="jv-key">"{key}": </span>{/if}<span class="jv-bracket">{'{'}</span>{#if f}<span class="jv-ellipsis">{ks.length} keys</span><span class="jv-bracket">{'}'}</span>{/if}</span></div>
-      {#if !f}{#each ks as k}{@render node(obj[k], path?`${path}.${k}`:k, depth+1, k, ks.indexOf(k)===ks.length-1)}{/each}{/if}
-      {#if !f}<div class="jv-row"><span class="jv-gutter"></span><span class="jv-content" style="padding-left:{depth*16}px"><span class="jv-bracket">{'}'}</span></span></div>{/if}
+      <div class="jv-row" style="padding-left:{depth * 14}px">
+        <button class="jv-fold" class:folded={f} onclick={() => toggle(path)} aria-label={f ? '展开' : '折叠'}>
+          <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2 5 4.5 7.5 2" /></svg>
+        </button>
+        <span class="jv-content">
+          {#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}
+          <span class="jv-bracket">{'{'}</span>
+          {#if f}<span class="jv-ellipsis">{ks.length} 键</span><span class="jv-bracket">{'}'}</span><span class="jv-preview">{previewKeys(obj)}</span>{/if}
+        </span>
+      </div>
+      {#if !f}
+        {#each ks as k}
+          {@render node(obj[k], childPath(path, k), depth + 1, k)}
+        {/each}
+        <div class="jv-row" style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content"><span class="jv-bracket">{'}'}</span></span></div>
+      {/if}
     {/if}
   {:else}
-    <div class="jv-row"><span class="jv-gutter"></span><span class="jv-content">{String(value)}</span></div>
+    <div class="jv-row" style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content">{String(value)}</span></div>
   {/if}
 {/snippet}
 
 <div class="json-tree">
-  {#if parsed != null}{@render node(parsed, 'root', 0)}{:else}<span class="jv-error">Invalid JSON</span>{/if}
+  {#if parsed != null}
+    <div class="jv-toolbar">
+      <span class="jv-count">{lineCount} 行</span>
+      <div class="jv-tools">
+        <button onclick={foldAll} title="全部折叠">折叠全部</button>
+        <button onclick={unfoldAll} title="全部展开">展开全部</button>
+        <button class:copied={copied} onclick={copyJson} title="复制 JSON">{copied ? '已复制 ✓' : '复制'}</button>
+      </div>
+    </div>
+    <div class="jv-scroll">
+      {@render node(parsed, '$', 0)}
+    </div>
+  {:else}
+    <span class="jv-error">Invalid JSON</span>
+  {/if}
 </div>
 
 <style>
-  .json-tree { height:100%; overflow:auto; font:450 12px/1.75 'Cascadia Code',Consolas,monospace; color:var(--text); background:var(--panel-2); padding:6px 0; }
-  .jv-row { display:grid; grid-template-columns:18px 1fr; min-height:22px; line-height:22px; border-radius:3px; }
-  .jv-row:hover { background:var(--hover); }
-  .jv-gutter { width:18px; display:flex; align-items:center; justify-content:center; }
-  .jv-toggle { width:14px; height:14px; padding:0; cursor:pointer; color:var(--muted-2); font:9px monospace; font-weight:700; border:0; border-radius:2px; background:transparent; line-height:1; display:flex; align-items:center; justify-content:center; }
-  .jv-toggle:hover { color:var(--accent); background:var(--hover); }
-  .jv-content { white-space:nowrap; padding-right:8px; }
-  .jv-key { color:#79c7ff; } .jv-str { color:#9ee7bd; } .jv-num { color:#d8a6ff; }
-  .jv-bool { color:#ffb86b; } .jv-null { color:#84909b; font-style:italic; }
-  .jv-bracket { color:var(--muted-2); } .jv-ellipsis { color:var(--muted); font-style:italic; margin:0 5px; font-size:10px; }
-  .jv-error { color:var(--danger); padding:20px; display:block; }
-  em { color:var(--muted); font-size:9px; font-style:normal; margin-left:4px; }
+  .json-tree { height: 100%; display: flex; flex-direction: column; background: var(--panel-2); }
+  .jv-toolbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); }
+  .jv-count { color: var(--muted-2); font-size: 10px; }
+  .jv-tools { display: flex; gap: 2px; }
+  .jv-tools button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 10px; border: 0; border-radius: 4px; background: transparent; }
+  .jv-tools button:hover { color: var(--accent); background: var(--hover); }
+  .jv-tools button.copied { color: var(--accent); }
+  .jv-scroll { min-height: 0; flex: 1; overflow: auto; padding: 4px 0 14px; }
+  .jv-row { display: flex; align-items: stretch; min-width: max-content; min-height: 21px; padding-right: 18px; font: 450 12px/21px 'Cascadia Code', Consolas, monospace; color: var(--text); }
+  .jv-row:hover { background: var(--hover); }
+  .jv-fold { flex: 0 0 auto; width: 15px; display: grid; place-items: center; padding: 0; cursor: pointer; color: var(--muted-2); border: 0; background: transparent; }
+  .jv-fold svg { width: 9px; height: 9px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: transform .12s ease; }
+  .jv-fold.folded svg { transform: rotate(-90deg); }
+  .jv-fold:hover { color: var(--accent); }
+  .jv-fold.ph { visibility: hidden; pointer-events: none; }
+  .jv-content { white-space: nowrap; padding-left: 5px; }
+  .jv-key { color: #79c7ff; } .jv-str { color: #9ee7bd; } .jv-num { color: #d8a6ff; }
+  .jv-bool { color: #ffb86b; } .jv-null { color: #84909b; font-style: italic; }
+  :global(.app.light) .jv-key { color: #0068a0; }
+  :global(.app.light) .jv-str { color: #08784b; }
+  :global(.app.light) .jv-num { color: #7c3fb2; }
+  :global(.app.light) .jv-bool { color: #a34e00; }
+  :global(.app.light) .jv-null { color: #6b7681; }
+  .jv-colon { color: var(--muted-2); }
+  .jv-bracket { color: var(--muted-2); }
+  .jv-ellipsis { color: var(--muted); font-style: italic; margin: 0 5px; font-size: 10px; }
+  .jv-preview { margin-left: 8px; color: var(--muted-2); font-size: 10px; opacity: .8; }
+  .jv-len { color: var(--muted); font-size: 9px; font-style: normal; margin-left: 5px; }
+  .jv-error { color: var(--danger); padding: 20px; display: block; }
 </style>

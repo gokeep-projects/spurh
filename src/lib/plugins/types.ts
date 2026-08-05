@@ -12,7 +12,7 @@ export type PluginAction = {
 export type PluginOption = {
   id: string;
   label: string;
-  type: 'text' | 'select';
+  type: 'text' | 'select' | 'datetime' | 'number' | 'password';
   placeholder?: string;
   defaultValue: string;
   choices?: Array<{ value: string; label: string }>;
@@ -25,7 +25,7 @@ export type PluginResult = {
   language?: string;
   summary?: string;
   meta?: Record<string, string | number | boolean>;
-  view?: 'code' | 'text' | 'timestamp' | 'jwt' | 'hash' | 'matches' | 'stats' | 'list' | 'http';
+  view?: 'code' | 'text' | 'timestamp' | 'jwt' | 'hash' | 'matches' | 'stats' | 'list' | 'http' | 'sql' | 'log';
   data?: unknown;
 };
 

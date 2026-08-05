@@ -1,3 +1,4 @@
+import { TOOL_ICONS as ICONS } from '../../icons';
 import type { PluginResult, SpurhPlugin } from '../types';
 
 function parseLiteral(input: string): { pattern: string; flags: string; text: string } | null {
@@ -10,7 +11,7 @@ export const regexPlugin: SpurhPlugin = {
   id: 'spurh.regex',
   name: '正则表达式',
   description: '实时测试正则表达式',
-  icon: '.*',
+  icon: ICONS['spurh.regex'],
   version: '0.1.0',
   category: '开发',
   priority: 70,
@@ -52,17 +53,30 @@ export const regexPlugin: SpurhPlugin = {
         };
       }
       if (_actionId === 'explain') {
-        const explanations = [
-          ['^', '匹配文本开头'], ['$', '匹配文本结尾'], ['.', '匹配任意字符'],
-          ['\\d', '匹配数字'], ['\\w', '匹配字母、数字或下划线'], ['\\s', '匹配空白'],
-          ['+', '重复一次或多次'], ['*', '重复零次或多次'], ['?', '可选或非贪婪'],
-        ].filter(([token]) => pattern.includes(token)).map(([token, meaning]) => `${token}  ${meaning}`);
+        const rules: Array<[RegExp, string]> = [
+          [/\\b/g, '单词边界'], [/\\B/g, '非单词边界'],
+          [/\^/g, '匹配文本开头'], [/\$/g, '匹配文本结尾'],
+          [/\./g, '匹配任意字符（除换行）'], [/\\d/g, '匹配数字'], [/\\D/g, '匹配非数字'],
+          [/\\w/g, '匹配字母、数字或下划线'], [/\\W/g, '匹配非单词字符'],
+          [/\\s/g, '匹配空白字符'], [/\\S/g, '匹配非空白字符'],
+          [/\\n/g, '换行符'], [/\\r/g, '回车符'], [/\\t/g, '制表符'],
+          [/\\u/g, 'Unicode 字符'], [/\\x/g, '十六进制字符'],
+          [/\[[^\]]*\]/g, '字符集（如 [a-z]）'], [/\([^)]*\)/g, '分组'],
+          [/\?:/g, '非捕获分组'], [/\?=/g, '正向先行断言'], [/\?!/g, '负向先行断言'],
+          [/\(\?<=/g, '正向后行断言'], [/\(\?<!/g, '负向后行断言'],
+          [/\|/g, '或（匹配左边或右边）'], [/\?/g, '可选或非贪婪'],
+          [/\*/g, '重复零次或多次'], [/\+/g, '重复一次或多次'],
+          [/\{\d+(,\d*)?\}/g, '指定重复次数'], [/\\([1-9])/g, '反向引用'],
+        ];
+        const explained = rules.filter(([rule]) => rule.test(pattern)).map(([, meaning]) => meaning);
+        const tokens = explained.length ? [...new Set(explained)].join('、') : '未检测到特殊结构，是字面量匹配';
         return {
-          output: explanations.length ? explanations.join('\n') : '这是一个字面量匹配表达式，没有检测到需要解释的特殊结构。',
-          language: 'text', summary: '已解释常见正则结构', meta: { 表达式: `/${pattern}/${flags}` },
+          output: `表达式：/${pattern}/${flags}\n\n${tokens}`,
+          language: 'text',
+          summary: '已解释正则结构',
+          meta: { 表达式: `/${pattern}/${flags}`, 结构: explained.length },
         };
-      }
-      const matches = [...text.matchAll(regex)].map((match) => ({
+      }      const matches = [...text.matchAll(regex)].map((match) => ({
         value: match[0],
         index: match.index,
         groups: match.groups ?? {},
