@@ -7,3 +7,18 @@ src-tauri/target/
 .idea/
 .vscode/
 !.vscode/extensions.json
+.runlogs/
+.omo/
+.reasonix/
+.cargo/
+
+# Development artifacts & scratch files
+.applytest.txt
+check_out.txt
+merge_sql.mjs
+sql_additions.rs
+sql_p1.svelte
+sql_p2.svelte
+sql_p3.svelte
+screen.png
+ui.png
