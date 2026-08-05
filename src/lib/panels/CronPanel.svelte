@@ -63,9 +63,11 @@
 
   async function copyPreview(): Promise<void> {
     if (!preview) return;
-    await navigator.clipboard.writeText(preview);
-    copied = true;
-    setTimeout(() => (copied = false), 1200);
+    try {
+      await navigator.clipboard.writeText(preview);
+      copied = true;
+      setTimeout(() => (copied = false), 1200);
+    } catch { /* 剪贴板不可用时静默 */ }
   }
 </script>
 
@@ -162,7 +164,7 @@
   </div>
 
   <div class="cron-actions">
-    <button class:active={session.actionId === 'generate'} onclick={() => onChangeAction('generate')}>生成</button>
+    <button class="primary" class:active={session.actionId === 'generate'} onclick={() => onChangeAction('generate')}>生成</button>
     <button class:active={session.actionId === 'next'} onclick={() => onChangeAction('next')}>执行时间</button>
     <button class:active={session.actionId === 'explain'} onclick={() => onChangeAction('explain')}>解析</button>
     <div class="control-spacer"></div>
@@ -172,10 +174,10 @@
 
 <style>
   .cron-panel { display: flex; flex-direction: column; gap: 10px; width: 100%; min-width: 0; }
-  .cron-types { display: flex; gap: 5px; flex-wrap: wrap; }
-  .cron-types button { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 6px 13px; cursor: pointer; text-align: left; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; transition: all .15s ease; }
+  .cron-types { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+  .cron-types button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; padding: 7px 6px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; transition: all .15s ease; }
   .cron-types button b { color: inherit; font-size: 12px; }
-  .cron-types button small { display: none; }
+  .cron-types button small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; font-size: 9px; opacity: .75; }
   .cron-types button:hover { color: var(--text); background: var(--hover); border-color: var(--line-2); }
   .cron-types button.active { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
   .cron-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -203,8 +205,11 @@
   .preview-empty { color: var(--muted-2); font-size: 11px; }
   .cron-actions { display: flex; gap: 4px; align-items: center; }
   .cron-actions button { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: transparent; }
-  .cron-actions button.active { color: var(--text); background: var(--panel-2); border-color: var(--line-2); }
+  .cron-actions button.primary { color: #fff; background: linear-gradient(135deg, var(--accent), var(--blue)); border-color: transparent; }
+  .cron-actions button.primary.active { box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .cron-actions button.active:not(.primary) { color: var(--text); background: var(--panel-2); border-color: var(--line-2); }
   .cron-actions button:hover { background: var(--hover); }
+  .cron-actions button.primary:hover { background: linear-gradient(135deg, var(--accent), var(--blue)); filter: brightness(1.08); }
   .cron-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; }
   .cron-clear:hover { color: var(--text); border-color: var(--line); }
   .control-spacer { flex: 1; }

@@ -17,6 +17,14 @@ function parseTimestamp(input: string, unit: string): Date {
   return d;
 }
 
+/** 从任意文本（如日志行）中提取第一个日期时间，本地时区构造，避免各浏览器解析差异 */
+function extractDate(input: string): Date | null {
+  const m = input.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return null;
+  const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4] ?? 0), Number(m[5] ?? 0), Number(m[6] ?? 0));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function fmt(date: Date): string {
   const p = new Intl.DateTimeFormat('zh-CN', { year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false }).formatToParts(date);
   const m = Object.fromEntries(p.map(x => [x.type, x.value]));
@@ -50,11 +58,22 @@ export const timestampPlugin: SpurhPlugin = {
     if (actionId === 'now') return toResult(new Date(), actionId);
     if (actionId === 'to-unix') {
       const raw = (options.pickDateTime ?? '').trim();
-      const dateStr = raw ? raw.replace('T', ' ') : (input.trim() || localDatetimeValue().replace('T', ' '));
-      const date = new Date(dateStr);
-      if (Number.isNaN(date.getTime())) throw new Error(`无法解析日期 "${dateStr}"，请用 YYYY-MM-DD HH:mm 格式`);
+      const fromPicker = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+      const date = fromPicker
+        ? new Date(Number(fromPicker[1]), Number(fromPicker[2]) - 1, Number(fromPicker[3]), Number(fromPicker[4]), Number(fromPicker[5]))
+        : raw
+          ? new Date(raw.replace('T', ' '))
+          : extractDate(input) ?? new Date(input.trim() || localDatetimeValue().replace('T', ' '));
+      if (Number.isNaN(date.getTime())) throw new Error(`无法解析日期 "${raw || input}"，请用 YYYY-MM-DD HH:mm 格式`);
       return toResult(date, actionId);
     }
-    return toResult(parseTimestamp(input, options.unit || 'auto'), actionId);
+    // to-date：支持纯时间戳、日志行（含日期时间或数字）等任意文本
+    const trimmed = input.trim();
+    if (/^\d+$/.test(trimmed)) return toResult(parseTimestamp(trimmed, options.unit || 'auto'), actionId);
+    const extracted = extractDate(trimmed);
+    if (extracted) return toResult(extracted, actionId);
+    const numberMatch = trimmed.match(/-?\d{6,}/);
+    if (numberMatch) return toResult(parseTimestamp(numberMatch[0], options.unit || 'auto'), actionId);
+    throw new Error('请输入 Unix 时间戳（如 1700000000 / 1700000000000），或包含日期时间的文本');
   },
 };

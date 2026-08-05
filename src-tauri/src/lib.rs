@@ -91,10 +91,18 @@ fn reg_command() -> Command {
 
 fn endpoint_url(endpoint: &str, path: &str) -> Result<String, String> {
     let endpoint = endpoint.trim().trim_end_matches('/');
-    if !(endpoint.starts_with("https://")
-        || endpoint.starts_with("http://localhost")
-        || endpoint.starts_with("http://127.0.0.1"))
-    {
+    // 解析 scheme 与 host，仅允许 https；http 仅限本机 localhost/127.0.0.1/::1
+    let (scheme, rest) = endpoint
+        .split_once("://")
+        .ok_or("接口地址格式不正确，需要包含 http:// 或 https://")?;
+    let host_port = rest.split(['/', '?', '#']).next().unwrap_or(rest);
+    let host = match host_port.rsplit_once(':') {
+        Some((h, p)) if !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()) => h,
+        _ => host_port,
+    };
+    let host = host.trim_start_matches('[').trim_end_matches(']');
+    let localhost_http = scheme == "http" && (host == "localhost" || host == "127.0.0.1" || host == "::1");
+    if scheme != "https" && !localhost_http {
         return Err("接口地址必须使用 HTTPS；本地 localhost 服务可使用 HTTP".into());
     }
     Ok(format!("{endpoint}/{path}"))

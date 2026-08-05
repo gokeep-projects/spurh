@@ -58,7 +58,9 @@ function jsonEntry(raw: string, line: number, value: unknown): LogEntry | null {
 
 function formatIsoTime(value: unknown): string | undefined {
   if (typeof value !== 'string' && typeof value !== 'number') return undefined;
-  const date = typeof value === 'number' ? new Date(value) : new Date(value);
+  // 秒级数字时间戳（10 位）与毫秒（13 位）均支持
+  const numeric = typeof value === 'number' ? (Math.abs(value) < 1e12 ? value * 1000 : value) : NaN;
+  const date = Number.isFinite(numeric) ? new Date(numeric) : new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toISOString().replace('T', ' ').slice(0, 23);
 }
@@ -191,10 +193,11 @@ export const logPlugin: SpurhPlugin = {
     if (lines.length === 0 || lines.length > 2000) return null;
     let score = 0;
     let sampled = 0;
+    let hasTime = false;
     for (const line of lines.slice(0, 40)) {
       sampled++;
       const trimmed = line.trim();
-      if (LEVEL_RE.test(trimmed) && TIME_RE.test(trimmed)) score += 1;
+      if (LEVEL_RE.test(trimmed) && TIME_RE.test(trimmed)) { score += 1; hasTime = true; }
       else if (LEVEL_RE.test(trimmed)) score += 0.6;
       else if (STACK_LINE_RE.test(trimmed)) score += 0.8;
       else if (trimmed.startsWith('{')) {
@@ -206,8 +209,10 @@ export const logPlugin: SpurhPlugin = {
     }
     if (score === 0) return null;
     const ratio = score / sampled;
+    const confidence = Math.min(0.9, 0.35 + ratio * 0.55);
+    // 无时间戳的文本（如单句 "There is an error in your code"）最多 0.35 置信度，不触发自动路由
     return {
-      confidence: Math.min(0.9, 0.35 + ratio * 0.55),
+      confidence: hasTime ? confidence : Math.min(0.35, confidence),
       reason: `${lines.length} 行内容符合日志特征`,
     };
   },

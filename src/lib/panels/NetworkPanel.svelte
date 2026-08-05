@@ -14,25 +14,72 @@
   let tab = $state<Tab>('port');
 
   /* ── 端口扫描 ── */
+  const COMMON_PORTS = [
+    { label: 'Web', ports: '80,443,8080,8443' },
+    { label: '数据库', ports: '3306,5432,6379,27017' },
+    { label: 'SSH/FTP', ports: '21,22,23' },
+    { label: '邮件', ports: '25,110,143,465,587,993,995' },
+    { label: '常用服务', ports: '53,135,139,445,3389,5900,9200,11211' },
+  ];
   let portHost = $state('127.0.0.1');
   let portRange = $state('80,443,3306,5432,6379,8080');
   let portScanning = $state(false);
   let portResults = $state<PortResult[]>([]);
   let portError = $state('');
   let portElapsed = $state(0);
+  let portTotal = $state(0);
+  let portDone = $state(0);
+  let scanCanceled = $state(false);
   const openPorts = $derived(portResults.filter((item) => item.open));
+
+  /** 与后端一致的端口列表解析：逗号分隔 + start-end 范围 */
+  function parsePorts(input: string): number[] {
+    const ports = new Set<number>();
+    for (const part of input.split(',')) {
+      const p = part.trim();
+      if (!p) continue;
+      const range = p.match(/^(\d{1,5})-(\d{1,5})$/);
+      if (range) {
+        const a = Number(range[1]);
+        const b = Number(range[2]);
+        if (a >= 1 && b >= a && b <= 65535 && b - a <= 4000) {
+          for (let v = a; v <= b; v++) ports.add(v);
+        }
+      } else if (/^\d{1,5}$/.test(p)) {
+        const v = Number(p);
+        if (v >= 1 && v <= 65535) ports.add(v);
+      }
+    }
+    return [...ports].sort((a, b) => a - b);
+  }
+
+  function useCommonPorts(ports: string): void {
+    portRange = ports;
+  }
 
   async function scanPorts(): Promise<void> {
     if (!portHost.trim()) { portError = '请输入主机地址'; return; }
+    const targets = parsePorts(portRange);
+    if (targets.length === 0) { portError = '端口列表无效，例如 80,443,8000-8100'; return; }
     portScanning = true;
+    scanCanceled = false;
     portError = '';
     portResults = [];
     portElapsed = 0;
+    portTotal = targets.length;
+    portDone = 0;
     const started = performance.now();
+    const batchSize = 32;
     try {
-      portResults = await invoke<PortResult[]>('net_port_scan', { host: portHost.trim(), ports: portRange });
+      for (let offset = 0; offset < targets.length; offset += batchSize) {
+        if (scanCanceled) break;
+        const batch = targets.slice(offset, offset + batchSize).join(',');
+        const batchResults = await invoke<PortResult[]>('net_port_scan', { host: portHost.trim(), ports: batch });
+        portResults = [...portResults, ...batchResults].sort((a, b) => a.port - b.port);
+        portDone = Math.min(targets.length, offset + batchSize);
+      }
     } catch (cause) {
-      portError = cause instanceof Error ? cause.message : String(cause);
+      if (!scanCanceled) portError = cause instanceof Error ? cause.message : String(cause);
     }
     portElapsed = Math.round(performance.now() - started);
     portScanning = false;
@@ -129,10 +176,23 @@
       {#if tab === 'port'}
         <label class="net-field"><span>主机</span><input value={portHost} oninput={(e) => (portHost = e.currentTarget.value)} placeholder="127.0.0.1 或域名" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && scanPorts()} /></label>
         <label class="net-field grow"><span>端口</span><input value={portRange} oninput={(e) => (portRange = e.currentTarget.value)} placeholder="80,443,8000-8100" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && scanPorts()} /></label>
-        <button class="net-run" class:busy={portScanning} disabled={portScanning} onclick={scanPorts} title="开始端口探测">
-          <span class="net-dot"></span>{portScanning ? '扫描中…' : '开始扫描'}
-        </button>
-        {#if portResults.length > 0}<span class="net-summary">{openPorts.length}/{portResults.length} 开放 · {portElapsed} ms</span>{/if}
+        {#if portScanning}
+          <button class="net-run ghost" onclick={() => (scanCanceled = true)} title="停止扫描">停止</button>
+        {:else}
+          <button class="net-run" disabled={portScanning} onclick={scanPorts} title="开始端口探测">
+            <span class="net-dot"></span>开始扫描
+          </button>
+        {/if}
+        {#if portScanning && portTotal > 0}
+          <span class="net-summary">已扫描 {portDone}/{portTotal}</span>
+        {:else if portResults.length > 0}
+          <span class="net-summary">{openPorts.length}/{portResults.length} 开放 · {portElapsed} ms</span>
+        {/if}
+        <div class="net-common-ports">
+          {#each COMMON_PORTS as preset}
+            <button class:active={portRange === preset.ports} onclick={() => useCommonPorts(preset.ports)} title={preset.ports}>{preset.label}</button>
+          {/each}
+        </div>
       {:else if tab === 'dns'}
         <label class="net-field grow"><span>域名</span><input value={dnsHost} oninput={(e) => (dnsHost = e.currentTarget.value)} placeholder="example.com" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && lookupDns()} /></label>
         <label class="net-field net-select"><span>类型</span>
@@ -288,6 +348,11 @@
   .net-run.busy .net-dot { animation: net-pulse 1s ease-in-out infinite; }
   @keyframes net-pulse { 50% { opacity: .3; } }
   .net-summary { color: var(--muted); font: 500 9px 'Cascadia Code', monospace; white-space: nowrap; }
+  .net-run.ghost { color: var(--danger); background: transparent; border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line)); box-shadow: none; }
+  .net-common-ports { display: flex; gap: 4px; flex-wrap: wrap; }
+  .net-common-ports button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 9px; border: 1px solid var(--line); border-radius: 11px; background: transparent; white-space: nowrap; transition: all .15s ease; }
+  .net-common-ports button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
+  .net-common-ports button.active { color: #fff; border-color: transparent; background: linear-gradient(135deg, var(--accent), var(--blue)); }
   .net-body { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px; overflow: auto; }
   .net-error { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--danger); font-size: 10.5px; border: 1px solid color-mix(in srgb, var(--danger) 26%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
   .net-error i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }

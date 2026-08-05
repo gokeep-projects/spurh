@@ -46,10 +46,11 @@ function normDow(v: number): number {
 
 function matchesBasic(value: number, token: string, min: number, max: number): boolean {
   const step = token.match(/^\*\/(\d+)$/);
-  if (step) return value % Number(step[1]) === 0;
+  if (step) { const s = Number(step[1]); if (s < 1) return false; return value % s === 0; }
   const rangeStep = token.match(/^(\d+)-(\d+)\/(\d+)$/);
   if (rangeStep) {
     const [a, b, s] = [Number(rangeStep[1]), Number(rangeStep[2]), Number(rangeStep[3])];
+    if (s < 1) return false;
     return value >= a && value <= b && (value - a) % s === 0;
   }
   const range = token.match(/^(\d+)-(\d+)$/);
@@ -57,6 +58,7 @@ function matchesBasic(value: number, token: string, min: number, max: number): b
   const singleStep = token.match(/^(\d+)\/(\d+)$/);
   if (singleStep) {
     const [a, s] = [Number(singleStep[1]), Number(singleStep[2])];
+    if (s < 1) return false;
     return value >= a && (value - a) % s === 0;
   }
   return String(value) === token;
@@ -113,19 +115,36 @@ function matchesDow(year: number, month: number, day: number, dowField: string):
       return false;
     }
     if (/^\d{1,2}(-\d{1,2})?(\/\d+)?$/.test(token)) {
-      // 范围展开并处理 7→0 回绕（如 6-7 = 周六、周日）
-      const [aRaw, bRaw, stepRaw] = token.split(/[-/]/);
-      const a = normDow(Number(aRaw));
-      const b = bRaw !== undefined ? normDow(Number(bRaw)) : a;
-      const step = stepRaw ? Number(stepRaw) : 1;
-      if (a <= b) {
-        return matchesBasic(weekday, `${a}-${b}${stepRaw ? `/${stepRaw}` : ''}`, 0, 7);
-      }
-      for (let v = a; v <= 7; v += step) {
+      // 范围展开并处理 7→0 回绕（如 6-7 = 周六、周日；0-7 = 一周七天）
+      const match = token.match(/^(\d{1,2})(?:-(\d{1,2}))?(?:\/(\d+))?$/);
+      if (!match) return false;
+      const aVal = Number(match[1]);
+      const bVal = match[2] !== undefined ? Number(match[2]) : aVal;
+      const step = match[3] ? Number(match[3]) : 1;
+      if (step < 1 || aVal < 0 || bVal > 7 || aVal > 7) return false;
+      // 按原始数值展开（每次推进 ≥1，杜绝 step=0 死循环）；普通范围止于 bVal，回绕范围才到 7
+      const upper = aVal > bVal ? 7 : bVal;
+      let v = aVal;
+      while (v <= upper) {
         if (normDow(v) === weekday) return true;
+        v += step;
       }
-      for (let v = 0; v <= b; v += step) {
-        if (normDow(v) === weekday) return true;
+      // 单值+步进（如 6/2）：从 aVal 起每 step 取一个并回绕，Quartz 语义
+      if (match[2] === undefined && match[3] !== undefined) {
+        v = 0;
+        while (v < aVal) {
+          if (normDow(v) === weekday) return true;
+          v += step;
+        }
+        return false;
+      }
+      // 仅回绕范围（如 7-1、6-7）才从 0 补到 bVal
+      if (aVal > bVal) {
+        v = 0;
+        while (v <= bVal) {
+          if (normDow(v) === weekday) return true;
+          v += step;
+        }
       }
       return false;
     }
@@ -241,10 +260,19 @@ function describeDow(field: string): string {
     }
     if (/^\d+(-\d+)?(\/\d+)?$/.test(token)) {
       const values = token.split(',').flatMap((part) => {
-        const [a, b] = part.split('-').map((p) => normDow(Number(p.split('/')[0])));
+        const [rangePart, stepRaw] = part.split('/');
+        const step = Math.max(1, stepRaw ? Number(stepRaw) : 1);
+        const [aRaw, bRaw] = rangePart.split('-');
+        const a = normDow(Number(aRaw));
+        const b = bRaw !== undefined ? normDow(Number(bRaw)) : a;
         const out: string[] = [];
-        const end = b ?? a;
-        for (let i = a; i <= end; i++) out.push(names[i % 7]);
+        if (a <= b) {
+          for (let i = a; i <= b; i += step) out.push(names[i % 7]);
+        } else {
+          // 回绕（如 5-1：周五到周一）
+          for (let i = a; i <= 7; i += step) out.push(names[i % 7]);
+          for (let i = 0; i <= b; i += step) out.push(names[i % 7]);
+        }
         return out;
       });
       return values.join('、');
@@ -322,8 +350,14 @@ function buildExpression(options: Record<string, string>): string {
     const interval = Number(options.secondInterval || '10');
     return `*/${Number.isFinite(interval) && interval >= 1 ? Math.floor(interval) : 10} * * * * *`;
   }
-  if (type === 'minutes') return `*/${options.minuteInterval || '5'} * * * *`;
-  if (type === 'hourly') return options.hourInterval && options.hourInterval !== '1' ? `0 */${options.hourInterval} * * *` : '0 * * * *';
+  if (type === 'minutes') {
+    const interval = Number(options.minuteInterval || '5');
+    return `*/${Number.isFinite(interval) && interval >= 1 ? Math.floor(interval) : 5} * * * *`;
+  }
+  if (type === 'hourly') {
+    const interval = Number(options.hourInterval || '1');
+    return interval >= 1 && Number.isFinite(interval) ? `0 */${Math.floor(interval)} * * *` : '0 * * * *';
+  }
   // 定时类型统一生成 6 段表达式，让「秒」选择器生效（默认 00 秒）
   if (type === 'daily') return `${Number(s)} ${Number(m)} ${Number(h)} * * *`;
   if (type === 'workdays') return `${Number(s)} ${Number(m)} ${Number(h)} * * 1-5`;
@@ -391,7 +425,8 @@ function validField(token: string, min: number, max: number, special = false, na
       const a = Number(range[1]);
       const b = range[2] ? Number(range[2]) : a;
       const step = range[3] ? Number(range[3]) : 1;
-      if (step < 1 || a < min || b > max || a > b) return false;
+      // 仅 dow 字段允许 a>b 回绕（如 5-1 = 周五到周一）
+      if (step < 1 || a < min || b > max || (a > b && names !== DAY_NAMES)) return false;
       continue;
     }
     return false;
@@ -456,7 +491,16 @@ export const cronPlugin: SpurhPlugin = {
     }
     const expr = input.trim();
     if (!expr) throw new Error('请先输入 Cron 表达式（支持 5~7 段）');
+    const f = expr.split(/\s+/);
     parseCron(expr);
+    // execute 路径同样校验字段值域（如 step=0、数值越界），与 detect 保持一致
+    const [sec, min, hr, dom, mon, dow, yr] = f.length === 5 ? ['0', ...f] : f;
+    if (!validField(sec, 0, 59) || !validField(min, 0, 59) || !validField(hr, 0, 23)
+      || !validField(dom, 1, 31, true) || !validField(mon, 1, 12, false, MONTH_NAMES)
+      || !validField(dow, 0, 7, true, DAY_NAMES)
+      || (yr !== undefined && !validField(yr, 1970, 2199))) {
+      throw new Error('Cron 表达式字段值域非法（step 不能为 0，数值不能超出范围）');
+    }
     if (actionId === 'next') return runsResult(expr, 10);
     return { output: explainCron(expr), language: 'text', summary: 'Cron 解析', meta: { 表达式: expr } };
   },

@@ -30,6 +30,23 @@ function unescapeText(input: string): string {
     .replace(/\\\\/g, '\\');
 }
 
+function splitWords(input: string): string[] {
+  return input
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .split(/[\s_-]+/)
+    .filter(Boolean);
+}
+
+function joinCase(input: string, separator: string): string {
+  const words = splitWords(input).map((word) => word.toLowerCase());
+  if (!words.length) return '';
+  // camel（separator=''）时后续单词首字母大写，其余风格全部小写连接
+  return words.map((word, index) =>
+    !separator && index > 0 ? word[0].toUpperCase() + word.slice(1) : word,
+  ).join(separator);
+}
+
 export const textPlugin: SpurhPlugin = {
   id: 'spurh.text',
   name: '文本处理',
@@ -43,6 +60,13 @@ export const textPlugin: SpurhPlugin = {
     { id: 'wrap', label: '自动换行', description: '按指定字符宽度自动换行' },
     { id: 'trim', label: '清理空白', description: '清理首尾空格和多余空行' },
     { id: 'dedupe', label: '行去重', description: '保持顺序去除重复行' },
+    { id: 'remove-empty', label: '删除空行', description: '删除所有空白行' },
+    { id: 'sort-lines', label: '行排序', description: '按字典序排列每一行' },
+    { id: 'reverse', label: '反转文本', description: '按字符顺序反转整个文本' },
+    { id: 'lines-reverse', label: '行序反转', description: '反转行的排列顺序' },
+    { id: 'camel', label: '转驼峰', description: '单词连接为 camelCase' },
+    { id: 'snake', label: '转蛇形', description: '单词连接为 snake_case' },
+    { id: 'kebab', label: '转烤肉串', description: '单词连接为 kebab-case' },
     { id: 'escape', label: '特殊字符转义', description: '转义换行、制表符、引号等字符' },
     { id: 'unescape', label: '还原特殊字符', description: '把转义序列还原成真实字符' },
     { id: 'upper', label: '大写', description: '转换为大写文本' },
@@ -86,6 +110,20 @@ export const textPlugin: SpurhPlugin = {
       output = content.split(/\r?\n/).map((line) => line.trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim();
     } else if (actionId === 'dedupe') {
       output = [...new Set(content.split(/\r?\n/))].join('\n');
+    } else if (actionId === 'remove-empty') {
+      output = content.split(/\r?\n/).filter((line) => line.trim() !== '').join('\n');
+    } else if (actionId === 'sort-lines') {
+      output = content.split(/\r?\n/).sort((a, b) => a.localeCompare(b)).join('\n');
+    } else if (actionId === 'reverse') {
+      output = [...content].reverse().join('');
+    } else if (actionId === 'lines-reverse') {
+      output = content.split(/\r?\n/).reverse().join('\n');
+    } else if (actionId === 'camel') {
+      output = joinCase(content, '');
+    } else if (actionId === 'snake') {
+      output = joinCase(content, '_');
+    } else if (actionId === 'kebab') {
+      output = joinCase(content, '-');
     } else if (actionId === 'escape') {
       output = JSON.stringify(content).slice(1, -1);
     } else if (actionId === 'unescape') {

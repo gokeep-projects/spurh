@@ -82,7 +82,15 @@
         if (/Caused by:/i.test(line)) return '<span class="stack-cause">' + escapeHtml(line) + '</span>';
         if (/\b(?:Error|Exception|Fatal)\b/.test(line)) return '<span class="stack-error">' + escapeHtml(line) + '</span>';
         const at = line.match(/at\s+[\w.$<>]+(?:\.[\w$<>]+)+\(/);
-        if (at) return line.replace(at[0], '<span class="stack-at">' + escapeHtml(at[0]) + '</span>');
+        if (at) {
+          // 先整体转义整行,再按原始位置插入高亮 span,避免行内其余部分被注入
+          const i = line.indexOf(at[0]);
+          return (
+            escapeHtml(line.slice(0, i)) +
+            '<span class="stack-at">' + escapeHtml(at[0]) + '</span>' +
+            escapeHtml(line.slice(i + at[0].length))
+          );
+        }
         return escapeHtml(line);
       })
       .join('\n');

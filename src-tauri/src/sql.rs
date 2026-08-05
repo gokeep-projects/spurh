@@ -313,7 +313,7 @@ pub async fn sql_test(profile: SqlProfile) -> Result<SqlTestResult, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_test(&profile));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task)
         .await
-        .map_err(|_| "连接测试超过 15 秒，已中止".to_string())?;
+        .map_err(|_| "连接测试超过 15 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
 
@@ -326,7 +326,7 @@ pub async fn sql_execute(profile: SqlProfile, sql: String) -> Result<SqlExecResu
     let task = tauri::async_runtime::spawn_blocking(move || run_sql(&profile, &sql));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS), task)
         .await
-        .map_err(|_| format!("SQL 执行超过 {QUERY_TIMEOUT_SECS} 秒，已中止"))?;
+        .map_err(|_| format!("SQL 执行超过 {QUERY_TIMEOUT_SECS} 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作"))?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
 // ── 元数据浏览与数据编辑（Navicat 风格） ──────────────────────────
@@ -437,7 +437,10 @@ fn open_mysql(profile: &SqlProfile, database: Option<&str>) -> Result<mysql::Con
         .tcp_port(profile.port.unwrap_or(3306))
         .user(Some(profile.user.clone().unwrap_or_default()))
         .pass(Some(profile.password.clone().unwrap_or_default()))
-        .db_name(database.or(profile.database.as_deref()).map(|name| name.to_string()));
+        .db_name(database.or(profile.database.as_deref()).map(|name| name.to_string()))
+        .tcp_connect_timeout(Some(std::time::Duration::from_secs(10)))
+        .read_timeout(Some(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS)))
+        .write_timeout(Some(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS)));
     mysql::Conn::new(opts).map_err(|error| format!("连接 MySQL 失败：{error}"))
 }
 
@@ -449,6 +452,7 @@ fn pg_client(profile: &SqlProfile, database: Option<&str>) -> Result<postgres::C
     config.password(profile.password.as_deref().unwrap_or_default());
     let name = database.or(profile.database.as_deref()).filter(|name| !name.trim().is_empty()).unwrap_or("postgres");
     config.dbname(name);
+    config.connect_timeout(std::time::Duration::from_secs(10));
     config.connect(postgres::NoTls).map_err(|error| format!("连接 PostgreSQL 失败：{error}"))
 }
 
@@ -1127,14 +1131,14 @@ fn run_alter_table(
 #[tauri::command]
 pub async fn sql_create_table(profile: SqlProfile, database: String, table: String, columns: Vec<SqlColumnDef>) -> Result<u64, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_create_table(&profile, database, table, columns));
-    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "建表超过 30 秒，已中止".to_string())?;
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "建表超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
 
 #[tauri::command]
 pub async fn sql_alter_table(profile: SqlProfile, database: String, table: String, adds: Vec<SqlColumnDef>, drops: Vec<String>, modifies: Vec<SqlColumnChange>) -> Result<u64, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_alter_table(&profile, database, table, adds, drops, modifies));
-    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "更新表结构超过 30 秒，已中止".to_string())?;
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "更新表结构超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
 
@@ -1147,55 +1151,55 @@ pub fn sql_disconnect(profile: SqlProfile) -> Result<(), String> {
 #[tauri::command]
 pub async fn sql_databases(profile: SqlProfile) -> Result<Vec<String>, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_databases(&profile));
-    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询数据库超过 15 秒，已中止".to_string())?;
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询数据库超过 15 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
 
 #[tauri::command]
 pub async fn sql_tables(profile: SqlProfile, database: String) -> Result<Vec<SqlTableInfo>, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_tables(&profile, database));
-    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询表超过 15 秒，已中止".to_string())?;
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询表超过 15 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
 
 #[tauri::command]
 pub async fn sql_table_columns(profile: SqlProfile, database: String, table: String) -> Result<Vec<SqlColumnInfo>, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_columns(&profile, database, table));
-    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询字段超过 15 秒，已中止".to_string())?;
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询字段超过 15 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
 
 #[tauri::command]
 pub async fn sql_table_rows(profile: SqlProfile, database: String, table: String, offset: u64, limit: u64) -> Result<SqlRowsResult, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_rows(&profile, database, table, offset, limit.min(1000)));
-    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "查询数据超过 30 秒，已中止".to_string())?;
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "查询数据超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
 
 #[tauri::command]
 pub async fn sql_update_row(profile: SqlProfile, database: String, table: String, keys: Vec<SqlCellRef>, changes: Vec<SqlCellRef>) -> Result<u64, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_update_row(&profile, database, table, keys, changes));
-    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "更新数据超过 30 秒，已中止".to_string())?;
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "更新数据超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
 
 #[tauri::command]
 pub async fn sql_insert_row(profile: SqlProfile, database: String, table: String, columns: Vec<String>, values: Vec<Option<String>>) -> Result<u64, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_insert_row(&profile, database, table, columns, values));
-    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "插入数据超过 30 秒，已中止".to_string())?;
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "插入数据超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
 
 #[tauri::command]
 pub async fn sql_delete_rows(profile: SqlProfile, database: String, table: String, key_column: String, key_values: Vec<String>) -> Result<u64, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_delete_rows(&profile, database, table, key_column, key_values));
-    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "删除数据超过 30 秒，已中止".to_string())?;
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "删除数据超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
 
 #[tauri::command]
 pub async fn sql_table_ddl(profile: SqlProfile, database: String, table: String) -> Result<String, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_table_ddl(&profile, database, table));
-    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询建表语句超过 15 秒，已中止".to_string())?;
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询建表语句超过 15 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }

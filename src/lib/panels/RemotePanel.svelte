@@ -46,6 +46,25 @@
   let statusMap = $state<Record<string, SessionState>>({});
   let busy = $state(false);
   let showSecret = $state(false);
+  let testing = $state(false);
+  let testMessage = $state('');
+
+  type PortProbe = { port: number; open: boolean; elapsedMs: number };
+
+  async function testDraft(): Promise<void> {
+    if (!draft || !draft.host.trim()) { testMessage = '请先填写主机地址'; return; }
+    testing = true;
+    testMessage = '';
+    const port = Math.min(65535, Math.max(1, Math.floor(Number(draft.port) || 22)));
+    try {
+      const results = await invoke<PortProbe[]>('net_port_scan', { host: draft.host.trim(), ports: String(port) });
+      const open = results[0]?.open ?? false;
+      testMessage = open ? `连接成功：${draft.host}:${port} 端口开放` : `端口不可达：${draft.host}:${port} 无响应`;
+    } catch (cause) {
+      testMessage = cause instanceof Error ? cause.message : String(cause);
+    }
+    testing = false;
+  }
 
   const active = $derived(sessions.find((item) => item.id === activeId) ?? null);
   const activeStatus = $derived(active ? (statusMap[active.id] ?? { status: 'idle' }) : { status: 'idle' });
@@ -178,7 +197,9 @@
         </div>
         <footer>
           <span class="form-hint">密码与密钥仅保存在本机</span>
-          <button class="form-cancel" onclick={() => (editing = false)}>取消</button>
+          {#if testMessage}<span class="form-test" class:ok={testMessage.startsWith('连接成功')}>{testMessage}</span>{/if}
+          <button class="form-cancel" disabled={testing} onclick={() => (testDraft())}>{testing ? '测试中…' : '测试连接'}</button>
+          <button class="form-cancel" onclick={() => { editing = false; testMessage = ''; }}>取消</button>
           <button class="form-save" disabled={!d.host.trim() || !d.user.trim()} onclick={saveDraft}>保存</button>
         </footer>
       </div>
@@ -325,6 +346,8 @@
   .auth-chips button.active { color: #fff; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .remote-form > footer { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); }
   .form-hint { flex: 1; color: var(--muted-2); font-size: 9px; }
+  .form-test { color: var(--danger); font-size: 10px; white-space: nowrap; }
+  .form-test.ok { color: var(--accent); }
   .form-cancel { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
   .form-cancel:hover { color: var(--text); border-color: var(--line-2); }
   .form-save { height: 30px; padding: 0 16px; cursor: pointer; color: #fff; font-size: 10.5px; font-weight: 700; border: 0; border-radius: 7px; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }

@@ -53,7 +53,11 @@
   function applyPreset(preset: { label: string; pattern: string; flags?: string }): void {
     onChangeOption('pattern', preset.pattern);
     onChangeOption('flags', preset.flags ?? 'g');
+    onChangeAction('test');
+    presetApplied = preset.label;
   }
+
+  let presetApplied = $state('');
 
   async function generateWithAi(): Promise<void> {
     const description = aiDescription.trim();
@@ -89,7 +93,7 @@
 
 <div class="regex-panel">
   <div class="regex-row">
-    <label><span>表达式</span>
+    <label class="pat-label"><span>表达式</span>
       <input class="regex-pat" value={session.options.pattern || ''} placeholder="例如: (?<name>\w+)" oninput={(e) => onChangeOption('pattern', e.currentTarget.value)} spellcheck="false" />
     </label>
     <div class="regex-flags" role="group" aria-label="标志">
@@ -97,12 +101,28 @@
         <button class:active={flagSet.has(f.v)} title={f.d} onclick={() => setFlag(f.v, !flagSet.has(f.v))}>{f.l}</button>
       {/each}
     </div>
-    {#if session.actionId === 'replace'}
+  </div>
+
+  <div class="regex-presets">
+    <span>常用</span>
+    <div class="preset-scroll">
+      {#each PRESETS as preset}
+        <button class:active={presetApplied === preset.label} title={preset.pattern} onclick={() => applyPreset(preset)}>{preset.label}</button>
+      {/each}
+    </div>
+  </div>
+
+  {#if session.actionId === 'replace'}
+    <div class="regex-row">
       <label><span>替换为</span>
         <input class="regex-repl" value={session.options.replacement || ''} placeholder="替换文本，如 $1" oninput={(e) => onChangeOption('replacement', e.currentTarget.value)} spellcheck="false" />
       </label>
-    {/if}
-  </div>
+    </div>
+  {/if}
+
+  {#if presetApplied && !session.input.trim()}
+    <p class="preset-hint">已套用「{presetApplied}」表达式，请在上方输入区粘贴要测试的文本。</p>
+  {/if}
 
   <div class="regex-ai">
     <span class="ai-spark">{@html UI_ICONS.sparkle}</span>
@@ -132,7 +152,7 @@
   </div>
 
   <div class="regex-actions">
-    <button class:active={session.actionId === 'test'} onclick={() => onChangeAction('test')}>测试匹配</button>
+    <button class="primary" class:active={session.actionId === 'test'} onclick={() => onChangeAction('test')}>测试匹配</button>
     <button class:active={session.actionId === 'replace'} onclick={() => onChangeAction('replace')}>替换</button>
     <button class:active={session.actionId === 'explain'} onclick={() => onChangeAction('explain')}>解释</button>
     <div class="control-spacer"></div>
@@ -143,12 +163,13 @@
 <style>
   .regex-panel { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
   .regex-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .regex-row .pat-label { flex: 1; min-width: 240px; }
   .regex-row label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
   .regex-row label > span { color: var(--muted); font-size: 11px; }
   .regex-row input { height: 32px; color: var(--text); font: 500 12px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--bg); padding: 0 10px; }
   .regex-row input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .regex-pat { width: min(30vw, 280px); }
-  .regex-repl { width: 150px; }
+  .regex-pat { width: 100%; }
+  .regex-repl { width: min(26vw, 240px); }
   .regex-flags { display: flex; gap: 3px; padding: 2px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
   .regex-flags button { width: 26px; height: 26px; cursor: pointer; color: var(--muted); font: 600 11px 'Cascadia Code', monospace; border: 0; border-radius: 5px; background: transparent; }
   .regex-flags button.active { color: #fff; background: linear-gradient(135deg, var(--accent), var(--blue)); }
@@ -171,14 +192,22 @@
   .sample-chips button:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
   .sample-chips button.copied { border-style: solid; border-color: var(--accent); color: var(--accent); }
   .sample-error { color: #e5484d; font-size: 10px; }
-  .regex-presets { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
-  .regex-presets > span { color: var(--muted-2); font-size: 10px; }
-  .regex-presets button { height: 24px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 12px; background: transparent; white-space: nowrap; }
+  .regex-presets { display: flex; gap: 8px; align-items: center; }
+  .regex-presets > span { flex: 0 0 auto; color: var(--muted-2); font-size: 10px; }
+  .preset-scroll { display: flex; gap: 5px; align-items: center; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
+  .preset-scroll::-webkit-scrollbar { height: 4px; }
+  .preset-scroll::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
+  .regex-presets button { flex: 0 0 auto; height: 24px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 12px; background: transparent; white-space: nowrap; }
   .regex-presets button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
+  .regex-presets button.active { color: #fff; border-color: transparent; background: linear-gradient(135deg, var(--accent), var(--blue)); }
+  .preset-hint { margin: 0; color: var(--warn); font-size: 11px; }
   .regex-actions { display: flex; gap: 4px; align-items: center; }
   .regex-actions button { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: transparent; }
-  .regex-actions button.active { color: var(--text); background: var(--panel-2); border-color: var(--line-2); }
+  .regex-actions button.primary { color: #fff; background: linear-gradient(135deg, var(--accent), var(--blue)); border-color: transparent; }
+  .regex-actions button.primary.active { box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .regex-actions button.active:not(.primary) { color: var(--text); background: var(--panel-2); border-color: var(--line-2); }
   .regex-actions button:hover { background: var(--hover); }
+  .regex-actions button.primary:hover { filter: brightness(1.08); }
   .regex-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; }
   .regex-clear:hover { color: var(--text); border-color: var(--line); }
   .control-spacer { flex: 1; }

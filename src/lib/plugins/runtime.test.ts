@@ -116,8 +116,19 @@ describe('PluginRuntime', () => {
 
   it('Base64 round-trip', async () => {
     const enc = await runtime.execute('spurh.encoder', 'base64-encode', '你好 Spurh');
+    expect(enc.output).toBe('5L2g5aW9IFNwdXJo');
     const dec = await runtime.execute('spurh.encoder', 'base64-decode', enc.output);
     expect(dec.output).toBe('你好 Spurh');
+  });
+
+  it('unicode and html entity round-trips', async () => {
+    const uni = await runtime.execute('spurh.encoder', 'unicode-escape', '中文 A');
+    expect(uni.output).toContain('\\u4e2d\\u6587');
+    expect((await runtime.execute('spurh.encoder', 'unicode-unescape', uni.output)).output).toBe('中文 A');
+    const html = await runtime.execute('spurh.encoder', 'html-encode', '<b>&"\'</b>');
+    expect(html.output).toBe('&lt;b&gt;&amp;&quot;&#39;&lt;/b&gt;');
+    expect((await runtime.execute('spurh.encoder', 'html-decode', html.output)).output).toBe('<b>&"\'</b>');
+    expect((await runtime.execute('spurh.encoder', 'html-decode', '&#65;&#x42;')).output).toBe('AB');
   });
 
   it('JWT generate and verify via crypto', async () => {
@@ -148,6 +159,55 @@ describe('PluginRuntime', () => {
     expect(JSON.parse(r.output).unixSeconds).toBe(1700000000);
   });
 
+  it('timestamp converts log lines with embedded datetimes', async () => {
+    const r = await runtime.execute('spurh.timestamp', 'to-unix', '2024-01-15 10:30:00 ERROR db timeout', {});
+    const data = JSON.parse(r.output);
+    const expected = new Date(2024, 0, 15, 10, 30, 0).getTime();
+    expect(Math.abs(data.unixMilliseconds - expected)).toBeLessThan(1000);
+    // 日志行直接走 to-date 也应提取到日期而非报错
+    const r2 = await runtime.execute('spurh.timestamp', 'to-date', '[2024/1/5 8:05] INFO started', {});
+    expect(JSON.parse(r2.output).unixMilliseconds).toBe(new Date(2024, 0, 5, 8, 5, 0).getTime());
+  });
+
+  it('timestamp to-unix honors picked datetime without input', async () => {
+    const r = await runtime.execute('spurh.timestamp', 'to-unix', '', { pickDateTime: '2024-06-01T12:30' });
+    const data = JSON.parse(r.output);
+    expect(data.unixMilliseconds).toBe(new Date(2024, 5, 1, 12, 30, 0).getTime());
+  });
+
+  it('cron rejects zero-step ranges instead of hanging', async () => {
+    await expect(runtime.execute('spurh.cron', 'next', '0 0 * * 6-7/0', {})).rejects.toThrow('字段值域非法');
+  });
+
+  it('cron 0-7 weekday matches every day', async () => {
+    // 0-7 覆盖一周七天（7 与 0 同义）
+    const r = await runtime.execute('spurh.cron', 'next', '0 0 * * 0-7', {});
+    expect(r.output.split('\n').length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('cron single value with step wraps like quartz (6/2)', async () => {
+    // 6/2：周六起每 2 天（6,0,2,4 → 六、日、二、四）
+    const r = await runtime.execute('spurh.cron', 'next', '0 0 * * 6/2', {});
+    const days = (r.data as string[]).map((s) => new Date(s.replace(/\.\d{3}Z$/, 'Z')).getDay());
+    expect(days.every((d) => [6, 0, 2, 4].includes(d))).toBe(true);
+  });
+
+  it('cron weekday ranges never leak into other days', async () => {
+    // 1-5 工作日不得匹配周六/周日；3-3 仅周三
+    const workdays = (r: Awaited<ReturnType<typeof runtime.execute>>) =>
+      (r.data as string[]).map((s) => new Date(s.replace(/\.\d{3}Z$/, 'Z')).getDay());
+    const wd = workdays(await runtime.execute('spurh.cron', 'next', '0 0 * * 1-5', {}));
+    expect(wd.every((d) => d >= 1 && d <= 5)).toBe(true);
+    const wed = workdays(await runtime.execute('spurh.cron', 'next', '0 0 * * 3-3', {}));
+    expect(wed.every((d) => d === 3)).toBe(true);
+  });
+
+  it('cron wrap ranges (5-1) pass validation and match', async () => {
+    const r = await runtime.execute('spurh.cron', 'next', '0 0 * * 5-1', {});
+    const days = (r.data as string[]).map((s) => new Date(s.replace(/\.\d{3}Z$/, 'Z')).getDay());
+    expect(days.every((d) => [5, 6, 0, 1].includes(d))).toBe(true);
+  });
+
   it('cron presets', async () => {
     const r = await runtime.execute('spurh.cron', 'generate', '', { type: 'daily', hour: '09', minute: '30' });
     expect(r.meta?.表达式).toBe('0 30 9 * * *');
@@ -173,9 +233,38 @@ describe('PluginRuntime', () => {
     expect((r.data as any)['字符数']).toBeGreaterThan(0);
   });
 
+  it('text case conversions', async () => {
+    expect((await runtime.execute('spurh.text', 'camel', 'hello world foo_bar', {})).output).toBe('helloWorldFooBar');
+    expect((await runtime.execute('spurh.text', 'snake', 'helloWorld FooBar', {})).output).toBe('hello_world_foo_bar');
+    expect((await runtime.execute('spurh.text', 'kebab', 'helloWorld', {})).output).toBe('hello-world');
+  });
+
+  it('text line operations', async () => {
+    expect((await runtime.execute('spurh.text', 'lines-reverse', 'a\nb\nc', {})).output).toBe('c\nb\na');
+    expect((await runtime.execute('spurh.text', 'reverse', 'abc', {})).output).toBe('cba');
+    expect((await runtime.execute('spurh.text', 'sort-lines', 'c\na\nb', {})).output).toBe('a\nb\nc');
+    expect((await runtime.execute('spurh.text', 'remove-empty', 'a\n\n  \nb', {})).output).toBe('a\nb');
+  });
+
   it('random values', async () => {
     const r = await runtime.execute('spurh.random', 'string', '', { length: '16', count: '1' });
     expect(r.output).toHaveLength(16);
+    expect((await runtime.execute('spurh.random', 'uuid', '', {})).output).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  });
+
+  it('random number within range', async () => {
+    const r = await runtime.execute('spurh.random', 'number', '', { min: '5', max: '9' });
+    const value = Number(r.output);
+    expect(value).toBeGreaterThanOrEqual(5);
+    expect(value).toBeLessThanOrEqual(9);
+    await expect(runtime.execute('spurh.random', 'number', '', { min: '9', max: '5' })).rejects.toThrow('范围无效');
+  });
+
+  it('random color and ulid', async () => {
+    const color = await runtime.execute('spurh.random', 'color', '', {});
+    expect(color.output).toMatch(/^#[0-9a-f]{6}$/i);
+    const ulid = await runtime.execute('spurh.random', 'ulid', '', {});
+    expect(ulid.output).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
   });
 
   it('AES encrypt/decrypt', async () => {

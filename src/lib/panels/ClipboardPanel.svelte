@@ -167,7 +167,7 @@
   .clip-search:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .clip-search span { display: inline-flex; }
   :global(.clip-search span svg) { width: 13px; height: 13px; }
-  .clip-search input { min-width: 0; flex: 1; color: var(--text); font-size: 11.5px; border: 0; outline: 0; background: transparent; }
+  .clip-search input { min-width: 0; flex: 1; color: var(--text); font-size: 12.5px; border: 0; outline: 0; background: transparent; }
   .clip-search-x { width: 18px; height: 18px; display: grid; place-items: center; padding: 0; cursor: pointer; color: var(--muted-2); font-size: 13px; line-height: 1; border: 0; border-radius: 4px; background: transparent; }
   .clip-search-x:hover { color: var(--text); background: var(--hover); }
   .clip-count { color: var(--muted); font: 500 9.5px 'Cascadia Code', monospace; white-space: nowrap; }
@@ -186,8 +186,8 @@
   .clip-item.hot { border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
   .clip-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 10px 13px; cursor: pointer; text-align: left; border: 0; background: transparent; }
   .clip-main:hover { background: var(--hover); }
-  .clip-main code { display: -webkit-box; overflow: hidden; color: var(--text); font: 450 12px/1.5 'Cascadia Code', monospace; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
-  .clip-main small { color: var(--muted-2); font: 500 8.5px 'Cascadia Code', monospace; }
+  .clip-main code { display: -webkit-box; overflow: hidden; color: var(--text); font: 450 13px/1.5 'Cascadia Code', monospace; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
+  .clip-main small { color: var(--muted-2); font: 500 9.5px 'Cascadia Code', monospace; }
   .clip-actions { display: flex; flex-direction: column; gap: 5px; justify-content: center; padding: 8px 9px; border-left: 1px solid var(--line); background: var(--panel-2); }
   .clip-act { height: 24px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: 9px; white-space: nowrap; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); transition: all .15s ease; }
   .clip-act:hover { color: var(--text); border-color: var(--line-2); }

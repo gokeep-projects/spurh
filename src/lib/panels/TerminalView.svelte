@@ -111,7 +111,7 @@
 
   onMount(() => {
     term = new Terminal({
-      cursorBlink: true,
+      cursorBlink: false,
       cursorStyle: 'block',
       fontSize: 13,
       fontFamily: "'Cascadia Code', Consolas, 'Courier New', monospace",
@@ -123,7 +123,7 @@
         cursor: cssVar('--accent', '#5ee8a5'),
         selectionBackground: cssVar('--accent-soft', 'rgba(94,232,165,.3)'),
         black: '#0b0f14', red: '#f5637a', green: '#5ee8a5', yellow: '#e6c36a', blue: '#5ec8f0',
-        magenta: '#d8a6ff', cyan: '#5fd7d4', white: '#d7dde3', brightBlack: '#4f5a63',
+        magenta: '#d8a6ff', cyan: '#5fd7d4', white: '#d7dde3', brightBlack: '#7a8794',
         brightRed: '#ff8fa0', brightGreen: '#8af0bd', brightYellow: '#f2d98f', brightBlue: '#8fd8f7',
         brightMagenta: '#e6c0ff', brightCyan: '#8fe7e4', brightWhite: '#eef2f5',
       },
@@ -139,11 +139,23 @@
     });
     const observer = new ResizeObserver(() => fit());
     observer.observe(wrapEl!);
-    const focusTimer = setTimeout(() => term?.focus(), 150);
+    // 仅活动终端获取焦点，避免多个会话互相抢焦点
+    if (active) {
+      const focusTimer = setTimeout(() => term?.focus(), 150);
+      connect();
+      return () => {
+        disposed = true;
+        clearTimeout(focusTimer);
+        observer.disconnect();
+        invoke('ssh_close', { sessionId: session.id }).catch(() => undefined);
+        channel = undefined;
+        term?.dispose();
+        term = undefined;
+      };
+    }
     connect();
     return () => {
       disposed = true;
-      clearTimeout(focusTimer);
       observer.disconnect();
       invoke('ssh_close', { sessionId: session.id }).catch(() => undefined);
       channel = undefined;

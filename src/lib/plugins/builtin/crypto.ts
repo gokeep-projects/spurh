@@ -38,6 +38,11 @@ async function aesDecrypt(input: string, secret: string): Promise<string> {
 }
 
 /* ── RSA Key Gen ── */
+function pemEncode(base64Key: string, label: string): string {
+  const lines = base64Key.match(/.{1,64}/g) ?? [base64Key];
+  return `-----BEGIN ${label}-----\n${lines.join('\n')}\n-----END ${label}-----`;
+}
+
 async function generateRsaKeyPair(): Promise<{ publicKey: string; privateKey: string }> {
   const pair = await crypto.subtle.generateKey(
     { name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
@@ -46,8 +51,8 @@ async function generateRsaKeyPair(): Promise<{ publicKey: string; privateKey: st
   const pub = await crypto.subtle.exportKey('spki', pair.publicKey);
   const priv = await crypto.subtle.exportKey('pkcs8', pair.privateKey);
   return {
-    publicKey: bytesToBase64(new Uint8Array(pub)),
-    privateKey: bytesToBase64(new Uint8Array(priv)),
+    publicKey: pemEncode(bytesToBase64(new Uint8Array(pub)), 'PUBLIC KEY'),
+    privateKey: pemEncode(bytesToBase64(new Uint8Array(priv)), 'PRIVATE KEY'),
   };
 }
 

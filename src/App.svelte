@@ -34,6 +34,12 @@
   type ThemeMode = 'light' | 'dark' | 'system';
   type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts';
 
+  const FONT_STACKS: Record<string, string> = {
+    system: "-apple-system, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif",
+    mono: "'Cascadia Code', Consolas, 'Courier New', monospace",
+    serif: "Georgia, 'Songti SC', 'SimSun', serif",
+  };
+
   type AppSettings = {
     theme: ThemeMode;
     trayEnabled: boolean;
@@ -41,6 +47,8 @@
     clipboardWatch: boolean;
     dispatchHotkey: string;
     toolHotkeys: Record<string, string>;
+    fontSize: number;
+    fontFamily: string;
   };
 
   type ContextInfo = { path: string; content: string };
@@ -54,10 +62,17 @@
     const fallback: AppSettings = {
       theme: 'light', trayEnabled: true, contextMenuEnabled: true, clipboardWatch: true, dispatchHotkey: 'ctrl+shift+space',
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
+      fontSize: 14, fontFamily: 'system',
     };
     try {
       const stored = localStorage.getItem(SETTINGS_KEY);
-      return stored ? { ...fallback, ...JSON.parse(stored) } : fallback;
+      const parsed = stored ? JSON.parse(stored) : {};
+      return {
+        ...fallback,
+        ...parsed,
+        fontSize: typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : fallback.fontSize,
+        fontFamily: FONT_STACKS[parsed.fontFamily] ? parsed.fontFamily : fallback.fontFamily,
+      };
     } catch {
       return fallback;
     }
@@ -135,12 +150,11 @@
   let aiTestStatus: 'idle' | 'testing' | 'success' | 'error' = 'idle';
   let aiTestMessage = '';
   let contextMenuEnabled = appSettings.contextMenuEnabled;
-  let clipboardWatchEnabled = appSettings.clipboardWatch;
-  let lastClipboardContent = '';
   let openFileContext: ContextInfo | null = null;
+  let logFileInput: HTMLInputElement | undefined;
+  let logFileError = '';
   let dispatchIndex = 0;
   let dispatchHotkey = appSettings.dispatchHotkey || 'ctrl+shift+space';
-  let clipboardTimer: ReturnType<typeof setInterval> | null = null;
   let recordingTool: number | null = null;
   let recordingDispatch = false;
   let paletteOpen = false;
@@ -219,7 +233,6 @@
       try {
         const content = await invoke<string>('open_file', { path: target.path });
         openFileContext = { path: target.path, content };
-        handleClipboardDispatch(content);
       } catch {
         openFileContext = { path: target.path, content: '' };
       }
@@ -237,34 +250,13 @@
     const clipUnlisten2 = listen<ClipItem>('clipboard:item', (event) => {
       clipItems = [event.payload, ...clipItems.filter((item) => item.id !== event.payload.id)].slice(0, 100);
     });
-    // 仅在窗口失焦时轮询剪贴板：后台复制内容自动识别，前台不空转
-    clipboardTimer = setInterval(async () => {
-      if (!clipboardWatchEnabled || settingsOpen || document.hasFocus()) return;
-      try {
-        const text = await invoke<string>('read_clipboard');
-        if (text && text !== lastClipboardContent && text.trim().length > 2) {
-          lastClipboardContent = text;
-          handleClipboardDispatch(text);
-        }
-      } catch { /* clipboard empty */ }
-    }, 3000);
     return () => {
       clearTimeout(systemTimer);
-      if (clipboardTimer) clearInterval(clipboardTimer);
       unlistenPromise.then((unlisten) => unlisten()).catch(() => undefined);
       clipUnlisten1.then((fn) => fn()).catch(() => undefined);
       clipUnlisten2.then((fn) => fn()).catch(() => undefined);
     };
   });
-
-  function handleClipboardDispatch(text: string): void {
-    const match = runtime.dispatch(text).selected;
-    if (match && match.confidence >= 0.4) {
-      activePluginId = match.plugin.id;
-      patchSession(match.plugin.id, { input: text });
-      scheduleProcess(match.plugin.id, 0);
-    }
-  }
 
   function patchSession(pluginId: string, patch: Partial<ToolSession>): void {
     sessions = { ...sessions, [pluginId]: { ...sessions[pluginId], ...patch } };
@@ -274,8 +266,10 @@
     if (pluginId === 'spurh.network' || pluginId === 'spurh.clipboard' || pluginId === 'spurh.remote') return false;
     if (session.input.length > 0) return true;
     if (pluginId === 'spurh.timestamp' && session.actionId === 'now') return true;
+    if (pluginId === 'spurh.timestamp' && session.actionId === 'to-unix' && session.options.pickDateTime) return true;
     if (pluginId === 'spurh.random') return true;
     if (pluginId === 'spurh.cron' && session.actionId === 'generate') return true;
+    if (pluginId === 'spurh.crypto' && ['rsa-gen', 'MD5', 'SHA-1', 'SHA-256', 'SHA-512'].includes(session.actionId)) return true;
     return pluginId === 'spurh.regex' && Boolean(session.options.pattern);
   }
 
@@ -306,7 +300,6 @@
 
   function selectPlugin(pluginId: string): void {
     activePluginId = pluginId;
-    liveSyncedContent = '';
     if (hasProcessableInput(pluginId, sessions[pluginId]) && !sessions[pluginId].result && !sessions[pluginId].error) {
       scheduleProcess(pluginId, 0);
     }
@@ -375,32 +368,16 @@
     patchSession(pluginId, { input: content, aiResult: null, aiError: '' });
     dispatcherInput = '';
     dispatchIndex = 0;
-    liveSyncedContent = '';
     scheduleProcess(pluginId, 0);
     queueMicrotask(() => inputElement?.focus());
   }
 
-  /** dispatcher 输入实时路由：高置信度匹配直接更新右侧输出，不清空输入框 */
-  let liveSyncedContent = '';
-  function routeLive(pluginId: string, content: string): void {
-    const trimmed = content.trim();
-    liveSyncedContent = trimmed;
-    activePluginId = pluginId;
-    patchSession(pluginId, { input: trimmed, aiResult: null, aiError: '' });
-    scheduleProcess(pluginId, 0);
-  }
-
-  /** 顶部输入框内容变化：高置信度实时路由，低置信度保留下拉等待回车确认 */
+  /** 顶部输入框内容变化：仅更新下拉匹配，由用户按 Enter 主动提交，绝不静默覆盖目标工具输入 */
   let dispatcherOpen = false;
 
   function handleDispatcherInput(value: string): void {
     dispatcherInput = value;
     dispatchIndex = 0;
-    if (!value.trim()) return;
-    const match = runtime.dispatch(value).selected;
-    if (match && match.confidence >= 0.4) {
-      routeLive(match.plugin.id, value);
-    }
   }
 
   function routeContent(content = dispatcherInput, pluginIndex = 0): void {
@@ -415,17 +392,33 @@
     }
   }
 
+  function handleLogFile(event: Event): void {
+    const file = (event.currentTarget as HTMLInputElement).files?.[0];
+    if (!file) return;
+    logFileError = '';
+    if (file.size > 5 * 1024 * 1024) {
+      logFileError = '日志文件过大（超过 5MB），请截取片段后粘贴';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = String(reader.result ?? '');
+      patchSession('spurh.log', { input: content, aiResult: null, aiError: '' });
+      activePluginId = 'spurh.log';
+      scheduleProcess('spurh.log', 0);
+      queueMicrotask(() => inputElement?.focus());
+    };
+    reader.onerror = () => { logFileError = '读取文件失败'; };
+    reader.readAsText(file, 'utf-8');
+    (event.currentTarget as HTMLInputElement).value = '';
+  }
+
   function handleDispatcherPaste(event: ClipboardEvent): void {
     const content = event.clipboardData?.getData('text') ?? '';
     if (!content.trim()) return;
-    const match = runtime.dispatch(content).selected;
-    if (!match) return;
     event.preventDefault();
     dispatcherInput = content;
-    lastClipboardContent = content;
-    if (match.confidence >= 0.3) {
-      queueMicrotask(() => routeContent(content));
-    }
+    dispatchIndex = 0;
   }
 
   function handleDispatcherKeys(event: KeyboardEvent): void {
@@ -438,19 +431,7 @@
       event.stopPropagation();
       const content = dispatcherInput.trim();
       if (!content) return;
-      if (dispatch.selected || matchedPlugins.length > 0) {
-        // 内容已被实时路由且未在工具区被修改：只清空输入框，避免旧文本覆盖新编辑
-        if (content === liveSyncedContent) {
-          dispatcherInput = '';
-          dispatchIndex = 0;
-        } else {
-          routeContent(content, Math.min(dispatchIndex, matchedPlugins.length));
-        }
-      } else if (plugins[dispatchIndex] && dispatchIndex >= 0) {
-        routeToPlugin(plugins[dispatchIndex].id, content);
-      } else if (plugins[0]) {
-        routeToPlugin(plugins[0].id, content);
-      }
+      routeContent(content, dispatch.selected || matchedPlugins.length > 0 ? Math.min(dispatchIndex, matchedPlugins.length) : 0);
       return;
     }
     if (event.key === 'Escape') { dispatcherElement?.blur(); dispatchIndex = 0; }
@@ -876,7 +857,7 @@
 </script>
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<div class:light={lightMode} class="app">
+<div class:light={lightMode} class="app" style={`--app-font-size: ${appSettings.fontSize}px; --app-font-family: ${FONT_STACKS[appSettings.fontFamily] ?? FONT_STACKS.system}`}>
   <header class="app-bar">
     <button class="brand" onclick={() => (sidebarOpen = !sidebarOpen)} aria-label="侧栏">
       <span class="brand-mark">{@html BRAND_MARK}</span><b>Spurh</b>
@@ -1004,6 +985,11 @@
         {#if activePluginId !== 'spurh.cron' && activePluginId !== 'spurh.crypto' && activePluginId !== 'spurh.regex'}
           <div class="control-spacer"></div>
         {/if}
+        {#if activePluginId === 'spurh.log'}
+          <input type="file" accept=".log,.txt,.json,.xml,text/*" bind:this={logFileInput} hidden onchange={handleLogFile} />
+          <button class="quiet-button" onclick={() => logFileInput?.click()} title="打开本地日志文件（≤5MB）">打开日志文件</button>
+          {#if logFileError}<span class="log-file-error">{logFileError}</span>{/if}
+        {/if}
         <button class="ai-button" disabled={!activeSession.input.trim() || activeSession.aiProcessing} onclick={runAiProcessing}><span>{@html UI_ICONS.sparkle}</span>{activeSession.aiProcessing ? 'AI 中' : 'AI 处理'}</button>
         <button class="quiet-button" onclick={clearActive}>清空</button>
         </div>
@@ -1094,7 +1080,7 @@
         </div>
         <div class="clip-overlay-results">
           {#if clipFiltered.length > 0}
-            {#each clipFiltered.slice(0, 12) as item, i}
+            {#each clipFiltered.slice(0, 20) as item, i}
               <button class:active={i === clipOverlayIndex} onmousedown={(event) => event.preventDefault()} onclick={() => useClipItem(item)} title="点击填入当前工具输入区">
                 <span class="clip-overlay-icon">{@html UI_ICONS.copy}</span>
                 <code>{clipPreview(item.text)}</code>
@@ -1136,9 +1122,18 @@
                   <button class:active={appSettings.theme === 'system'} onclick={() => saveAppSettings({ theme: 'system' })}>{@html UI_ICONS.contrast}<span>跟随系统</span></button>
                 </div>
               </div>
+              <div class="setting-group"><div class="setting-copy"><b>字体大小</b><small>全局界面字号（12–20px）</small></div>
+                <div class="font-size-row"><input type="range" min="12" max="20" step="1" value={appSettings.fontSize} oninput={(event) => saveAppSettings({ fontSize: Number(event.currentTarget.value) })} /><b>{appSettings.fontSize}px</b></div>
+              </div>
+              <div class="setting-group"><div class="setting-copy"><b>字体</b></div>
+                <div class="theme-choice">
+                  <button class:active={appSettings.fontFamily === 'system'} onclick={() => saveAppSettings({ fontFamily: 'system' })}><span>默认</span></button>
+                  <button class:active={appSettings.fontFamily === 'mono'} onclick={() => saveAppSettings({ fontFamily: 'mono' })}><span>等宽</span></button>
+                  <button class:active={appSettings.fontFamily === 'serif'} onclick={() => saveAppSettings({ fontFamily: 'serif' })}><span>衬线</span></button>
+                </div>
+              </div>
               <label class="setting-row"><div class="setting-copy"><b>开机启动</b></div><input type="checkbox" checked={autostartEnabled} disabled={settingsBusy === 'autostart'} onchange={(event) => changeAutostart(event.currentTarget.checked)} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>系统托盘</b></div><input type="checkbox" checked={appSettings.trayEnabled} disabled={settingsBusy === 'tray'} onchange={(event) => changeTray(event.currentTarget.checked)} /><i></i></label>
-              <label class="setting-row"><div class="setting-copy"><b>剪贴板监听</b><small>后台自动识别复制内容</small></div><input type="checkbox" checked={clipboardWatchEnabled} onchange={(event) => { clipboardWatchEnabled = event.currentTarget.checked; saveAppSettings({ clipboardWatch: clipboardWatchEnabled }); }} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>系统右键菜单</b><small>在资源管理器中“用 Spurh 打开”</small></div><input type="checkbox" checked={contextMenuEnabled} disabled={settingsBusy === 'contextMenu'} onchange={(event) => changeContextMenu(event.currentTarget.checked)} /><i></i></label>
               {#if settingsError}<div class="settings-error">{settingsError}</div>{/if}
             {:else if settingsTab === 'ai'}
