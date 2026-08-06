@@ -200,6 +200,11 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 8px; color: var(--muted); 
 .editor-pane { min-width: 0; min-height: 0; display: grid; grid-template-rows: 40px minmax(0, 1fr); }
 .editor-pane + .editor-pane { border-left: 1px solid var(--line); }
 .output-scroll { min-height: 0; height: 100%; overflow: auto; }
+  /* 面板内滚动不显示滚动条（仍可滚轮/触控滚动），视觉更干净 */
+  .sql-conns, .sql-tree, .sql-tables, .remote-sessions, .remote-tabs, .output-scroll, .clip-overlay-results, .settings-content, .sql-history, .rt-quick, .sql-completion, .log-list, .result-list, .sql-grid-wrap, .sql-result-grid, .tool-list, .dispatch-matches, .palette-results, .term-wrap {
+    scrollbar-width: none; -ms-overflow-style: none;
+  }
+  .sql-conns::-webkit-scrollbar, .sql-tree::-webkit-scrollbar, .sql-tables::-webkit-scrollbar, .remote-sessions::-webkit-scrollbar, .remote-tabs::-webkit-scrollbar, .output-scroll::-webkit-scrollbar, .clip-overlay-results::-webkit-scrollbar, .settings-content::-webkit-scrollbar, .sql-history::-webkit-scrollbar, .rt-quick::-webkit-scrollbar, .sql-completion::-webkit-scrollbar, .log-list::-webkit-scrollbar, .result-list::-webkit-scrollbar, .sql-grid-wrap::-webkit-scrollbar, .sql-result-grid::-webkit-scrollbar, .tool-list::-webkit-scrollbar, .dispatch-matches::-webkit-scrollbar, .palette-results::-webkit-scrollbar, .term-wrap::-webkit-scrollbar { display: none; }
 .editor-pane > header { display: flex; align-items: center; justify-content: space-between; padding: 0 13px; border-bottom: 1px solid var(--line); background: var(--panel); }
 .editor-pane header > div { min-width: 0; display: flex; align-items: center; gap: 9px; }
 .editor-pane header span { font-size: 12px; font-weight: 700; letter-spacing: .2px; }

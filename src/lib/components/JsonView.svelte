@@ -20,8 +20,17 @@
     return `${path}[${index}]`;
   }
 
+  // 搜索时：匹配节点的祖先强制展开（即使原折叠），不修改 collapsed 本身
+  const matchAncestors = $derived.by(() => {
+    const set = new Set<string>();
+    for (const path of matchPaths) {
+      for (const ancestor of ancestorPaths(path)) set.add(ancestor);
+    }
+    return set;
+  });
+
   function isCollapsed(path: string): boolean {
-    return collapsed.has(path);
+    return collapsed.has(path) && !matchAncestors.has(path);
   }
 
   // 首次渲染后把「隐式折叠」的节点物化进 collapsed，保证 toggle 语义一致（点展开真展开）
@@ -94,6 +103,64 @@
     return paths;
   }
 
+  /* ── 搜索：匹配键/值，高亮并自动展开祖先，支持上下跳转 ── */
+  let query = $state('');
+  let matchPaths = $state<string[]>([]);
+  let matchIndex = $state(0);
+  const lowerQuery = $derived(query.trim().toLowerCase());
+
+  function isMatch(path: string): boolean {
+    return lowerQuery ? matchPaths.includes(path) : false;
+  }
+  function isCurrent(path: string): boolean {
+    return Boolean(lowerQuery) && matchPaths[matchIndex] === path;
+  }
+
+  function collectMatches(value: unknown, path: string, key: string | undefined, out: string[]): void {
+    const keyText = key ?? '';
+    let valText = '';
+    if (value === null) valText = 'null';
+    else if (typeof value !== 'object') valText = String(value);
+    if ((keyText + valText).toLowerCase().includes(lowerQuery)) out.push(path);
+    if (Array.isArray(value)) {
+      value.forEach((item, i) => collectMatches(item, indexPath(path, i), undefined, out));
+    } else if (value !== null && typeof value === 'object') {
+      Object.entries(value as Record<string, unknown>).forEach(([k, v]) => collectMatches(v, childPath(path, k), k, out));
+    }
+  }
+
+  function ancestorPaths(path: string): string[] {
+    const out: string[] = [];
+    let p = path;
+    while (true) {
+      const next = p.replace(/\[(?:'(?:[^'\\]|\\.)*'|\d+)\]$/, '');
+      if (next === p) break;
+      p = next;
+      out.push(p);
+    }
+    return out;
+  }
+
+  $effect(() => {
+    if (!lowerQuery) {
+      matchPaths = [];
+      matchIndex = 0;
+      return;
+    }
+    const paths: string[] = [];
+    collectMatches(parsed, '$', undefined, paths);
+    matchPaths = paths;
+    matchIndex = 0;
+  });
+
+  function jumpMatch(dir: 1 | -1): void {
+    if (matchPaths.length === 0) return;
+    matchIndex = (matchIndex + dir + matchPaths.length) % matchPaths.length;
+    requestAnimationFrame(() => {
+      document.querySelector('.jv-row.current')?.scrollIntoView({ block: 'center' });
+    });
+  }
+
   let copied = $state(false);
   async function copyJson(): Promise<void> {
     try { await navigator.clipboard.writeText(jsonString); copied = true; setTimeout(() => (copied = false), 1200); } catch { /* ignore */ }
@@ -117,29 +184,29 @@
 
 {#snippet node(value: unknown, path: string, depth: number, key?: string)}
   {#if value === null}
-    <div class="jv-row" style="padding-left:{depth * 14}px">
+    <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
       {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
       <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-null">null</span></span>
     </div>
   {:else if value === undefined}
-    <div class="jv-row" style="padding-left:{depth * 14}px">
+    <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
       {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
       <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-null">—</span></span>
     </div>
   {:else if typeof value === 'boolean'}
-    <div class="jv-row" style="padding-left:{depth * 14}px">
+    <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
       {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
       <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bool">{value}</span></span>
     </div>
   {:else if typeof value === 'number'}
-    <div class="jv-row" style="padding-left:{depth * 14}px">
+    <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
       {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
       <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-num">{value}</span></span>
     </div>
   {:else if typeof value === 'string'}
     {@const s = value as string}
     {@const d = s.length > 160 ? s.slice(0, 160) + '…' : s}
-    <div class="jv-row" style="padding-left:{depth * 14}px">
+    <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
       {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
       <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-str">"{d}"</span>{#if s.length > 160}<em class="jv-len">{s.length}</em>{/if}</span>
     </div>
@@ -147,12 +214,12 @@
     {@const arr = value as unknown[]}
     {@const f = isCollapsed(path)}
     {#if arr.length === 0}
-      <div class="jv-row" style="padding-left:{depth * 14}px">
+      <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
         {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
         <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bracket">[ ]</span></span>
       </div>
     {:else}
-      <div class="jv-row" style="padding-left:{depth * 14}px">
+      <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
         <button class="jv-fold" class:folded={f} onclick={() => toggle(path)} aria-label={f ? '展开' : '折叠'}>
           <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2 5 4.5 7.5 2" /></svg>
         </button>
@@ -166,7 +233,7 @@
         {#each arr as item, i}
           {@render node(item, indexPath(path, i), depth + 1)}
         {/each}
-        <div class="jv-row" style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content"><span class="jv-bracket">]</span></span></div>
+        <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content"><span class="jv-bracket">]</span></span></div>
       {/if}
     {/if}
   {:else if typeof value === 'object'}
@@ -174,12 +241,12 @@
     {@const ks = Object.keys(obj)}
     {@const f = isCollapsed(path)}
     {#if ks.length === 0}
-      <div class="jv-row" style="padding-left:{depth * 14}px">
+      <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
         {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
         <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bracket">{'{ }'}</span></span>
       </div>
     {:else}
-      <div class="jv-row" style="padding-left:{depth * 14}px">
+      <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
         <button class="jv-fold" class:folded={f} onclick={() => toggle(path)} aria-label={f ? '展开' : '折叠'}>
           <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2 5 4.5 7.5 2" /></svg>
         </button>
@@ -193,11 +260,11 @@
         {#each ks as k}
           {@render node(obj[k], childPath(path, k), depth + 1, k)}
         {/each}
-        <div class="jv-row" style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content"><span class="jv-bracket">{'}'}</span></span></div>
+        <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content"><span class="jv-bracket">{'}'}</span></span></div>
       {/if}
     {/if}
   {:else}
-    <div class="jv-row" style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content">{String(value)}</span></div>
+    <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content">{String(value)}</span></div>
   {/if}
 {/snippet}
 
@@ -205,6 +272,15 @@
   {#if parsed != null}
     <div class="jv-toolbar">
       <span class="jv-count">{lineCount} 行</span>
+      <div class="jv-search">
+        <input bind:value={query} placeholder="搜索键 / 值…" spellcheck="false" />
+        {#if lowerQuery}
+          <span class="jv-search-count">{matchPaths.length ? (matchIndex + 1) + '/' + matchPaths.length : '0 匹配'}</span>
+          <button onclick={() => jumpMatch(-1)} title="上一个匹配">↑</button>
+          <button onclick={() => jumpMatch(1)} title="下一个匹配">↓</button>
+          <button onclick={() => (query = '')} title="清除">×</button>
+        {/if}
+      </div>
       <div class="jv-tools">
         <button onclick={foldAll} title="全部折叠">折叠全部</button>
         <button onclick={unfoldAll} title="全部展开">展开全部</button>
@@ -227,6 +303,15 @@
   .jv-tools button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 10px; border: 0; border-radius: 4px; background: transparent; }
   .jv-tools button:hover { color: var(--accent); background: var(--hover); }
   .jv-tools button.copied { color: var(--accent); }
+  .jv-search { display: flex; align-items: center; gap: 3px; margin-left: auto; margin-right: 8px; }
+  .jv-search input { width: 150px; height: 22px; padding: 0 8px; color: var(--text); font-size: 10.5px; border: 1px solid var(--line); border-radius: 5px; outline: 0; background: var(--bg); }
+  .jv-search input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+  .jv-search input::placeholder { color: var(--muted-2); }
+  .jv-search button { height: 22px; min-width: 22px; padding: 0 6px; cursor: pointer; color: var(--muted); font-size: 10.5px; border: 0; border-radius: 4px; background: transparent; }
+  .jv-search button:hover { color: var(--accent); background: var(--hover); }
+  .jv-search-count { color: var(--accent); font: 500 9.6px 'Cascadia Code', monospace; white-space: nowrap; }
+  .jv-row.match { background: color-mix(in srgb, var(--warn) 16%, transparent); }
+  .jv-row.current { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
   .jv-scroll { min-height: 0; flex: 1; overflow: auto; padding: 4px 0 14px; }
   .jv-row { display: flex; align-items: stretch; min-width: max-content; min-height: 21px; padding-right: 18px; font: 450 12px/21px 'Cascadia Code', Consolas, monospace; color: var(--text); }
   .jv-row:hover { background: var(--hover); }

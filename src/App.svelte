@@ -1049,9 +1049,8 @@
     <div class="app-actions">
       {#if aiStore.profiles.length}
         <label class="model-switcher" title="切换 AI 模型">
-          <span class="provider-logo">{@html providerIcon(aiConfig?.provider)}</span>
           <select value={aiStore.activeId} onchange={(event) => switchAiProfile(event.currentTarget.value)}>
-            {#each aiStore.profiles as profile}<option value={profile.id}>{profile.name} · {profile.model}</option>{/each}
+            {#each aiStore.profiles as profile}<option value={profile.id}>{profile.model || profile.name}</option>{/each}
           </select>
           {#if anyAiProcessing}<span class="ai-spin" title="AI 处理中"></span>{/if}
         </label>
@@ -1082,19 +1081,6 @@
     </aside>
 
     <main class="workspace">
-      <div class="tool-header">
-        <div class="tool-identity">
-          <span class="tool-icon">{@html iconHtml(activePlugin.icon)}</span>
-          <div><b>{activePlugin.name}</b></div>
-        </div>
-        <div class="auto-state" class:error={Boolean(activeSession.error)}>
-          {#if activeSession.processing}<span class="spinner"></span>处理中
-          {:else if activeSession.error}<i></i>错误
-          {:else if activeSession.result}<i></i>完成
-          {:else}<i></i>就绪{/if}
-        </div>
-      </div>
-
       {#if activePluginId === 'spurh.network' || activePluginId === 'spurh.log' || activePluginId === 'spurh.clipboard' || activePluginId === 'spurh.remote' || activePluginId === 'spurh.sql'}
         {#if lazyPanel}
           {@const Panel = lazyPanel}

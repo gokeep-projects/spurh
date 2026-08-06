@@ -760,6 +760,45 @@
     cellMenu = null;
   }
 
+  /* ── 连接 / 数据库 右键菜单 ── */
+  let connMenu = $state<{ x: number; y: number; id: string } | null>(null);
+  let dbMenu = $state<{ x: number; y: number; name: string } | null>(null);
+
+  function openConnMenu(event: MouseEvent, id: string): void {
+    event.preventDefault();
+    connMenu = { x: event.clientX, y: event.clientY, id };
+  }
+
+  function connMenuAction(action: 'connect' | 'edit' | 'copy' | 'delete'): void {
+    const menu = connMenu;
+    connMenu = null;
+    if (!menu) return;
+    const target = connections.find((item) => item.id === menu.id);
+    if (!target) return;
+    if (action === 'connect') { selectConn(target.id); connect(); }
+    else if (action === 'edit') openEditConnFor(target);
+    else if (action === 'copy') {
+      navigator.clipboard.writeText(
+        target.kind.toUpperCase() + '://' + (target.user || '') + '@' + target.host + ':' + (target.port || '') + (target.kind === 'sqlite' ? (target.file || '') : '/' + (target.database || ''))
+      ).catch(() => undefined);
+    }
+    else if (action === 'delete') deleteConn(target.id);
+  }
+
+  function openDbMenu(event: MouseEvent, name: string): void {
+    event.preventDefault();
+    dbMenu = { x: event.clientX, y: event.clientY, name };
+  }
+
+  function dbMenuAction(action: 'open' | 'refresh' | 'copy'): void {
+    const menu = dbMenu;
+    dbMenu = null;
+    if (!menu) return;
+    if (action === 'open') openDb(menu.name);
+    else if (action === 'refresh') loadTables(menu.name);
+    else if (action === 'copy') navigator.clipboard.writeText(menu.name).catch(() => undefined);
+  }
+
   /* ── CSV 导出 ── */
   function toCsv(columns: string[], dataRows: Array<Array<string | number | boolean | null>>): string {
     const escape = (value: unknown): string => {
@@ -1167,7 +1206,7 @@
       <div class="sql-conns">
         {#each connections as conn}
           <div class="sql-conn" class:active={conn.id === activeId} class:live={connected && conn.id === activeId}>
-            <button class="sql-conn-main" onclick={() => selectConn(conn.id)} ondblclick={() => { selectConn(conn.id); if (activeId === conn.id) connect(); }} title={connSubtitle(conn) + '（双击连接）'}>
+            <button class="sql-conn-main" onclick={() => selectConn(conn.id)} ondblclick={() => { selectConn(conn.id); if (activeId === conn.id) connect(); }} oncontextmenu={(e) => openConnMenu(e, conn.id)} title={connSubtitle(conn) + '（双击连接，右键更多）'}>
               <span class="sql-conn-ico">{@html dbIcon(conn.kind)}</span>
               <span class="sql-conn-copy"><b>{conn.name}</b><small>{connSubtitle(conn)}</small></span>
               <i class="sql-conn-dot" class:on={connected && conn.id === activeId}></i>
@@ -1188,7 +1227,7 @@
         <div class="sql-tree">
           {#each databases as db}
             <div class="sql-db">
-              <button class="sql-db-row" onclick={() => toggleDb(db.name)} ondblclick={() => openDb(db.name)} title={`${db.name}（单击展开，双击打开）`}>
+              <button class="sql-db-row" onclick={() => toggleDb(db.name)} ondblclick={() => openDb(db.name)} oncontextmenu={(e) => openDbMenu(e, db.name)} title={`${db.name}（单击展开，双击打开，右键更多）`}>
                 <span class="chev" class:open={db.expanded}>▸</span>
                 <span class="sql-db-ico">{@html DB_CYLINDER}</span>
                 <b>{db.name}</b>
@@ -1240,6 +1279,25 @@
           <button onclick={copyCellValue}>复制单元格</button>
           <button onclick={copyRowJson}>复制整行 JSON</button>
           <button onclick={() => (cellMenu = null)}>取消</button>
+        </div>
+      {/if}
+      {#if connMenu}
+        <button type="button" class="sql-ctx-backdrop" aria-label="关闭菜单" tabindex="-1" oncontextmenu={(event) => event.preventDefault()} onclick={() => (connMenu = null)}></button>
+        <div class="sql-cell-menu" style={`left:${Math.min(connMenu.x, window.innerWidth - 190)}px;top:${Math.min(connMenu.y, window.innerHeight - 170)}px`}>
+          <b>连接操作</b>
+          <button onclick={() => connMenuAction('connect')}>连接</button>
+          <button onclick={() => connMenuAction('edit')}>编辑</button>
+          <button onclick={() => connMenuAction('copy')}>复制连接信息</button>
+          <button onclick={() => connMenuAction('delete')}>删除</button>
+        </div>
+      {/if}
+      {#if dbMenu}
+        <button type="button" class="sql-ctx-backdrop" aria-label="关闭菜单" tabindex="-1" oncontextmenu={(event) => event.preventDefault()} onclick={() => (dbMenu = null)}></button>
+        <div class="sql-cell-menu" style={`left:${Math.min(dbMenu.x, window.innerWidth - 190)}px;top:${Math.min(dbMenu.y, window.innerHeight - 140)}px`}>
+          <b>{dbMenu.name}</b>
+          <button onclick={() => dbMenuAction('open')}>打开</button>
+          <button onclick={() => dbMenuAction('refresh')}>刷新表列表</button>
+          <button onclick={() => dbMenuAction('copy')}>复制库名</button>
         </div>
       {/if}
     </aside>
@@ -1699,7 +1757,8 @@
   .sql-side-add:hover { color: var(--accent); background: var(--hover); }
 
   /* ── 连接列表 ── */
-  .sql-conns { flex: 0 0 auto; max-height: 190px; display: flex; flex-direction: column; gap: 2px; padding: 7px; overflow-y: auto; border-bottom: 1px solid var(--line); }
+  .sql-conns { flex: 0 1 auto; max-height: 42%; min-height: 60px; display: flex; flex-direction: column; gap: 2px; padding: 7px; overflow-y: auto; border-bottom: 1px solid var(--line); scrollbar-width: none; }
+  .sql-conns::-webkit-scrollbar { display: none; }
   .sql-conn { position: relative; display: flex; align-items: center; border: 1px solid transparent; border-radius: 8px; transition: all .15s ease; }
   .sql-conn:hover { background: var(--hover); }
   .sql-conn.live { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 5%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
@@ -1728,7 +1787,10 @@
   .sql-quick-conn i { color: var(--accent); font-size: 10.4px; font-style: normal; }
 
   /* ── 库表树 ── */
-  .sql-tree { min-height: 0; flex: 1; padding: 6px; overflow-y: auto; }
+  .sql-tree { min-height: 0; flex: 1; padding: 6px; overflow-y: auto; scrollbar-width: none; }
+  .sql-tree::-webkit-scrollbar { display: none; }
+  .sql-tables { overflow-y: auto; scrollbar-width: none; }
+  .sql-tables::-webkit-scrollbar { display: none; }
   .sql-db { position: relative; }
   .sql-db-row { width: 100%; height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 8px; cursor: pointer; text-align: left; color: var(--text); border: 0; border-radius: 6px; background: transparent; }
   .sql-ctx-backdrop { position: fixed; z-index: 40; inset: 0; background: transparent; }
