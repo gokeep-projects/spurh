@@ -18,6 +18,8 @@
     passphrase: string;
   };
 
+  const FONT_KEY = 'spurh.terminal.fontSize.v1';
+
   let { session, active, onState }: {
     session: RemoteSession;
     active: boolean;
@@ -30,7 +32,18 @@
   let fitAddon: FitAddon | undefined;
   let channel: Channel<SshEvent> | undefined;
   let connected = false;
+  let connecting = false;
   let disposed = false;
+  let fontSize = $state<number>(loadFontSize());
+
+  function loadFontSize(): number {
+    const raw = Number(localStorage.getItem(FONT_KEY));
+    return raw >= 10 && raw <= 24 ? raw : 13;
+  }
+
+  function saveFontSize(size: number): void {
+    localStorage.setItem(FONT_KEY, String(size));
+  }
 
   function cssVar(name: string, fallback: string): string {
     const app = document.querySelector('.app');
@@ -55,20 +68,24 @@
   }
 
   async function connect(): Promise<void> {
-    if (!term) return;
+    if (!term || connected || connecting || disposed) return;
+    connecting = true;
     channel = new Channel<SshEvent>();
     channel.onmessage = (event) => {
       if (event.kind === 'ready') {
         connected = true;
+        connecting = false;
         onState(session.id, { status: 'connected' });
         requestAnimationFrame(() => fit());
       } else if (event.kind === 'data' && event.data) {
         pushData(event.data);
       } else if (event.kind === 'exit') {
         connected = false;
+        connecting = false;
         onState(session.id, { status: 'disconnected', message: event.message ?? '连接已关闭' });
       } else if (event.kind === 'error') {
         connected = false;
+        connecting = false;
         onState(session.id, { status: 'error', message: event.message ?? '连接失败' });
       }
     };
@@ -95,6 +112,7 @@
       }
     } catch (cause) {
       connected = false;
+      connecting = false;
       onState(session.id, { status: 'error', message: cause instanceof Error ? cause.message : String(cause) });
     }
   }
@@ -109,11 +127,50 @@
     } catch { /* 隐藏状态下无法计算尺寸 */ }
   }
 
+  function setFontSize(size: number): void {
+    const clamped = Math.min(24, Math.max(10, size));
+    fontSize = clamped;
+    saveFontSize(clamped);
+    if (term) {
+      term.options.fontSize = clamped;
+      requestAnimationFrame(() => fit());
+    }
+  }
+
+  function clearScreen(): void {
+    term?.clear();
+  }
+
+  function copySelection(): void {
+    const selection = term?.getSelection();
+    if (selection) navigator.clipboard.writeText(selection).catch(() => undefined);
+  }
+
+  function pasteText(): void {
+    navigator.clipboard.readText()
+      .then((text) => {
+        if (text && connected) {
+          invoke('ssh_write', { sessionId: session.id, data: toBase64(text) }).catch(() => undefined);
+        }
+      })
+      .catch(() => undefined);
+  }
+
+  // 仅活动标签页建立连接：切换标签时新标签自动连接，旧标签保持不断开
+  $effect(() => {
+    if (!active) return;
+    requestAnimationFrame(() => {
+      if (term) term.focus();
+      fit();
+    });
+    if (!connected && !connecting && !disposed) connect();
+  });
+
   onMount(() => {
     term = new Terminal({
       cursorBlink: false,
       cursorStyle: 'block',
-      fontSize: 13,
+      fontSize,
       fontFamily: "'Cascadia Code', Consolas, 'Courier New', monospace",
       lineHeight: 1.3,
       scrollback: 6000,
@@ -139,21 +196,6 @@
     });
     const observer = new ResizeObserver(() => fit());
     observer.observe(wrapEl!);
-    // 仅活动终端获取焦点，避免多个会话互相抢焦点
-    if (active) {
-      const focusTimer = setTimeout(() => term?.focus(), 150);
-      connect();
-      return () => {
-        disposed = true;
-        clearTimeout(focusTimer);
-        observer.disconnect();
-        invoke('ssh_close', { sessionId: session.id }).catch(() => undefined);
-        channel = undefined;
-        term?.dispose();
-        term = undefined;
-      };
-    }
-    connect();
     return () => {
       disposed = true;
       observer.disconnect();
@@ -165,11 +207,29 @@
   });
 </script>
 
-<div class="term-wrap" bind:this={wrapEl} style={active ? '' : 'display: none'}>
-  <div class="term-box" bind:this={termEl}></div>
+<div class="term-pane" class:inactive={!active}>
+  <div class="term-toolbar" title="终端工具栏">
+    <button onclick={() => setFontSize(fontSize - 1)} title="减小字号">A−</button>
+    <span class="term-font">{fontSize}</span>
+    <button onclick={() => setFontSize(fontSize + 1)} title="增大字号">A+</button>
+    <i></i>
+    <button onclick={clearScreen} title="清空终端回滚缓冲区">清屏</button>
+    <button onclick={copySelection} title="复制选中内容">复制</button>
+    <button onclick={pasteText} title="粘贴到远程终端">粘贴</button>
+  </div>
+  <div class="term-wrap" bind:this={wrapEl}>
+    <div class="term-box" bind:this={termEl}></div>
+  </div>
 </div>
 
 <style>
+  .term-pane { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; }
+  .term-pane.inactive { display: none; }
+  .term-toolbar { height: 30px; flex: 0 0 auto; display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .term-toolbar button { height: 21px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 10.6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
+  .term-toolbar button:hover { color: var(--text); border-color: var(--line-2); }
+  .term-toolbar i { width: 1px; height: 14px; margin: 0 3px; background: var(--line); }
+  .term-toolbar .term-font { min-width: 22px; color: var(--muted-2); font: 500 10px 'Cascadia Code', monospace; text-align: center; }
   .term-wrap { min-width: 0; min-height: 0; flex: 1; display: flex; }
   .term-box { min-width: 0; min-height: 0; flex: 1; padding: 8px 10px; overflow: hidden; background: var(--bg); }
   .term-box :global(.xterm) { height: 100%; }

@@ -29,7 +29,10 @@
   type DbNode = { name: string; expanded: boolean; tables: TableInfo[] | null; loading: boolean };
 
   const STORAGE_KEY = 'spurh.sql.connections.v1';
+  const LAST_CONN_KEY = 'spurh.sql.lastConn.v1';
+  const SQL_HISTORY_KEY = 'spurh.sql.history.v1';
   const PAGE_SIZE = 100;
+  const PAGE_SIZES = [50, 100, 200, 500];
   const KIND_LABEL: Record<ConnKind, string> = { mysql: 'MySQL', postgres: 'PostgreSQL', sqlite: 'SQLite' };
 
   // 旧版 localStorage 中可能残留的明文密码，等待初始化时迁移到系统钥匙串
@@ -57,6 +60,20 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
   }
 
+  function loadSqlHistory(): string[] {
+    try {
+      const raw = localStorage.getItem(SQL_HISTORY_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string').slice(0, 30) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveSqlHistory(list: string[]): void {
+    localStorage.setItem(SQL_HISTORY_KEY, JSON.stringify(list.slice(0, 30)));
+  }
+
   /** 迁移旧明文密码到钥匙串，并从钥匙串加载当前连接的密码到内存。 */
   async function migrateAndHydrateSecrets(): Promise<void> {
     for (const item of legacyPasswords) {
@@ -68,6 +85,12 @@
       password: (await getSecret('sql.' + conn.id + '.password')) ?? '',
     })));
     connections = hydrated;
+    // 恢复上次使用的连接并自动连接（面板切换/重启后无需手动重连）
+    const lastId = localStorage.getItem(LAST_CONN_KEY);
+    if (lastId && connections.some((conn) => conn.id === lastId)) {
+      activeId = lastId;
+    }
+    if (activeConn) connect();
   }
 
   onMount(() => { migrateAndHydrateSecrets(); });
@@ -130,6 +153,9 @@
   let rows = $state<Array<Array<string | number | boolean | null>>>([]);
   let total = $state(0);
   let page = $state(0);
+  let pageSize = $state(PAGE_SIZE);
+  let filterText = $state('');
+  let filterEl = $state<HTMLInputElement | undefined>();
   let loadingRows = $state(false);
   let rowError = $state('');
   let saveMessage = $state('');
@@ -147,6 +173,16 @@
   let confirmDelete = $state(false);
   let deleteTimer: ReturnType<typeof setTimeout> | null = null;
   let saving = $state(false);
+
+  const totalPages = $derived(Math.max(1, Math.ceil(total / pageSize)));
+  const isFiltered = $derived(filterText.trim().length > 0);
+  const filteredRows = $derived.by(() => {
+    const q = filterText.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((row) => row.some((cell) => cell !== null && String(cell).toLowerCase().includes(q)));
+  });
+  const displayRows = $derived(isFiltered ? filteredRows : rows);
+  const filteredCount = $derived(filteredRows.length);
 
   const pkCols = $derived(meta ? meta.columns.filter((col) => col.key === 'PRI') : []);
   const dirtyRows = $derived.by(() => {
@@ -170,6 +206,9 @@
   let sqlResult = $state<ExecResult | null>(null);
   let sqlError = $state('');
   let copiedKey = $state('');
+  let sqlHistory = $state<string[]>(loadSqlHistory());
+  let sqlHistoryOpen = $state(false);
+  let sqlEditorEl = $state<HTMLTextAreaElement | undefined>();
 
   /* ── 表设计器 ── */
   type DesignColumn = {
@@ -210,6 +249,7 @@
 
   function selectConn(id: string): void {
     activeId = id;
+    localStorage.setItem(LAST_CONN_KEY, id);
     connected = false;
     connError = '';
     serverVersion = '';
@@ -382,8 +422,8 @@
         profile: profileOf(activeConn),
         database: selectedDb,
         table: selectedTable,
-        offset: page * PAGE_SIZE,
-        limit: PAGE_SIZE,
+        offset: page * pageSize,
+        limit: pageSize,
       });
       meta = { columns: result.columns };
       rows = result.rows;
@@ -407,8 +447,14 @@
   }
 
   async function goPage(next: number): Promise<void> {
-    if (next < 0 || next * PAGE_SIZE >= total) return;
+    if (next < 0 || next * pageSize >= total) return;
     page = next;
+    await loadTableData();
+  }
+
+  async function changePageSize(size: number): Promise<void> {
+    pageSize = size;
+    page = 0;
     await loadTableData();
   }
 
@@ -595,22 +641,103 @@
     setTimeout(() => { if (copiedKey === key) copiedKey = ''; }, 1100);
   }
 
+  /* ── CSV 导出 ── */
+  function toCsv(columns: string[], dataRows: Array<Array<string | number | boolean | null>>): string {
+    const escape = (value: unknown): string => {
+      if (value === null || value === undefined) return '';
+      const text = String(value);
+      return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+    };
+    const head = columns.map(escape).join(',');
+    const body = dataRows.map((row) => row.map(escape).join(',')).join('\r\n');
+    return head + (body ? '\r\n' + body : '');
+  }
+
+  function downloadText(filename: string, text: string): void {
+    // \uFEFF BOM 让 Excel 正确识别 UTF-8
+    const blob = new Blob(['\uFEFF' + text], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportPageCsv(): void {
+    if (!meta || !selectedTable) return;
+    downloadText(selectedTable + '-page' + (page + 1) + '.csv', toCsv(meta.columns.map((col) => col.name), displayRows));
+  }
+
+  function exportResultCsv(): void {
+    if (!sqlResult || !sqlResult.isQuery) return;
+    downloadText('query-result.csv', toCsv(sqlResult.columns, sqlResult.rows));
+  }
+
+  /* ── SQL 编辑器语法高亮（覆盖层方案，textarea 透明 + pre 着色） ── */
+  const SQL_KEYWORDS = new Set([
+    'SELECT','INSERT','UPDATE','DELETE','FROM','WHERE','JOIN','LEFT','RIGHT','INNER','OUTER','FULL','CROSS',
+    'ON','AS','AND','OR','NOT','NULL','IN','EXISTS','BETWEEN','LIKE','ILIKE','ORDER','BY','GROUP','HAVING',
+    'LIMIT','OFFSET','DISTINCT','UNION','ALL','CASE','WHEN','THEN','ELSE','END','CREATE','TABLE','ALTER','DROP',
+    'INDEX','VIEW','PRIMARY','KEY','FOREIGN','REFERENCES','CONSTRAINT','DEFAULT','UNIQUE','AUTO_INCREMENT',
+    'INT','INTEGER','BIGINT','SMALLINT','TINYINT','VARCHAR','CHAR','TEXT','LONGTEXT','DATE','DATETIME','TIMESTAMP',
+    'TIME','DECIMAL','NUMERIC','FLOAT','DOUBLE','BOOLEAN','BLOB','JSON','JSONB','SERIAL','BIGSERIAL','REAL','UUID',
+    'BYTEA','USE','SHOW','DESCRIBE','DESC','EXPLAIN','PRAGMA','WITH','VALUES','SET','TRUNCATE','GRANT','REVOKE',
+    'COMMIT','ROLLBACK','BEGIN','TRANSACTION','CASCADE','RESTRICT','IF','TO','INTO','RETURNING','OVER','PARTITION',
+    'WINDOW','ROWS','RANGE','CURRENT','ROW','LATERAL','FETCH','FIRST','NEXT','ONLY','OFFSET','TABLESAMPLE','RECURSIVE',
+  ]);
+  let sqlHighlightElement = $state<HTMLPreElement | undefined>();
+
+  function highlightSql(input: string): string {
+    const escaped = input.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // 单遍扫描：注释 → 字符串 → 数字 → 单词（关键字）
+    const pattern = /(--[^\n]*)|(&#39;(?:[^&#39;\n]|&#39;&#39;)*&#39;|&quot;(?:[^&quot;\n]|&quot;&quot;)*&quot;)|(\b\d+(?:\.\d+)?\b)|(\b[A-Za-z_][A-Za-z0-9_]*\b)/g;
+    return escaped.replace(pattern, (token, comment: string, str: string, num: string, word: string) => {
+      if (comment) return '<span class="sql-hl-comment">' + token + '</span>';
+      if (str) return '<span class="sql-hl-string">' + token + '</span>';
+      if (num) return '<span class="sql-hl-number">' + token + '</span>';
+      if (word && SQL_KEYWORDS.has(word.toUpperCase())) return '<span class="sql-hl-keyword">' + token + '</span>';
+      return token;
+    });
+  }
+
+  function syncSqlScroll(): void {
+    requestAnimationFrame(() => {
+      if (sqlHighlightElement && sqlEditorEl) {
+        sqlHighlightElement.scrollTop = sqlEditorEl.scrollTop;
+        sqlHighlightElement.scrollLeft = sqlEditorEl.scrollLeft;
+      }
+    });
+  }
+
   /* ── SQL 编辑器 ── */
   function handleSqlKeys(event: KeyboardEvent): void {
     if (event.key === 'Enter' && event.ctrlKey) {
+      event.preventDefault();
+      runSql();
+    } else if (event.key === 'F5') {
       event.preventDefault();
       runSql();
     }
   }
 
   async function runSql(): Promise<void> {
-    const sql = sqlText.trim();
-    if (!sql || sqlRunning || !activeConn) return;
+    if (!activeConn) return;
+    // 有选中文本时只执行选中部分（选中语句模式）
+    const hasSelection = sqlEditorEl ? sqlEditorEl.selectionStart !== sqlEditorEl.selectionEnd : false;
+    const sql = (hasSelection
+      ? sqlText.slice(sqlEditorEl!.selectionStart, sqlEditorEl!.selectionEnd)
+      : sqlText
+    ).trim();
+    if (!sql || sqlRunning) return;
     sqlRunning = true;
     sqlError = '';
     sqlResult = null;
     try {
       sqlResult = await invoke<ExecResult>('sql_execute', { profile: profileOf(activeConn), sql });
+      const next = [sql, ...sqlHistory.filter((item) => item !== sql)].slice(0, 30);
+      sqlHistory = next;
+      saveSqlHistory(next);
     } catch (cause) {
       sqlError = cause instanceof Error ? cause.message : String(cause);
     } finally {
@@ -782,6 +909,12 @@
       event.preventDefault();
       if (tab === 'design') saveDesign();
       else if (tab === 'data' && hasPending) saveChanges();
+    } else if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && (event.key === 'f' || event.key === 'F')) {
+      // 聚焦当前页筛选框
+      if (tab === 'data') {
+        event.preventDefault();
+        filterEl?.focus();
+      }
     }
   }
 
@@ -846,6 +979,7 @@
     saveConnections(connections);
     setSecret('sql.' + cleaned.id + '.password', cleaned.password).catch(() => undefined);
     activeId = cleaned.id;
+    localStorage.setItem(LAST_CONN_KEY, cleaned.id);
     formOpen = false;
     // 保存后自动连接
     connect();
@@ -868,6 +1002,7 @@
     saveConnections(connections);
     if (activeId === id) {
       activeId = connections[0]?.id ?? '';
+      localStorage.setItem(LAST_CONN_KEY, activeId);
       connected = false;
       databases = [];
       selectedTable = '';
@@ -989,9 +1124,24 @@
       {#if !activeConn}
         <div class="sql-empty">
           <span class="sql-empty-tile">{@html iconHtml(TOOL_ICONS['spurh.sql'])}</span>
-          <b>还没有数据库连接</b>
-          <p>新建连接后即可浏览库表、编辑数据、执行 SQL</p>
-          <button class="sql-btn primary big" onclick={openNewConn}>＋ 新建连接</button>
+          {#if connections.length === 0}
+            <b>还没有数据库连接</b>
+            <p>新建连接后即可浏览库表、编辑数据、执行 SQL</p>
+            <button class="sql-btn primary big" onclick={openNewConn}>＋ 新建连接</button>
+          {:else}
+            <b>选择要连接的数据库</b>
+            <p>点击下方已保存的连接即可连接</p>
+            <div class="sql-quick-conns">
+              {#each connections as conn}
+                <button class="sql-quick-conn" onclick={() => { selectConn(conn.id); connect(); }}>
+                  <span class="sql-conn-ico">{@html dbIcon(conn.kind)}</span>
+                  <span class="sql-quick-copy"><b>{conn.name}</b><small>{connSubtitle(conn)}</small></span>
+                  <i>连接 ›</i>
+                </button>
+              {/each}
+            </div>
+            <button class="sql-btn ghost big" onclick={openNewConn}>＋ 新建连接</button>
+          {/if}
         </div>
       {:else if !connected}
         <div class="sql-empty">
@@ -1028,8 +1178,11 @@
                   <b>{selectedDb}.{selectedTable}</b>
                   <em>{tableKind === 'VIEW' ? '视图' : '表'}</em>
                   <small>{total} 行 · {meta.columns.length} 字段</small>
+                  {#if isFiltered}<em class="sql-filter-hint">筛选 {filteredCount} / {total}</em>{/if}
                 </div>
                 <div class="sql-data-actions">
+                  <input class="sql-filter" bind:value={filterText} bind:this={filterEl} placeholder="筛选当前页…（Ctrl+F）" spellcheck="false" />
+                  <button class="sql-btn ghost" disabled={loadingRows || displayRows.length === 0} onclick={exportPageCsv} title="导出当前页为 CSV">导出 CSV</button>
                   <button class="sql-btn ghost" disabled={loadingRows} onclick={loadTableData} title="刷新当前页">{@html UI_ICONS.refresh}刷新</button>
                   <button class="sql-btn ghost" onclick={openDesigner} title="设计表结构：新增/修改/删除字段">设计表</button>
                   <button class="sql-btn ghost" onclick={addNewRow} title="在网格底部新增一行">＋ 新增行</button>
@@ -1046,7 +1199,8 @@
                 <table class="sql-grid">
                   <thead>
                     <tr>
-                      <th class="chk"><input type="checkbox" checked={selectedRows.size > 0 && selectedRows.size === rows.length} onchange={(e) => toggleAll((e.currentTarget as HTMLInputElement).checked)} title="全选" /></th>
+                      {#if !isFiltered}<th class="chk"><input type="checkbox" checked={selectedRows.size > 0 && selectedRows.size === rows.length} onchange={(e) => toggleAll((e.currentTarget as HTMLInputElement).checked)} title="全选" /></th>{/if}
+                      {#if !isFiltered}<th class="idx">#</th>{/if}
                       {#each meta.columns as col}
                         <th title={col.dataType + (col.nullable ? '' : ' NOT NULL')}>
                           <span class="col-name">{col.name}</span>
@@ -1057,9 +1211,11 @@
                     </tr>
                   </thead>
                   <tbody>
+                    {#if !isFiltered}
                     {#each newRowDrafts as row, ni}
                       <tr class="is-new">
                         <td class="chk"><span class="badge-new">新</span></td>
+                        <td class="idx">新</td>
                         {#each meta.columns as col, ci}
                           {@const nkey = 'n' + ni + ':' + ci}
                           {@const nval = row[col.name]}
@@ -1078,41 +1234,48 @@
                         {/each}
                       </tr>
                     {/each}
-                    {#each rows as row, ri}
-                      <tr class:selected={selectedRows.has(ri)}>
-                        <td class="chk"><input type="checkbox" checked={selectedRows.has(ri)} onchange={(e) => toggleRow(ri, (e.currentTarget as HTMLInputElement).checked)} /></td>
+                    {/if}
+                    {#each displayRows as row, ri}
+                      <tr class:selected={!isFiltered && selectedRows.has(ri)}>
+                        {#if !isFiltered}<td class="chk"><input type="checkbox" checked={selectedRows.has(ri)} onchange={(e) => toggleRow(ri, (e.currentTarget as HTMLInputElement).checked)} /></td>{/if}
+                        {#if !isFiltered}<td class="idx">{page * pageSize + ri + 1}</td>{/if}
                         {#each meta.columns as col, ci}
                           {@const key = ri + ':' + ci}
                           {@const original = cellText(row[ci])}
                           {@const cur = draft[key] !== undefined ? draft[key] : original}
                           {@const dirty = draft[key] !== undefined && draft[key] !== original}
-                          <td class="cell" class:dirty={dirty} class:null={cur === null}>
-                            {#if editing === key}
+                          <td class="cell" class:dirty={!isFiltered && dirty} class:null={cur === null}>
+                            {#if !isFiltered && editing === key}
                               <span class="cell-edit">
                                 <input value={editBuf} oninput={(e) => (editBuf = e.currentTarget.value)} onkeydown={handleEditKeydown} bind:this={editingInput} spellcheck="false" />
                                 <button class="cell-null" title="设为 NULL" onclick={setNull}>NULL</button>
                               </span>
-                            {:else}
+                            {:else if !isFiltered}
                               <button class="cell-view" onclick={() => startEdit(ri, ci)} title="点击编辑">
                                 {#if cur === null}<em class="null-tag">NULL</em>{:else}{cur}{/if}
                               </button>
+                            {:else}
+                              <span class="cell-view read" title={String(cur ?? '')}>{#if cur === null}<em class="null-tag">NULL</em>{:else}{String(cur)}{/if}</span>
                             {/if}
                           </td>
                         {/each}
                       </tr>
                     {/each}
-                    {#if rows.length === 0 && newRowDrafts.length === 0}
-                      <tr><td class="grid-empty" colspan={meta.columns.length + 1}>此表暂无数据，点击「＋ 新增行」添加</td></tr>
+                    {#if displayRows.length === 0 && (!isFiltered ? newRowDrafts.length === 0 : true)}
+                      <tr><td class="grid-empty" colspan={meta.columns.length + (isFiltered ? 0 : 2)}>{isFiltered ? '没有匹配「' + filterText.trim() + '」的行' : '此表暂无数据，点击「＋ 新增行」添加'}</td></tr>
                     {/if}
                   </tbody>
                 </table>
               </div>
               <div class="sql-pager">
-                <span>{total > 0 ? (page * PAGE_SIZE + 1) + ' – ' + Math.min((page + 1) * PAGE_SIZE, total) + ' / 共 ' + total + ' 行' : '共 0 行'}</span>
+                <span>{total > 0 ? (page * pageSize + 1) + ' – ' + Math.min((page + 1) * pageSize, total) + ' / 共 ' + total + ' 行' : '共 0 行'}</span>
                 <div>
                   <button disabled={page === 0 || loadingRows} onclick={() => goPage(page - 1)}>‹ 上一页</button>
-                  <span>第 {page + 1} 页</span>
-                  <button disabled={(page + 1) * PAGE_SIZE >= total || loadingRows} onclick={() => goPage(page + 1)}>下一页 ›</button>
+                  <span>第 {page + 1} / {totalPages} 页</span>
+                  <button disabled={(page + 1) * pageSize >= total || loadingRows} onclick={() => goPage(page + 1)}>下一页 ›</button>
+                  <select class="sql-page-size" value={pageSize} onchange={(e) => changePageSize(Number(e.currentTarget.value))} title="每页行数">
+                    {#each PAGE_SIZES as size}<option value={size}>{size} 行/页</option>{/each}
+                  </select>
                 </div>
               </div>
               {#if ddl}
@@ -1136,12 +1299,31 @@
             <div class="sql-editor-bar">
               <button class="sql-btn primary" disabled={sqlRunning || !sqlText.trim()} onclick={runSql}><span class="sql-dot"></span>{sqlRunning ? '执行中…' : '运行 SQL'}</button>
               <kbd>Ctrl ↵</kbd>
-              <span class="sql-editor-note">SELECT 显示结果 · 其它语句显示影响行数 · 最多 500 行</span>
+              <span class="sql-editor-note">有选中文本时只执行选中部分 · 最多 500 行</span>
               <div class="flex-spacer"></div>
+              <div class="sql-history-wrap">
+                <button class="sql-btn ghost" onclick={() => (sqlHistoryOpen = !sqlHistoryOpen)} title="最近执行的查询">{sqlHistoryOpen ? '收起历史' : '历史'}（{sqlHistory.length}）</button>
+                {#if sqlHistoryOpen}
+                  <div class="sql-history">
+                    {#if sqlHistory.length === 0}
+                      <div class="sql-history-empty">暂无历史查询</div>
+                    {:else}
+                      {#each sqlHistory as item, i}
+                        <button onclick={() => { sqlText = item; sqlHistoryOpen = false; }} title={item}>
+                          <span>{i + 1}</span><code>{item.length > 90 ? item.slice(0, 90) + '…' : item}</code>
+                        </button>
+                      {/each}
+                    {/if}
+                  </div>
+                {/if}
+              </div>
               <button class="sql-btn ghost" disabled={!sqlText} onclick={() => (sqlText = '')}>清空</button>
               <button class="sql-btn ghost" onclick={() => copyText(sqlText, 'sql')}>{copiedKey === 'sql' ? '已复制 ✓' : '复制'}</button>
             </div>
-            <textarea bind:value={sqlText} onkeydown={handleSqlKeys} placeholder={'-- 在此输入 SQL，例如：\nSELECT * FROM users LIMIT 100;\n\n-- Ctrl + Enter 执行'} spellcheck="false"></textarea>
+            <div class="sql-editor-area">
+              <pre class="sql-editor-hl" bind:this={sqlHighlightElement} aria-hidden="true">{@html highlightSql(sqlText)}</pre>
+              <textarea bind:value={sqlText} bind:this={sqlEditorEl} onkeydown={handleSqlKeys} onscroll={syncSqlScroll} placeholder={'-- 在此输入 SQL，例如：\nSELECT * FROM users LIMIT 100;\n\n-- Ctrl + Enter / F5 执行，选中部分则只执行选中'} spellcheck="false"></textarea>
+            </div>
             {#if sqlError}<div class="sql-error"><i></i>{sqlError}</div>{/if}
             {#if sqlResult}
               <div class="sql-result-bar">
@@ -1152,6 +1334,7 @@
                 <div class="flex-spacer"></div>
                 {#if sqlResult.isQuery}
                   <button class="sql-btn ghost" onclick={() => copyText(JSON.stringify(sqlResult!.rows, null, 2), 'sqljson')}>{copiedKey === 'sqljson' ? '已复制 ✓' : '复制 JSON'}</button>
+                  <button class="sql-btn ghost" onclick={exportResultCsv} title="导出查询结果为 CSV">导出 CSV</button>
                 {/if}
               </div>
               {#if sqlResult.isQuery}
@@ -1376,6 +1559,13 @@
   .sql-conn-ops button:hover { color: var(--text); background: var(--panel-2); }
   .sql-conn-ops button.confirm { color: #fff; background: var(--danger); font-size: 10.4px; }
   .sql-conns-empty { padding: 16px 10px; color: var(--muted-2); font-size: 10.9px; line-height: 1.8; text-align: center; }
+  .sql-quick-conns { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 4px 0 12px; }
+  .sql-quick-conn { display: flex; align-items: center; gap: 9px; padding: 9px 13px; cursor: pointer; color: var(--text); text-align: left; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); transition: border-color .15s ease, transform .12s ease, box-shadow .15s ease; }
+  .sql-quick-conn:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 12%, transparent); transform: translateY(-1px); }
+  .sql-quick-conn .sql-quick-copy { display: flex; flex-direction: column; gap: 2px; }
+  .sql-quick-conn b { font-size: 11.5px; }
+  .sql-quick-conn small { color: var(--muted-2); font-size: 9.8px; }
+  .sql-quick-conn i { color: var(--accent); font-size: 10.4px; font-style: normal; }
 
   /* ── 库表树 ── */
   .sql-tree { min-height: 0; flex: 1; padding: 6px; overflow-y: auto; }
@@ -1481,6 +1671,20 @@
   .sql-pager button:hover:not(:disabled) { color: var(--text); border-color: var(--line-2); }
   .sql-pager button:disabled { cursor: default; opacity: .35; }
   .sql-pager span { color: var(--muted); font-size: 10.9px; }
+  .sql-pager .sql-page-size { height: 24px; padding: 0 6px; color: var(--muted); font-size: 10.4px; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--bg); cursor: pointer; }
+  .sql-filter { width: 180px; height: 25px; padding: 0 9px; color: var(--text); font-size: 11px; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
+  .sql-filter:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .sql-filter::placeholder { color: var(--muted-2); }
+  .sql-filter-hint { padding: 2px 8px; color: var(--blue); font-size: 10.2px; font-style: normal; border: 1px solid color-mix(in srgb, var(--blue) 35%, var(--line)); border-radius: 5px; background: color-mix(in srgb, var(--blue) 8%, transparent); }
+  .cell-view.read { cursor: default; }
+  .cell-view.read:hover { color: inherit; }
+  .sql-history-wrap { position: relative; }
+  .sql-history { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 360px; max-height: 260px; padding: 5px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+  .sql-history button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; color: var(--text); font-size: 11px; text-align: left; border: 0; border-radius: 6px; background: transparent; }
+  .sql-history button:hover { background: var(--hover); }
+  .sql-history button span { flex: 0 0 auto; color: var(--muted-2); font: 500 9.6px 'Cascadia Code', monospace; }
+  .sql-history button code { min-width: 0; overflow: hidden; color: var(--muted); font: 400 10.6px/1.5 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
+  .sql-history-empty { padding: 14px; color: var(--muted-2); font-size: 10.9px; text-align: center; }
 
   .sql-ddl { flex: 0 0 auto; margin: 9px 12px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); overflow: hidden; }
   .sql-ddl summary { padding: 8px 12px; cursor: pointer; color: var(--muted); font-size: 11.5px; user-select: none; }
@@ -1494,9 +1698,16 @@
   .sql-editor-bar kbd { margin: 0; }
   .sql-editor-note { color: var(--muted-2); font-size: 10.4px; }
   .flex-spacer { flex: 1; }
-  .sql-editor textarea { min-height: 120px; flex: 0 0 auto; padding: 12px 14px; color: var(--text); font: 450 13.8px/1.65 'Cascadia Code', monospace; resize: vertical; border: 0; border-bottom: 1px solid var(--line); outline: 0; background: var(--bg); }
-  .sql-editor textarea:focus { box-shadow: inset 0 2px 0 var(--accent); }
-  .sql-editor textarea::placeholder { color: var(--muted-2); }
+  .sql-editor-area { position: relative; min-height: 120px; flex: 0 0 auto; resize: vertical; overflow: hidden; border: 0; border-bottom: 1px solid var(--line); background: var(--bg); }
+  .sql-editor-area pre.sql-editor-hl { position: absolute; inset: 0; z-index: 0; margin: 0; padding: 12px 14px; overflow: hidden; pointer-events: none; color: var(--text); font: 450 13.8px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; word-break: break-word; }
+  .sql-editor-area textarea { position: relative; z-index: 1; width: 100%; height: 100%; min-height: 120px; padding: 12px 14px; color: transparent; caret-color: var(--text); font: 450 13.8px/1.65 'Cascadia Code', monospace; resize: none; border: 0; outline: 0; background: transparent; }
+  .sql-editor-area textarea::selection { background: var(--accent-soft); }
+  .sql-editor-area textarea:focus { box-shadow: inset 0 2px 0 var(--accent); }
+  .sql-editor-area textarea::placeholder { color: var(--muted-2); }
+  :global(.sql-hl-keyword) { color: #7aa2f7; font-weight: 600; }
+  :global(.sql-hl-string) { color: #9ece6a; }
+  :global(.sql-hl-number) { color: #ff9e64; }
+  :global(.sql-hl-comment) { color: #565f89; font-style: italic; }
   .sql-result-bar { flex: 0 0 auto; display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-result-chip { padding: 2px 7px; color: var(--blue); font: 700 9.8px 'Cascadia Code', monospace; border-radius: 4px; background: color-mix(in srgb, var(--blue) 12%, transparent); }
   .sql-result-chip.query { color: var(--accent); background: var(--accent-soft); }

@@ -68,6 +68,12 @@
 
   const initialSessions = loadSessions();
   let sessions = $state<RemoteSession[]>(initialSessions);
+  let sessionQuery = $state('');
+  const filteredSessions = $derived(sessionQuery.trim()
+    ? sessions.filter((item) =>
+        (item.name + ' ' + item.host + ' ' + item.user + ' ' + item.port)
+          .toLowerCase().includes(sessionQuery.trim().toLowerCase()))
+    : sessions);
   let activeId = $state(initialSessions[0]?.id ?? '');
   let editing = $state(false);
   let draft = $state<RemoteSession | null>(null);
@@ -108,6 +114,17 @@
     editing = false;
   }
 
+  const QUICK_COMMANDS = [
+    { label: '磁盘占用', cmd: 'df -h' },
+    { label: '内存', cmd: 'free -m' },
+    { label: '运行时长', cmd: 'uptime' },
+    { label: '当前目录', cmd: 'pwd' },
+    { label: '当前用户', cmd: 'whoami' },
+    { label: '目录列表', cmd: 'ls -la' },
+    { label: '系统信息', cmd: 'uname -a' },
+    { label: '进程 TOP', cmd: 'top -bn1 | head -20' },
+  ];
+  let quickOpen = $state(false);
   let sysPanel = $state(false);
   let sysInfo = $state('');
   let sysLoading = $state(false);
@@ -266,6 +283,16 @@
     statusMap = { ...statusMap, [id]: state };
   }
 
+  /** 向已连接会话发送一条命令（模拟输入 + 回车） */
+  function runQuick(cmd: string): void {
+    quickOpen = false;
+    if (!active || activeStatus.status !== 'connected') return;
+    const bytes = new TextEncoder().encode(cmd + '\r');
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    invoke('ssh_write', { sessionId: active.id, data: btoa(binary) }).catch(() => undefined);
+  }
+
   function statusLabel(state: SessionState): string {
     switch (state.status) {
       case 'connected': return '已连接';
@@ -280,8 +307,9 @@
 <div class="remote-panel">
   <aside class="remote-side">
     <div class="remote-side-head"><b>会话</b><button class="remote-add" title="新建会话" onclick={addSession}><span>{@html UI_ICONS.plus}</span></button></div>
+    <label class="remote-search"><span>{@html UI_ICONS.search}</span><input bind:value={sessionQuery} placeholder="搜索会话…" spellcheck="false" /></label>
     <div class="remote-sessions">
-      {#each sessions as item}
+      {#each filteredSessions as item}
         <button class="remote-session" class:active={activeId === item.id} onclick={() => select(item.id)}>
           <span class="rs-icon">{@html iconHtml(TOOL_ICONS['spurh.remote'])}</span>
           <span class="rs-copy"><b>{item.name || (item.user || 'root') + '@' + item.host}</b><small>{item.host}:{item.port}</small></span>
@@ -290,6 +318,8 @@
       {/each}
       {#if sessions.length === 0}
         <div class="rs-empty">还没有会话<br />点击右上角 + 新建</div>
+      {:else if filteredSessions.length === 0}
+        <div class="rs-empty">没有匹配「{sessionQuery.trim()}」的会话</div>
       {/if}
     </div>
   </aside>
@@ -336,9 +366,19 @@
           <i></i><span>{statusLabel(activeStatus)}{activeStatus.message ? ' · ' + activeStatus.message : ''}</span>
         </div>
         <div class="rt-actions">
-          <button class="rt-connect" onclick={connect}><span class="rt-dot"></span>{activeStatus.status === 'connected' ? '重连' : '连接'}</button>
+          <button class="rt-connect" onclick={connect}><span class="rt-dot"></span>{activeStatus.status === 'connected' ? '重连' : (activeStatus.status === 'error' ? '重试' : '连接')}</button>
           <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => { sysPanel = true; loadSysInfo(); }} title="查看主机系统/内存/磁盘/负载">资源信息</button>
           <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => (filePanel = true)} title="上传 / 下载文件（基于 cat）">传输文件</button>
+          <div class="rt-quick-wrap">
+            <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => (quickOpen = !quickOpen)} title="发送常用命令到终端">{quickOpen ? '收起命令' : '快捷命令'}</button>
+            {#if quickOpen}
+              <div class="rt-quick">
+                {#each QUICK_COMMANDS as item}
+                  <button onclick={() => runQuick(item.cmd)}><code>{item.cmd}</code><small>{item.label}</small></button>
+                {/each}
+              </div>
+            {/if}
+          </div>
           <button class="rt-quiet" onclick={editSession}>编辑</button>
           <button class="rt-quiet danger" onclick={() => deleteSession(active.id)}>删除</button>
         </div>
@@ -363,6 +403,7 @@
               <label class="rt-file-row"><span>远端路径</span><input type="text" value={remotePath} oninput={(e) => (remotePath = e.currentTarget.value)} placeholder="/root/logs/app.log" spellcheck="false" /></label>
               <div class="rt-file-row"><span>上传文件</span>
                 <input type="file" onchange={(e) => (uploadFile = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)} />
+                <span class="rt-file-size">{uploadFile ? uploadFile.name + '（' + (uploadFile.size / 1024 / 1024).toFixed(2) + ' MB）' : '未选择文件'}</span>
                 <button class="rt-quiet" disabled={transferBusy || !uploadFile} onclick={doUpload}>{transferBusy ? '传输中…' : '上传'}</button>
               </div>
               <div class="rt-file-row"><span>下载远端文件</span>
@@ -426,6 +467,11 @@
   .remote-add span { display: inline-flex; }
   :global(.remote-add span svg) { width: 12px; height: 12px; }
   .remote-add:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
+  .remote-search { height: 32px; flex: 0 0 auto; display: flex; align-items: center; gap: 6px; margin: 8px 8px 0; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
+  :global(.remote-search svg) { width: 12px; height: 12px; color: var(--muted-2); }
+  .remote-search:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .remote-search input { min-width: 0; flex: 1; color: var(--text); font-size: 11px; border: 0; outline: 0; background: transparent; }
+  .remote-search input::placeholder { color: var(--muted-2); }
   .remote-sessions { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; padding: 8px; overflow-y: auto; }
   .remote-session { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 9px; padding: 7px 9px; cursor: pointer; text-align: left; color: var(--text); border: 1px solid transparent; border-radius: 9px; background: transparent; transition: background .15s ease, border-color .15s ease, box-shadow .15s ease; }
   .remote-session:hover { background: var(--hover); }
@@ -526,6 +572,13 @@
   .rt-file-row input[type='text'], .rt-file-row input:not([type]) { min-width: 0; flex: 1; height: 32px; padding: 0 9px; color: var(--text); font: 500 11.5px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); }
   .rt-file-row input:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .rt-file-row input[type='file'] { font-size: 10.5px; }
+  .rt-file-size { min-width: 0; flex: 1; overflow: hidden; color: var(--muted); font-size: 10.2px; text-overflow: ellipsis; white-space: nowrap; }
   .rt-transfer-status { margin: 0; color: var(--accent); font-size: 11px; }
   .rt-file-note { color: var(--muted-2); font-size: 9.5px; line-height: 1.6; }
+  .rt-quick-wrap { position: relative; }
+  .rt-quick { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 250px; padding: 5px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+  .rt-quick button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 9px; cursor: pointer; text-align: left; border: 0; border-radius: 6px; background: transparent; }
+  .rt-quick button:hover { background: var(--hover); }
+  .rt-quick code { color: var(--text); font: 500 11px 'Cascadia Code', monospace; }
+  .rt-quick small { color: var(--muted-2); font-size: 9.6px; }
 </style>
