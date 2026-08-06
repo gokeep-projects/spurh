@@ -193,6 +193,25 @@
     fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.open(termEl!);
+    // 终端快捷键：Ctrl+L 清屏 / Ctrl+Shift+C 复制 / Ctrl+Shift+V 粘贴
+    term.attachCustomKeyEventHandler((event) => {
+      if (event.ctrlKey && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'l') {
+        event.preventDefault();
+        term?.clear();
+        return false;
+      }
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'c') {
+        event.preventDefault();
+        copySelection();
+        return false;
+      }
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'v') {
+        event.preventDefault();
+        pasteText();
+        return false;
+      }
+      return true;
+    });
     term.onData((data) => {
       if (connected) invoke('ssh_write', { sessionId: session.id, data: toBase64(data) }).catch(() => undefined);
     });

@@ -158,6 +158,7 @@
   let pageSize = $state(PAGE_SIZE);
   let filterText = $state('');
   let filterEl = $state<HTMLInputElement | undefined>();
+  let whereText = $state('');
   let loadingRows = $state(false);
   let rowError = $state('');
   let saveMessage = $state('');
@@ -211,6 +212,11 @@
   let sqlHistory = $state<string[]>(loadSqlHistory());
   let sqlHistoryOpen = $state(false);
   let sqlEditorEl = $state<HTMLTextAreaElement | undefined>();
+  // 查询结果客户端分页（后端最多返回 500 行）
+  const RESULT_PAGE_SIZE = 100;
+  let resultPage = $state(0);
+  const resultTotalPages = $derived(sqlResult ? Math.max(1, Math.ceil(sqlResult.rows.length / RESULT_PAGE_SIZE)) : 1);
+  const resultPageRows = $derived(sqlResult ? sqlResult.rows.slice(resultPage * RESULT_PAGE_SIZE, (resultPage + 1) * RESULT_PAGE_SIZE) : []);
 
   /* ── 表设计器 ── */
   type DesignColumn = {
@@ -406,6 +412,8 @@
     selectedTable = table.name;
     tableKind = table.kind;
     page = 0;
+    whereText = '';
+    filterText = '';
     draft = {};
     newRowDrafts = [];
     pendingDeletes = [];
@@ -426,6 +434,7 @@
         table: selectedTable,
         offset: page * pageSize,
         limit: pageSize,
+        filter: whereText.trim() || null,
       });
       meta = { columns: result.columns };
       rows = result.rows;
@@ -713,6 +722,7 @@
     sqlResult = null;
     try {
       sqlResult = await invoke<ExecResult>('sql_execute', { profile: profileOf(activeConn), sql });
+      resultPage = 0;
       const next = [sql, ...sqlHistory.filter((item) => item !== sql)].slice(0, 30);
       sqlHistory = next;
       saveSqlHistory(next);
@@ -1159,6 +1169,11 @@
                   {#if isFiltered}<em class="sql-filter-hint">筛选 {filteredCount} / {total}</em>{/if}
                 </div>
                 <div class="sql-data-actions">
+                  <div class="sql-where" class:active={Boolean(whereText.trim())}>
+                    <span class="sql-where-tag">WHERE</span>
+                    <input bind:value={whereText} placeholder="跨页条件，如 age > 18（回车应用）" spellcheck="false" onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); page = 0; loadTableData(); } else if (e.key === 'Escape') { whereText = ''; page = 0; loadTableData(); } }} />
+                    {#if whereText}<button class="sql-where-clear" onclick={() => { whereText = ''; page = 0; loadTableData(); }} title="清除条件">×</button>{/if}
+                  </div>
                   <input class="sql-filter" bind:value={filterText} bind:this={filterEl} placeholder="筛选当前页…（Ctrl+F）" spellcheck="false" />
                   <button class="sql-btn ghost" disabled={loadingRows || displayRows.length === 0} onclick={exportPageCsv} title="导出当前页为 CSV">导出 CSV</button>
                   <button class="sql-btn ghost" disabled={loadingRows} onclick={loadTableData} title="刷新当前页">{@html UI_ICONS.refresh}刷新</button>
@@ -1321,17 +1336,24 @@
                   <table class="sql-grid readonly">
                     <thead><tr><th class="idx">#</th>{#each sqlResult.columns as col}<th><span class="col-name">{col}</span></th>{/each}</tr></thead>
                     <tbody>
-                      {#each sqlResult.rows as row, ri}
+                      {#each resultPageRows as row, ri}
                         <tr>
-                          <td class="idx">{ri + 1}</td>
+                          <td class="idx">{resultPage * RESULT_PAGE_SIZE + ri + 1}</td>
                           {#each row as cell}
-                            <td class="cell"><span class:null-tag={cell === null}>{cell === null ? 'NULL' : String(cell)}</span></td>
+                            <td class="cell" title={cell === null ? 'NULL' : String(cell)}><span class:null-tag={cell === null}>{cell === null ? 'NULL' : String(cell)}</span></td>
                           {/each}
                         </tr>
                       {/each}
                     </tbody>
                   </table>
                 </div>
+                {#if resultTotalPages > 1}
+                  <div class="sql-result-pager">
+                    <button disabled={resultPage === 0} onclick={() => (resultPage -= 1)}>‹ 上一页</button>
+                    <span>第 {resultPage + 1} / {resultTotalPages} 页 · 共 {sqlResult.rows.length} 行</span>
+                    <button disabled={resultPage >= resultTotalPages - 1} onclick={() => (resultPage += 1)}>下一页 ›</button>
+                  </div>
+                {/if}
               {/if}
             {/if}
             <AiAssist
@@ -1654,6 +1676,19 @@
   .sql-filter { width: 180px; height: 25px; padding: 0 9px; color: var(--text); font-size: 11px; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .sql-filter:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .sql-filter::placeholder { color: var(--muted-2); }
+  .sql-where { display: flex; align-items: center; gap: 5px; height: 25px; padding: 0 4px 0 0; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
+  .sql-where:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .sql-where.active { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .sql-where-tag { height: 100%; display: grid; place-items: center; padding: 0 6px; color: var(--muted-2); font: 600 9.6px 'Cascadia Code', monospace; border-right: 1px solid var(--line); background: var(--panel-2); border-radius: 6px 0 0 6px; }
+  .sql-where input { min-width: 150px; width: 150px; color: var(--text); font: 500 10.6px 'Cascadia Code', monospace; border: 0; outline: 0; background: transparent; }
+  .sql-where input::placeholder { color: var(--muted-2); }
+  .sql-where-clear { width: 18px; height: 18px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); font-size: 12px; border: 0; border-radius: 4px; background: transparent; }
+  .sql-where-clear:hover { color: var(--danger); background: var(--hover); }
+  .sql-result-pager { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 7px 12px; border-top: 1px solid var(--line); background: var(--panel); }
+  .sql-result-pager button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 10.9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  .sql-result-pager button:hover:not(:disabled) { color: var(--text); border-color: var(--line-2); }
+  .sql-result-pager button:disabled { cursor: default; opacity: .35; }
+  .sql-result-pager span { color: var(--muted); font: 500 10.4px 'Cascadia Code', monospace; }
   .sql-filter-hint { padding: 2px 8px; color: var(--blue); font-size: 10.2px; font-style: normal; border: 1px solid color-mix(in srgb, var(--blue) 35%, var(--line)); border-radius: 5px; background: color-mix(in srgb, var(--blue) 8%, transparent); }
   .cell-view.read { cursor: default; }
   .cell-view.read:hover { color: inherit; }

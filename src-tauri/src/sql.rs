@@ -724,16 +724,29 @@ fn run_columns(profile: &SqlProfile, database: String, table: String) -> Result<
     }
 }
 
-fn run_rows(profile: &SqlProfile, database: String, table: String, offset: u64, limit: u64) -> Result<SqlRowsResult, String> {
+fn run_rows(
+    profile: &SqlProfile,
+    database: String,
+    table: String,
+    offset: u64,
+    limit: u64,
+    filter: Option<String>,
+) -> Result<SqlRowsResult, String> {
     let columns = run_columns(profile, database.clone(), table.clone())?;
     let quoted = quote_ident(&profile.kind, &table);
+    // 跨页 SQL 条件：追加到 WHERE（用户自担语义），空值跳过
+    let where_clause = filter
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .map(|value| format!(" WHERE ({value})"))
+        .unwrap_or_default();
     let rows = match profile.kind.as_str() {
         "mysql" => {
             use mysql::prelude::*;
             with_mysql(profile, Some(&database), |conn| {
-                let total: u64 = conn.query_first(format!("SELECT COUNT(*) FROM {quoted}")).map_err(|error| format!("统计行数失败：{error}"))?.unwrap_or(0);
+                let total: u64 = conn.query_first(format!("SELECT COUNT(*) FROM {quoted}{where_clause}")).map_err(|error| format!("统计行数失败：{error}"))?.unwrap_or(0);
                 let mut result = conn
-                    .exec_iter(format!("SELECT * FROM {quoted} LIMIT ? OFFSET ?"), (limit, offset))
+                    .exec_iter(format!("SELECT * FROM {quoted}{where_clause} LIMIT ? OFFSET ?"), (limit, offset))
                     .map_err(|error| format!("查询数据失败：{error}"))?;
                 let mut out = Vec::new();
                 for row in result.by_ref() {
@@ -745,9 +758,9 @@ fn run_rows(profile: &SqlProfile, database: String, table: String, offset: u64, 
         }
         "postgres" => {
             with_pg(profile, Some(&database), |client| {
-                let total: i64 = client.query_one(&format!("SELECT COUNT(*) FROM {quoted}"), &[]).map_err(|error| format!("统计行数失败：{error}"))?.get(0);
+                let total: i64 = client.query_one(&format!("SELECT COUNT(*) FROM {quoted}{where_clause}"), &[]).map_err(|error| format!("统计行数失败：{error}"))?.get(0);
                 let result = client
-                    .query(&format!("SELECT * FROM {quoted} LIMIT $1 OFFSET $2"), &[&(limit as i64), &(offset as i64)])
+                    .query(&format!("SELECT * FROM {quoted}{where_clause} LIMIT $1 OFFSET $2"), &[&(limit as i64), &(offset as i64)])
                     .map_err(|error| format!("查询数据失败：{error}"))?;
                 let out = result.iter().map(|row| (0..columns.len()).map(|index| pg_cell(row, index)).collect::<Vec<_>>()).collect::<Vec<_>>();
                 Ok((out, total as u64))
@@ -755,8 +768,8 @@ fn run_rows(profile: &SqlProfile, database: String, table: String, offset: u64, 
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
-            let total: i64 = conn.query_row(&format!("SELECT COUNT(*) FROM {quoted}"), [], |row| row.get(0)).map_err(|error| format!("统计行数失败：{error}"))?;
-            let mut stmt = conn.prepare(&format!("SELECT * FROM {quoted} LIMIT ? OFFSET ?")).map_err(|error| format!("查询数据失败：{error}"))?;
+            let total: i64 = conn.query_row(&format!("SELECT COUNT(*) FROM {quoted}{where_clause}"), [], |row| row.get(0)).map_err(|error| format!("统计行数失败：{error}"))?;
+            let mut stmt = conn.prepare(&format!("SELECT * FROM {quoted}{where_clause} LIMIT ? OFFSET ?")).map_err(|error| format!("查询数据失败：{error}"))?;
             let rows_iter = stmt
                 .query_map(rusqlite::params![limit as i64, offset as i64], |row| {
                     let mut cells = Vec::with_capacity(columns.len());
@@ -1487,8 +1500,15 @@ pub async fn sql_table_columns(profile: SqlProfile, database: String, table: Str
 }
 
 #[tauri::command]
-pub async fn sql_table_rows(profile: SqlProfile, database: String, table: String, offset: u64, limit: u64) -> Result<SqlRowsResult, String> {
-    let task = tauri::async_runtime::spawn_blocking(move || run_rows(&profile, database, table, offset, limit.min(1000)));
+pub async fn sql_table_rows(
+    profile: SqlProfile,
+    database: String,
+    table: String,
+    offset: u64,
+    limit: u64,
+    filter: Option<String>,
+) -> Result<SqlRowsResult, String> {
+    let task = tauri::async_runtime::spawn_blocking(move || run_rows(&profile, database, table, offset, limit.min(1000), filter));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "查询数据超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
