@@ -68,8 +68,13 @@ export const randomPlugin: SpurhPlugin = {
     return null;
   },
   execute(actionId, _input, options = {}): PluginResult {
-    const length = Number.parseInt(options.length || '24', 10);
-    const count = Math.min(100, Math.max(1, Number.parseInt(options.count || '1', 10) || 1));
+    // 严格解析：拒绝 "100abc" 这类非法尾缀
+    const parseStrict = (raw: string, fallback: number): number => {
+      const value = raw.trim();
+      return /^\d+$/.test(value) ? Number.parseInt(value, 10) : fallback;
+    };
+    const length = parseStrict(options.length || '24', 24);
+    const count = Math.min(100, Math.max(1, parseStrict(options.count || '1', 1) || 1));
     if (!Number.isFinite(length) || length < 4 || length > 512) throw new Error('长度请输入 4 到 512');
     const values = Array.from({ length: count }, () => {
       if (actionId === 'uuid') return crypto.randomUUID();
@@ -80,8 +85,8 @@ export const randomPlugin: SpurhPlugin = {
         return '#' + [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
       }
       if (actionId === 'number') {
-        const min = Number.parseInt(options.min || '0', 10);
-        const max = Number.parseInt(options.max || '100', 10);
+        const min = parseStrict(options.min || '0', 0);
+        const max = parseStrict(options.max || '100', 100);
         if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) throw new Error('数字范围无效，请确认最小值 ≤ 最大值');
         // 拒绝采样：基于 64 位随机数，对任意 span 均匀无偏差（也避免 span > 2^32 时只产生小值）
         const span = BigInt(max) - BigInt(min) + BigInt(1);
