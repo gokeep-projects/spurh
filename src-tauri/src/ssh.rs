@@ -107,7 +107,66 @@ impl client::Handler for SshHandler {
 enum SshCommand {
     Data(Vec<u8>),
     Resize { cols: u32, rows: u32 },
+    Exec {
+        command: String,
+        stdin: Option<Vec<u8>>,
+        reply: tokio::sync::oneshot::Sender<Result<String, String>>,
+    },
     Close,
+}
+
+/// 在现有会话上执行一条命令并收集输出（上传文件 = 命令 + stdin 内容）
+async fn exec_on(handle: &client::Handle<SshHandler>, command: &str, stdin: Option<Vec<u8>>) -> Result<String, String> {
+    let mut channel = handle
+        .channel_open_session()
+        .await
+        .map_err(|error| format!("打开命令通道失败：{error}"))?;
+    channel
+        .exec(true, command)
+        .await
+        .map_err(|error| format!("执行命令失败：{error}"))?;
+    if let Some(bytes) = stdin {
+        channel
+            .data_bytes(bytes)
+            .await
+            .map_err(|_| "写入输入失败".to_string())?;
+    }
+    let _ = channel.eof().await;
+    // 总时长 15s / 总字节 8MB 硬上限：防止 tail -f 等长输出命令无限阻塞会话
+    let started = std::time::Instant::now();
+    let mut output: Vec<u8> = Vec::new();
+    let mut stderr: Vec<u8> = Vec::new();
+    let mut truncated = false;
+    loop {
+        if started.elapsed() > Duration::from_secs(15) {
+            truncated = true;
+            break;
+        }
+        if output.len() + stderr.len() > 8 * 1024 * 1024 {
+            truncated = true;
+            break;
+        }
+        match tokio::time::timeout(Duration::from_secs(10), channel.wait()).await {
+            Ok(Some(ChannelMsg::Data { data })) => output.extend_from_slice(data.as_ref()),
+            Ok(Some(ChannelMsg::ExtendedData { data, .. })) => stderr.extend_from_slice(data.as_ref()),
+            Ok(Some(ChannelMsg::Eof)) | Ok(Some(ChannelMsg::Close)) | Ok(None) => break,
+            Ok(Some(_)) => {}
+            Err(_) => {
+                truncated = true;
+                break;
+            }
+        }
+    }
+    let _ = channel.close().await;
+    // base64 传输：stdout 主体 + 可选 __STDERR__ / __TRUNCATED__ 标记（TRUNCATED 必须最后，前端 endsWith 判定）
+    let mut encoded = BASE64.encode(&output);
+    if !stderr.is_empty() {
+        encoded.push_str(&format!("__STDERR__{}", BASE64.encode(&stderr)));
+    }
+    if truncated {
+        encoded.push_str("__TRUNCATED__");
+    }
+    Ok(encoded)
 }
 
 pub(crate) struct SshSession {
@@ -129,7 +188,7 @@ pub async fn ssh_connect(
     app: tauri::AppHandle,
     state: tauri::State<'_, SshSessions>,
     session_id: String,
-    profile: SshProfile,
+    mut profile: SshProfile,
     out: Channel<SshEvent>,
 ) -> Result<(), String> {
     // 同一 session 重复连接时先断开旧的
@@ -143,7 +202,8 @@ pub async fn ssh_connect(
         return Err("请输入主机地址".into());
     }
     if profile.user.trim().is_empty() {
-        return Err("请输入用户名".into());
+        // 未填写用户名时使用默认 root
+        profile.user = "root".into();
     }
 
     let config = Arc::new(client::Config {
@@ -254,6 +314,10 @@ pub async fn ssh_connect(
                         Some(SshCommand::Resize { cols, rows }) => {
                             let _ = channel.window_change(cols.max(2), rows.max(2), 0, 0).await;
                         }
+                        Some(SshCommand::Exec { command, stdin, reply }) => {
+                            let result = exec_on(&handle, &command, stdin).await;
+                            let _ = reply.send(result);
+                        }
                         Some(SshCommand::Close) | None => {
                             let _ = channel.eof().await;
                             let _ = channel.close().await;
@@ -274,6 +338,31 @@ pub async fn ssh_connect(
         .insert(session_id, SshSession { tx, task });
     let _ = emit(&out, "ready", None, None);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn ssh_exec(
+    state: tauri::State<'_, SshSessions>,
+    session_id: String,
+    command: String,
+    stdin: Option<String>,
+) -> Result<String, String> {
+    let (reply, receiver) = tokio::sync::oneshot::channel();
+    {
+        let sessions = state.map.lock().unwrap();
+        let session = sessions
+            .get(&session_id)
+            .ok_or("会话不存在或已断开")?;
+        session
+            .tx
+            .send(SshCommand::Exec {
+                command,
+                stdin: stdin.map(|content| content.into_bytes()),
+                reply,
+            })
+            .map_err(|_| "会话已关闭")?;
+    }
+    receiver.await.map_err(|_| "会话已关闭")?
 }
 
 #[tauri::command]

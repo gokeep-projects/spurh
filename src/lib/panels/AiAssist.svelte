@@ -133,7 +133,7 @@
   .ai-head { min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 9px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, var(--accent-soft)), var(--panel)); }
   .ai-toggle { height: 26px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: 10px; font-weight: 700; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 999px; background: var(--accent-soft); transition: all .15s ease; }
   .ai-toggle:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 18%, transparent); }
-  .ai-toggle.on { color: #fff; background: linear-gradient(135deg, var(--accent), var(--blue)); border-color: transparent; }
+  .ai-toggle.on { color: #fff; background: var(--btn-gradient); border-color: transparent; }
   .ai-spark { display: inline-flex; }
   :global(.ai-spark svg) { width: 12px; height: 12px; }
   .ai-toggle i { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
@@ -150,7 +150,7 @@
   .ai-prompt-row { display: flex; gap: 7px; }
   .ai-prompt-row input { min-width: 0; flex: 1; height: 32px; padding: 0 11px; color: var(--text); font: 500 11px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .ai-prompt-row input:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .ai-send { height: 32px; flex: 0 0 auto; padding: 0 14px; cursor: pointer; color: #fff; font-size: 10px; font-weight: 700; border: 0; border-radius: 7px; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 22%, transparent); transition: all .15s ease; }
+  .ai-send { height: 32px; flex: 0 0 auto; padding: 0 14px; cursor: pointer; color: #fff; font-size: 10px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 22%, transparent); transition: all .15s ease; }
   .ai-send:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
   .ai-stream { min-width: 0; display: flex; flex-direction: column; gap: 7px; max-height: 300px; overflow-y: auto; padding: 2px; }
   .ai-reasoning, .ai-content { min-width: 0; display: flex; flex-direction: column; gap: 4px; }

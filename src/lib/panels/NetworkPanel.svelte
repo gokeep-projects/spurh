@@ -10,7 +10,7 @@
     lat?: number | null; lon?: number | null; timezone?: string | null;
   };
 
-  type Tab = 'port' | 'dns' | 'geo' | 'ref';
+  type Tab = 'port' | 'dns' | 'tcp' | 'trace' | 'ref';
   let tab = $state<Tab>('port');
 
   /* ── 端口扫描 ── */
@@ -53,6 +53,14 @@
     return [...ports].sort((a, b) => a - b);
   }
 
+  let portLog = $state<{ ts: string; text: string; ok: boolean }[]>([]);
+
+  function now(): string {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
   function useCommonPorts(ports: string): void {
     portRange = ports;
   }
@@ -68,21 +76,33 @@
     portElapsed = 0;
     portTotal = targets.length;
     portDone = 0;
+    portLog = [{ ts: now(), text: `开始扫描 ${portHost.trim()} 的 ${targets.length} 个端口…`, ok: true }];
     const started = performance.now();
     const batchSize = 32;
     try {
       for (let offset = 0; offset < targets.length; offset += batchSize) {
-        if (scanCanceled) break;
+        if (scanCanceled) { portLog = [...portLog, { ts: now(), text: '已手动停止扫描', ok: false }]; break; }
         const batch = targets.slice(offset, offset + batchSize).join(',');
         const batchResults = await invoke<PortResult[]>('net_port_scan', { host: portHost.trim(), ports: batch });
         portResults = [...portResults, ...batchResults].sort((a, b) => a.port - b.port);
         portDone = Math.min(targets.length, offset + batchSize);
+        const open = batchResults.filter((item) => item.open);
+        portLog = [...portLog, {
+          ts: now(),
+          text: `批次完成: ${batchResults.length} 个端口, 开放 ${open.length} 个${open.length ? ` [${open.map((item) => item.port).join(', ')}]` : ''}（${portDone}/${portTotal}）`,
+          ok: true,
+        }];
       }
     } catch (cause) {
-      if (!scanCanceled) portError = cause instanceof Error ? cause.message : String(cause);
+      if (!scanCanceled) {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        portError = message;
+        portLog = [...portLog, { ts: now(), text: message, ok: false }];
+      }
     }
     portElapsed = Math.round(performance.now() - started);
     portScanning = false;
+    if (!scanCanceled) portLog = [...portLog, { ts: now(), text: `扫描完成: ${openPorts.length}/${portResults.length} 开放 · 耗时 ${portElapsed} ms`, ok: true }];
   }
 
   /* ── DNS 查询 ── */
@@ -106,23 +126,54 @@
     dnsLoading = false;
   }
 
-  /* ── IP 归属地 ── */
-  let geoTarget = $state('');
-  let geoInfo = $state<GeoInfo | null>(null);
-  let geoLoading = $state(false);
-  let geoError = $state('');
+  /* ── TCP / UDP 数据发送 ── */
+  type SendLog = { ts: string; ok: boolean; text: string };
+  type SendResult = { ok: boolean; message: string; response: string; elapsedMs: number };
+  let tcpHost = $state('127.0.0.1');
+  let tcpPort = $state('80');
+  let tcpProtocol = $state('tcp');
+  let tcpData = $state('');
+  let tcpSending = $state(false);
+  let tcpLogs = $state<SendLog[]>([]);
+  let tcpResult = $state<SendResult | null>(null);
 
-  async function lookupGeo(): Promise<void> {
-    if (!geoTarget.trim()) { geoError = '请输入 IP 地址或域名'; return; }
-    geoLoading = true;
-    geoError = '';
-    geoInfo = null;
+  async function sendData(): Promise<void> {
+    if (!tcpHost.trim()) { tcpLogs = [...tcpLogs, { ts: now(), ok: false, text: '请先填写主机地址' }]; return; }
+    const port = Number(tcpPort);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) { tcpLogs = [...tcpLogs, { ts: now(), ok: false, text: '端口无效' }]; return; }
+    tcpSending = true;
+    tcpLogs = [...tcpLogs, { ts: now(), ok: true, text: `[${tcpProtocol.toUpperCase()}] 连接 ${tcpHost}:${port} 并发送 ${tcpData.length} 字节…` }];
     try {
-      geoInfo = await invoke<GeoInfo>('net_ip_geo', { target: geoTarget.trim() });
+      const result = await invoke<SendResult>('net_tcp_send', { host: tcpHost.trim(), port, protocol: tcpProtocol, data: tcpData });
+      tcpResult = result;
+      tcpLogs = [...tcpLogs, { ts: now(), ok: result.ok, text: `${result.message}（${result.elapsedMs} ms）` }];
+      if (result.response.trim()) tcpLogs = [...tcpLogs, { ts: now(), ok: true, text: `响应: ${result.response.slice(0, 500)}${result.response.length > 500 ? '…' : ''}` }];
     } catch (cause) {
-      geoError = cause instanceof Error ? cause.message : String(cause);
+      const message = cause instanceof Error ? cause.message : String(cause);
+      tcpResult = { ok: false, message, response: '', elapsedMs: 0 };
+      tcpLogs = [...tcpLogs, { ts: now(), ok: false, text: message }];
     }
-    geoLoading = false;
+    tcpSending = false;
+  }
+
+  /* ── 主机链路（路由追踪） ── */
+  type TraceHop = { hop: number; ip: string; ms: number[] };
+  let traceHost = $state('www.baidu.com');
+  let tracing = $state(false);
+  let traceHops = $state<TraceHop[]>([]);
+  let traceError = $state('');
+
+  async function runTrace(): Promise<void> {
+    if (!traceHost.trim()) { traceError = '请输入目标主机'; return; }
+    tracing = true;
+    traceError = '';
+    traceHops = [];
+    try {
+      traceHops = await invoke<TraceHop[]>('net_traceroute', { host: traceHost.trim() });
+    } catch (cause) {
+      traceError = cause instanceof Error ? cause.message : String(cause);
+    }
+    tracing = false;
   }
 
   /* ── 速查表 ── */
@@ -168,7 +219,8 @@
     <div class="net-modes" role="tablist">
       <button class:active={tab === 'port'} role="tab" aria-selected={tab === 'port'} onclick={() => (tab = 'port')}><span>{@html iconHtml(TOOL_ICONS['spurh.network'])}</span>端口扫描</button>
       <button class:active={tab === 'dns'} role="tab" aria-selected={tab === 'dns'} onclick={() => (tab = 'dns')}><span>{@html UI_ICONS.search}</span>DNS 查询</button>
-      <button class:active={tab === 'geo'} role="tab" aria-selected={tab === 'geo'} onclick={() => (tab = 'geo')}><span>{@html UI_ICONS.ticket}</span>IP 归属地</button>
+      <button class:active={tab === 'tcp'} role="tab" aria-selected={tab === 'tcp'} onclick={() => (tab = 'tcp')}><span>⇄</span>TCP / UDP</button>
+      <button class:active={tab === 'trace'} role="tab" aria-selected={tab === 'trace'} onclick={() => (tab = 'trace')}><span>◎</span>主机链路</button>
       <button class:active={tab === 'ref'} role="tab" aria-selected={tab === 'ref'} onclick={() => (tab = 'ref')}><span>{@html UI_ICONS.shield}</span>HTTP / MIME 速查</button>
     </div>
 
@@ -204,12 +256,24 @@
           <span class="net-dot"></span>{dnsLoading ? '查询中…' : '查询'}
         </button>
         {#if dnsRecords.length > 0}<span class="net-summary">{dnsRecords.length} 条记录</span>{/if}
-      {:else if tab === 'geo'}
-        <label class="net-field grow"><span>IP 或域名</span><input value={geoTarget} oninput={(e) => (geoTarget = e.currentTarget.value)} placeholder="8.8.8.8 或 example.com" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && lookupGeo()} /></label>
-        <button class="net-run" class:busy={geoLoading} disabled={geoLoading} onclick={lookupGeo} title="查询 IP 归属地">
-          <span class="net-dot"></span>{geoLoading ? '查询中…' : '查询'}
+      {:else if tab === 'tcp'}
+        <label class="net-field"><span>主机</span><input value={tcpHost} oninput={(e) => (tcpHost = e.currentTarget.value)} placeholder="127.0.0.1" spellcheck="false" /></label>
+        <label class="net-field"><span>端口</span><input value={tcpPort} oninput={(e) => (tcpPort = e.currentTarget.value)} placeholder="80" spellcheck="false" style="width:64px" /></label>
+        <label class="net-field net-select"><span>协议</span>
+          <select value={tcpProtocol} onchange={(e) => (tcpProtocol = e.currentTarget.value)}>
+            <option value="tcp">TCP</option>
+            <option value="udp">UDP</option>
+          </select>
+        </label>
+        <button class="net-run" class:busy={tcpSending} disabled={tcpSending} onclick={sendData} title="发送数据并读取响应">
+          <span class="net-dot"></span>{tcpSending ? '发送中…' : '发送'}
         </button>
-        <span class="net-summary">数据源 ip-api.com</span>
+      {:else if tab === 'trace'}
+        <label class="net-field grow"><span>目标</span><input value={traceHost} oninput={(e) => (traceHost = e.currentTarget.value)} placeholder="www.baidu.com" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && runTrace()} /></label>
+        <button class="net-run" class:busy={tracing} disabled={tracing} onclick={runTrace} title="追踪到目标主机的路由">
+          <span class="net-dot"></span>{tracing ? '追踪中…' : '追踪'}
+        </button>
+        {#if traceHops.length > 0}<span class="net-summary">{traceHops.length} 跳</span>{/if}
       {:else}
         <label class="net-field grow"><span>搜索</span><input value={refSearch} oninput={(e) => (refSearch = e.currentTarget.value)} placeholder="状态码 / MIME / 关键字…" spellcheck="false" /></label>
         <span class="net-summary">{filteredMimes.length} MIME · {filteredStatusGroups.reduce((acc, g) => acc + g.items.length, 0)} 状态码</span>
@@ -220,6 +284,14 @@
   <div class="net-body">
     {#if tab === 'port'}
       {#if portError}<div class="net-error"><i></i>{portError}</div>{/if}
+      {#if portLog.length > 0}
+        <div class="net-result-title"><span>运行日志</span><small>每次扫描的实时记录</small></div>
+        <div class="send-log">
+          {#each portLog as log}
+            <div class="send-log-line" class:bad={!log.ok}><i>{log.ts}</i><b>{log.ok ? '✓' : '✗'}</b><span>{log.text}</span></div>
+          {/each}
+        </div>
+      {/if}
       {#if portResults.length > 0}
         <div class="net-result-title">
           <span>探测结果</span>
@@ -267,25 +339,61 @@
           <small>A / AAAA / CNAME / MX / NS / TXT / SOA / PTR / SRV</small>
         </div>
       {/if}
-    {:else if tab === 'geo'}
-      {#if geoError}<div class="net-error"><i></i>{geoError}</div>{/if}
-      {#if geoInfo}
-        <div class="net-result-title"><span>归属地信息</span><small>ip-api.com · 非商业免费接口</small></div>
-        <div class="geo-grid">
-          <article class="geo-card"><small>国家 / 地区</small><b>{geoInfo.country ?? '—'}{geoInfo.countryCode ? ' · ' + geoInfo.countryCode : ''}</b></article>
-          <article class="geo-card"><small>省份</small><b>{geoInfo.regionName ?? '—'}</b></article>
-          <article class="geo-card"><small>城市</small><b>{geoInfo.city ?? '—'}</b></article>
-          <article class="geo-card"><small>ISP</small><b>{geoInfo.isp ?? '—'}</b></article>
-          <article class="geo-card"><small>组织</small><b>{geoInfo.org ?? '—'}</b></article>
-          <article class="geo-card"><small>ASN</small><b>{geoInfo.asn ?? '—'}</b></article>
-          <article class="geo-card"><small>时区</small><b>{geoInfo.timezone ?? '—'}</b></article>
-          <article class="geo-card coords"><small>坐标</small><b>{geoInfo.lat != null ? geoInfo.lat.toFixed(4) + ', ' + (geoInfo.lon != null ? geoInfo.lon.toFixed(4) : '—') : '—'}</b></article>
+    {:else if tab === 'tcp'}
+      {#if tcpLogs.length > 0}
+        <div class="net-result-title"><span>运行日志</span><small>每次发送的完整记录</small></div>
+        <div class="send-log">
+          {#each tcpLogs as log, i}
+            <div class="send-log-line" class:bad={!log.ok}><i>{log.ts}</i><b>{log.ok ? '✓' : '✗'}</b><span>{log.text}</span></div>
+          {/each}
         </div>
-      {:else if !geoError}
+      {/if}
+      {#if tcpResult}
+        <div class="net-result-title"><span>响应</span><small>{tcpResult.message}</small></div>
+        <div class="send-body">
+          <label class="net-field grow"><span>发送数据</span><textarea class="send-data" value={tcpData} oninput={(e) => (tcpData = e.currentTarget.value)} placeholder="要发送的内容（留空则只连接/发送探测包）" spellcheck="false"></textarea></label>
+          {#if tcpResult.response}
+            <pre class="send-response">{tcpResult.response}</pre>
+          {:else if !tcpResult.ok}
+            <div class="net-error"><i></i>{tcpResult.message}</div>
+          {:else}
+            <div class="net-empty"><b>无响应内容</b><small>服务端未返回数据</small></div>
+          {/if}
+        </div>
+      {:else if tcpLogs.length === 0}
         <div class="net-empty">
-          <span class="net-empty-tile">{@html UI_ICONS.ticket}</span>
-          <b>查询 IP 归属地信息</b>
-          <small>国家 / 城市 / ISP / ASN / 时区</small>
+          <span class="net-empty-tile">⇄</span>
+          <b>TCP / UDP 数据发送</b>
+          <small>填写主机、端口与协议，发送数据并查看响应与日志</small>
+        </div>
+      {/if}
+    {:else if tab === 'trace'}
+      {#if traceError}<div class="net-error"><i></i>{traceError}</div>{/if}
+      {#if tracing}
+        <div class="trace-loading">
+          <div class="loading-track"><span></span></div>
+          <p>正在追踪到 {traceHost} 的路由…</p>
+        </div>
+      {:else if traceHops.length > 0}
+        <div class="net-result-title"><span>到 {traceHost} 的链路</span><small>共 {traceHops.length} 跳 · 红色节点为超时</small></div>
+        <div class="trace-map">
+          <div class="trace-start"><span>本机</span><i>▶</i></div>
+          {#each traceHops as hop, index}
+            <div class="trace-hop" class:timeout={!hop.ip}>
+              <div class="trace-node" title={`${hop.ip || '请求超时'}\n${hop.ms.filter((m) => m > 0).join(' / ') || '超时'} ms`}>
+                <b>{hop.hop}</b>
+                <small>{hop.ip || '超时'}</small>
+                <i>{hop.ms.some((m) => m > 0) ? hop.ms.filter((m) => m > 0)[0] + 'ms' : '—'}</i>
+              </div>
+              {#if index < traceHops.length - 1}<div class="trace-link"><span></span></div>{/if}
+            </div>
+          {/each}
+        </div>
+      {:else if !traceError}
+        <div class="net-empty">
+          <span class="net-empty-tile">◎</span>
+          <b>主机链路拓扑</b>
+          <small>追踪本机到目标主机的每一跳（tracert）<br />显示每跳 IP 与延迟，超时节点自动标记</small>
         </div>
       {/if}
     {:else}
@@ -332,7 +440,7 @@
   .net-modes button span { display: inline-flex; }
   :global(.net-modes button span svg) { width: 13px; height: 13px; }
   .net-modes button:hover:not(.active) { color: var(--text); background: var(--hover); }
-  .net-modes button.active { color: #fff; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .net-modes button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .net-tools { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
   .net-field { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .net-field:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -341,7 +449,7 @@
   .net-field.grow { flex: 1; min-width: 200px; }
   .net-field.grow input { width: 100%; flex: 1; }
   .net-select select { height: 100%; padding: 0 16px 0 2px; cursor: pointer; color: var(--text); font: 600 11px 'Cascadia Code', monospace; border: 0; outline: 0; background: transparent; }
-  .net-run { height: 28px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: 10.5px; font-weight: 700; border: 0; border-radius: 7px; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
+  .net-run { height: 28px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: 10.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
   .net-run:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 7px 18px color-mix(in srgb, var(--accent) 30%, transparent); }
   .net-run:disabled { cursor: default; opacity: .45; }
   .net-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
@@ -352,7 +460,36 @@
   .net-common-ports { display: flex; gap: 4px; flex-wrap: wrap; }
   .net-common-ports button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 9px; border: 1px solid var(--line); border-radius: 11px; background: transparent; white-space: nowrap; transition: all .15s ease; }
   .net-common-ports button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
-  .net-common-ports button.active { color: #fff; border-color: transparent; background: linear-gradient(135deg, var(--accent), var(--blue)); }
+  .net-common-ports button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
+  .send-log { display: flex; flex-direction: column; gap: 3px; max-height: 170px; overflow-y: auto; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  .send-log-line { display: flex; align-items: baseline; gap: 8px; font: 450 11px/1.5 'Cascadia Code', monospace; }
+  .send-log-line i { flex: 0 0 auto; color: var(--muted-2); font-style: normal; }
+  .send-log-line b { flex: 0 0 auto; color: var(--accent); }
+  .send-log-line.bad b { color: var(--danger); }
+  .send-log-line span { min-width: 0; color: var(--text); word-break: break-all; }
+  .send-log-line.bad span { color: var(--danger); }
+  .send-body { display: flex; flex-direction: column; gap: 8px; }
+  .send-body textarea.send-data { width: 100%; height: 88px; padding: 10px 12px; resize: vertical; color: var(--text); font: 450 12px/1.5 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 9px; outline: 0; background: var(--panel); }
+  .send-body textarea.send-data:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .send-response { margin: 0; padding: 10px 12px; overflow: auto; color: var(--text); font: 450 12px/1.6 'Cascadia Code', monospace; white-space: pre-wrap; word-break: break-all; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
+  .trace-loading { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 44px 20px; color: var(--muted); }
+  .trace-loading p { margin: 0; font-size: 11px; }
+  .trace-map { display: flex; flex-direction: column; gap: 2px; padding: 12px; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  .trace-start { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+  .trace-start span { padding: 4px 10px; color: var(--text); border: 1px solid var(--line-2); border-radius: 7px; background: var(--panel-2); }
+  .trace-start i { color: var(--accent); font-style: normal; animation: trace-flow 1.6s ease-in-out infinite; }
+  @keyframes trace-flow { 50% { transform: translateX(6px); opacity: .4; } }
+  .trace-hop { display: flex; flex-direction: column; }
+  .trace-node { display: flex; align-items: center; gap: 9px; padding: 6px 10px; border-radius: 8px; transition: background .15s ease; }
+  .trace-node:hover { background: var(--hover); }
+  .trace-node b { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); font: 700 11px 'Cascadia Code', monospace; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 50%; background: var(--accent-soft); }
+  .trace-node small { min-width: 0; flex: 1; overflow: hidden; color: var(--text); font: 500 12px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
+  .trace-node i { color: var(--muted); font: 500 10px 'Cascadia Code', monospace; font-style: normal; }
+  .trace-hop.timeout .trace-node b { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 8%, transparent); }
+  .trace-hop.timeout .trace-node small { color: var(--danger); opacity: .75; }
+  .trace-link { display: flex; justify-content: center; padding: 1px 0; }
+  .trace-link span { width: 2px; height: 16px; border-radius: 1px; background: linear-gradient(180deg, var(--accent), var(--line-2)); animation: trace-drop 1.2s ease-in-out infinite; }
+  @keyframes trace-drop { 50% { opacity: .4; transform: scaleY(.7); } }
   .net-body { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px; overflow: auto; }
   .net-error { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--danger); font-size: 10.5px; border: 1px solid color-mix(in srgb, var(--danger) 26%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
   .net-error i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }
@@ -367,7 +504,7 @@
   .port-chip.open { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
   .port-chip.open b { color: var(--accent); }
   .port-chip.open small { color: var(--accent); }
-  .port-chip i { position: absolute; top: -8px; right: -6px; padding: 2px 6px; color: #fff; font-size: 8px; font-style: normal; border-radius: 4px; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 3px 8px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .port-chip i { position: absolute; top: -8px; right: -6px; padding: 2px 6px; color: #fff; font-size: 8px; font-style: normal; border-radius: 4px; background: var(--btn-gradient); box-shadow: 0 3px 8px color-mix(in srgb, var(--accent) 30%, transparent); }
   .dns-card { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .dns-table { width: 100%; border-collapse: collapse; font: 450 11px/1.5 'Cascadia Code', monospace; }
   .dns-table th { position: sticky; top: 0; z-index: 1; padding: 9px 12px; text-align: left; color: var(--accent); font-size: 9.5px; font-weight: 650; border-bottom: 1px solid var(--line); background: var(--panel-2); }
@@ -379,12 +516,6 @@
   .dns-table .dns-copy { width: 1%; text-align: right; }
   .dns-table button { height: 22px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: 9px; border: 1px solid var(--line); border-radius: 5px; background: transparent; transition: all .15s ease; }
   .dns-table button:hover { color: var(--text); border-color: var(--line-2); }
-  .geo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 9px; }
-  .geo-card { padding: 13px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); transition: border-color .15s ease; }
-  .geo-card:hover { border-color: var(--line-2); }
-  .geo-card small { display: block; margin-bottom: 7px; color: var(--muted); font-size: 8.5px; font-weight: 600; letter-spacing: .5px; }
-  .geo-card b { font-size: 12.5px; overflow-wrap: anywhere; }
-  .geo-card.coords { grid-column: span 2; }
   .net-empty { min-height: 220px; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--muted); text-align: center; border: 1px dashed var(--line-2); border-radius: 12px; background: color-mix(in srgb, var(--panel) 60%, transparent); }
   .net-empty-tile { width: 44px; height: 44px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 12px; background: var(--accent-soft); }
   :global(.net-empty-tile svg) { width: 22px; height: 22px; }

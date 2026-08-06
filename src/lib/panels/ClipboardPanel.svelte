@@ -4,7 +4,7 @@
   import { listen } from '@tauri-apps/api/event';
   import { UI_ICONS } from '../icons';
 
-  type ClipItem = { id: string; text: string; ts: number };
+  type ClipItem = { id: string; text: string; ts: number; kind?: 'image'; image?: string };
 
   let { onChangeInput }: { onChangeInput?: (v: string) => void } = $props();
 
@@ -57,9 +57,24 @@
     return first || '(空内容)';
   }
 
+  async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+    const [head, body] = dataUrl.split(',');
+    const mime = head.match(/^data:([^;]+)/)?.[1] ?? 'image/png';
+    const binary = atob(body);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  }
+
   async function reuse(item: ClipItem): Promise<void> {
     try {
-      await invoke('clipboard_write_text', { text: item.text });
+      if (item.kind === 'image' && item.image) {
+        // atob 解码，避免 fetch(data:) 被生产 CSP connect-src 拦截
+        const blob = await dataUrlToBlob(item.image);
+        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      } else {
+        await invoke('clipboard_write_text', { text: item.text });
+      }
       copiedId = item.id;
       setTimeout(() => { if (copiedId === item.id) copiedId = ''; }, 1200);
     } catch { /* 剪贴板不可用时静默 */ }
@@ -100,9 +115,21 @@
       items = snapshot;
       loaded = true;
     }).catch(() => { loaded = true; });
-    const unlisten1 = listen<ClipItem[]>('clipboard:history', (event) => { items = event.payload; });
+    const unlisten1 = listen<ClipItem[]>('clipboard:history', (event) => {
+      // 后端历史不含图片，合并保留本地图片项，避免被全量替换清掉
+      const images = items.filter((item) => item.kind === 'image');
+      items = [...images, ...event.payload].slice(0, 100);
+    });
     const unlisten2 = listen<ClipItem>('clipboard:item', (event) => {
-      items = [event.payload, ...items.filter((item) => item.id !== event.payload.id)].slice(0, 100);
+      // 内容去重：同文本条目移动到头并更新时间，不新增重复项
+      if (event.payload.kind !== 'image') {
+        const dup = items.find((item) => item.kind !== 'image' && item.text === event.payload.text);
+        if (dup) {
+          items = [{ ...dup, ts: event.payload.ts }, ...items.filter((item) => item.id !== dup.id)].slice(0, 100);
+          return;
+        }
+      }
+      items = [event.payload, ...items].slice(0, 100);
     });
     return () => {
       unlisten1.then((fn) => fn()).catch(() => undefined);
@@ -134,11 +161,16 @@
           {@const flatIndex = filtered.indexOf(item)}
           <article class="clip-item" class:active={flatIndex === selected} class:hot={flatIndex === 0 && !query}>
             <button class="clip-main" onclick={() => { selected = flatIndex; reuse(item); }} title="点击复制到系统剪贴板">
-              <code>{preview(item.text)}</code>
-              <small>{item.text.length} 字符 · {timeLabel(item.ts)}</small>
+              {#if item.kind === 'image' && item.image && item.image.startsWith('data:image/') && !item.image.includes('image/svg')}
+                <img class="clip-img" src={item.image} alt="剪贴板图片" />
+                <small>图片 · {timeLabel(item.ts)}</small>
+              {:else}
+                <code>{preview(item.text)}</code>
+                <small>{item.text.length} 字符 · {timeLabel(item.ts)}</small>
+              {/if}
             </button>
             <div class="clip-actions">
-              {#if onChangeInput}
+              {#if onChangeInput && item.kind !== 'image'}
                 <button class="clip-act fill" onclick={() => { selected = flatIndex; fill(item); }} title="填入当前工具输入区">
                   {filledId === item.id ? '已填入 ✓' : '填入'}
                 </button>
@@ -187,6 +219,7 @@
   .clip-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 10px 13px; cursor: pointer; text-align: left; border: 0; background: transparent; }
   .clip-main:hover { background: var(--hover); }
   .clip-main code { display: -webkit-box; overflow: hidden; color: var(--text); font: 450 13px/1.5 'Cascadia Code', monospace; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
+  .clip-img { max-width: 220px; max-height: 130px; object-fit: contain; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
   .clip-main small { color: var(--muted-2); font: 500 9.5px 'Cascadia Code', monospace; }
   .clip-actions { display: flex; flex-direction: column; gap: 5px; justify-content: center; padding: 8px 9px; border-left: 1px solid var(--line); background: var(--panel-2); }
   .clip-act { height: 24px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: 9px; white-space: nowrap; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); transition: all .15s ease; }

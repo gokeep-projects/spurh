@@ -848,6 +848,163 @@ fn run_table_ddl(profile: &SqlProfile, database: String, table: String) -> Resul
     }
 }
 
+/* ── 表导出：结构 / 结构+数据 ────────────────────────────── */
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SqlExportResult {
+    pub filename: String,
+    pub sql: String,
+    pub rows: u64,
+    pub truncated: bool,
+}
+
+fn sanitize_comment(text: &str) -> String {
+    text.replace(['\r', '\n'], " ")
+}
+
+fn mysql_value_literal(value: &mysql::Value) -> String {
+    match value {
+        mysql::Value::NULL => "NULL".into(),
+        mysql::Value::Int(i) => i.to_string(),
+        mysql::Value::UInt(i) => i.to_string(),
+        mysql::Value::Float(f) => f.to_string(),
+        mysql::Value::Double(f) => f.to_string(),
+        mysql::Value::Date(y, m, d, h, mi, s, us) => {
+            if *h == 0 && *mi == 0 && *s == 0 && *us == 0 {
+                format!("'{:04}-{:02}-{:02}'", y, m, d)
+            } else {
+                format!("'{:04}-{:02}-{:02} {:02}:{:02}:{:02}'", y, m, d, h, mi, s)
+            }
+        }
+        mysql::Value::Time(_, _, _, _, _, _) => "NULL".into(),
+        mysql::Value::Bytes(bytes) => match std::str::from_utf8(bytes) {
+            Ok(text) => format!("'{}'", text.replace('\'', "''").replace('\\', "\\\\")),
+            Err(_) => format!("X'{}'", bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>()),
+        },
+    }
+}
+
+fn sqlite_value_literal(value: &rusqlite::types::ValueRef<'_>) -> String {
+    match value {
+        rusqlite::types::ValueRef::Null => "NULL".into(),
+        rusqlite::types::ValueRef::Integer(i) => i.to_string(),
+        rusqlite::types::ValueRef::Real(f) => f.to_string(),
+        rusqlite::types::ValueRef::Text(t) => match std::str::from_utf8(t) {
+            Ok(text) => format!("'{}'", text.replace('\'', "''")),
+            Err(_) => format!("X'{}'", t.iter().map(|byte| format!("{byte:02x}")).collect::<String>()),
+        },
+        rusqlite::types::ValueRef::Blob(b) => format!("X'{}'", b.iter().map(|byte| format!("{byte:02x}")).collect::<String>()),
+    }
+}
+
+fn run_table_export(profile: &SqlProfile, database: String, table: String, with_data: bool) -> Result<SqlExportResult, String> {
+    let quoted = quote_ident(&profile.kind, &table);
+    let mut out = String::new();
+    out.push_str("-- Spurh 表导出\n");
+    out.push_str(&format!("-- 数据库: {} · 表: {}\n", sanitize_comment(&database), sanitize_comment(&table)));
+    out.push_str("-- 导出时间: ");
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+    let days = now / 86400;
+    out.push_str(&format!("{} 天(自 1970) 之后\n\n", days));
+    if profile.kind.as_str() != "postgres" {
+        out.push_str(&format!("DROP TABLE IF EXISTS {quoted};\n"));
+        out.push_str(&run_table_ddl(profile, database.clone(), table.clone())?);
+        out.push_str(";\n\n");
+    } else {
+        out.push_str("-- PostgreSQL 暂不支持导出建表语句，以下仅含数据（COPY 格式）\n\n");
+    }
+
+    let mut rows: u64 = 0;
+    let mut truncated = false;
+    if with_data {
+        match profile.kind.as_str() {
+            "mysql" => {
+                use mysql::prelude::*;
+                let mut conn = open_mysql(profile, Some(&database))?;
+                let sql = format!("SELECT * FROM {quoted}");
+                let all: Vec<mysql::Row> = conn.query(sql).map_err(|error| format!("读取数据失败：{error}"))?;
+                let max_rows = 20_000;
+                for row in all.iter().take(max_rows) {
+                    let values: Vec<String> = (0..row.len())
+                        .map(|index| mysql_value_literal(row.as_ref(index).unwrap_or(&mysql::Value::NULL)))
+                        .collect();
+                    out.push_str(&format!("INSERT INTO {quoted} VALUES ({});\n", values.join(", ")));
+                    rows += 1;
+                }
+                truncated = all.len() > max_rows;
+                if truncated {
+                    out.push_str(&format!("-- 数据超过 {max_rows} 行，已截断（共 {} 行）\n", all.len()));
+                }
+            }
+            "sqlite" => {
+                let conn = sqlite_take(profile)?;
+                let mut stmt = conn
+                    .prepare(&format!("SELECT * FROM {quoted}"))
+                    .map_err(|error| format!("读取数据失败：{error}"))?;
+                let column_count = stmt.column_count();
+                let mut rows_iter = stmt.query([]).map_err(|error| format!("读取数据失败：{error}"))?;
+                let max_rows = 20_000;
+                let mut count: u64 = 0;
+                while let Some(row) = rows_iter.next().map_err(|error| format!("读取数据失败：{error}"))? {
+                    if count >= max_rows {
+                        truncated = true;
+                        break;
+                    }
+                    let mut values = Vec::with_capacity(column_count);
+                    for index in 0..column_count {
+                        let value = row.get_ref(index).map_err(|error| format!("读取数据失败：{error}"))?;
+                        values.push(sqlite_value_literal(&value));
+                    }
+                    out.push_str(&format!("INSERT INTO {quoted} VALUES ({});\n", values.join(", ")));
+                    count += 1;
+                }
+                rows = count;
+                if truncated {
+                    out.push_str(&format!("-- 数据超过 {max_rows} 行，已截断\n"));
+                }
+                drop(rows_iter);
+                drop(stmt);
+                sqlite_put(profile, conn);
+            }
+            "postgres" => {
+                let mut client = pg_client(profile, Some(&database))?;
+                let sql = format!("COPY {quoted} TO STDOUT");
+                let reader = client.copy_out(&sql).map_err(|error| format!("读取数据失败：{error}"))?;
+                let mut data = Vec::new();
+                let mut reader = reader;
+                use std::io::Read;
+                reader.read_to_end(&mut data).map_err(|error| format!("读取数据失败：{error}"))?;
+                let max_bytes = 16 * 1024 * 1024;
+                truncated = data.len() > max_bytes;
+                out.push_str(&format!("COPY {quoted} FROM stdin;\n"));
+                if truncated {
+                    out.push_str(&String::from_utf8_lossy(&data[..max_bytes]));
+                    out.push_str("\n-- 数据超过 16MB，已截断\n");
+                } else {
+                    out.push_str(&String::from_utf8_lossy(&data));
+                }
+                out.push_str("\\.\n");
+                rows = data.iter().filter(|byte| **byte == b'\n').count() as u64;
+            }
+            other => return Err(format!("不支持的数据库类型：{other}（支持 mysql / sqlite / postgres）")),
+        }
+    }
+    Ok(SqlExportResult {
+        filename: format!("{database}_{table}.sql"),
+        sql: out,
+        rows,
+        truncated,
+    })
+}
+
+#[tauri::command]
+pub async fn sql_export_table(profile: SqlProfile, database: String, table: String, with_data: bool) -> Result<SqlExportResult, String> {
+    let task = tauri::async_runtime::spawn_blocking(move || run_table_export(&profile, database, table, with_data));
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(60), task).await.map_err(|_| "导出超过 60 秒未返回，已超时；请缩小数据量后重试".to_string())?;
+    joined.map_err(|error| format!("数据库任务失败：{error}"))?
+}
+
 /* ── 表设计器：建表 / 改表 DDL ────────────────────────────── */
 
 fn default_literal(default: &str) -> String {

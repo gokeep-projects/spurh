@@ -3,9 +3,9 @@
   import type { PluginResult } from '../plugins';
   import JsonView from './JsonView.svelte';
 
-  export let result: PluginResult;
+  let { result }: { result: PluginResult } = $props();
 
-  let copiedKey = '';
+  let copiedKey = $state('');
 
   function record(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -36,20 +36,20 @@
     setTimeout(() => { if (copiedKey === key) copiedKey = ''; }, 1100);
   }
 
-  $: data = record(result.data);
-  $: items = list(result.data);
-  $: useTreeView = result.view === 'code' && isComplexJson(result.output, result.language);
-  let logLevel = '';
-  let logSearch = '';
+  let data = $derived(record(result.data));
+  let items = $derived(list(result.data));
+  let useTreeView = $derived(result.view === 'code' && isComplexJson(result.output, result.language));
+  let logLevel = $state('');
+  let logSearch = $state('');
 
   const logLevels = ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'];
 
-  $: sqlColumns = list(data.columns);
-  $: sqlRows = list(data.rows);
-  $: logEntries = list(data.entries);
-  $: logCounts = record(data.counts);
-  $: errorTotal = Number(logCounts.ERROR ?? 0) + Number(logCounts.FATAL ?? 0);
-  $: filteredLogs = logEntries.filter((entry) => {
+  let sqlColumns = $derived(list(data.columns));
+  let sqlRows = $derived(list(data.rows));
+  let logEntries = $derived(list(data.entries));
+  let logCounts = $derived(record(data.counts));
+  let errorTotal = $derived(Number(logCounts.ERROR ?? 0) + Number(logCounts.FATAL ?? 0));
+  let filteredLogs = $derived(logEntries.filter((entry) => {
     if (logLevel && record(entry).level !== logLevel) return false;
     if (logSearch) {
       const item = record(entry);
@@ -57,7 +57,7 @@
       if (!haystack.includes(logSearch.toLowerCase())) return false;
     }
     return true;
-  });
+  }));
 
   function cell(row: unknown, index: number): unknown {
     return Array.isArray(row) ? row[index] : undefined;
@@ -276,7 +276,7 @@
         <div class="structured-empty"><span>∅</span><b>没有匹配的日志</b><small>调整级别过滤或搜索关键词。</small></div>
       {/if}
     </div>
-
+  {:else}
     {#if useTreeView}
       <JsonView jsonString={result.output} />
     {:else}

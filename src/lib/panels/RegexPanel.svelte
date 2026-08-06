@@ -172,13 +172,13 @@
   .regex-repl { width: min(26vw, 240px); }
   .regex-flags { display: flex; gap: 3px; padding: 2px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
   .regex-flags button { width: 26px; height: 26px; cursor: pointer; color: var(--muted); font: 600 11px 'Cascadia Code', monospace; border: 0; border-radius: 5px; background: transparent; }
-  .regex-flags button.active { color: #fff; background: linear-gradient(135deg, var(--accent), var(--blue)); }
+  .regex-flags button.active { color: #fff; background: var(--btn-gradient); }
   .regex-flags button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .regex-ai { display: flex; gap: 6px; align-items: center; }
   .regex-ai .ai-spark { color: var(--accent); font-size: 12px; }
   .regex-ai input { min-width: 0; flex: 1; height: 30px; padding: 0 10px; color: var(--text); font-size: 12px; border: 1px dashed var(--line-2); border-radius: 6px; outline: 0; background: var(--panel); }
   .regex-ai input:focus { border-style: solid; border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
-  .regex-ai .ai-generate { height: 30px; padding: 0 12px; cursor: pointer; color: #07130e; font-size: 11px; font-weight: 700; border: 0; border-radius: 6px; background: linear-gradient(135deg, var(--accent), var(--blue)); }
+  .regex-ai .ai-generate { height: 30px; padding: 0 12px; cursor: pointer; color: #fff; font-size: 11px; font-weight: 700; border: 0; border-radius: 6px; background: var(--btn-gradient); }
   .regex-ai .ai-generate:disabled { cursor: default; opacity: .4; }
   .regex-ai .ai-hint { color: var(--muted-2); font-size: 10px; }
   .regex-ai .ai-generate.ghost { background: transparent; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); }
@@ -191,7 +191,7 @@
   .sample-chips button { padding: 3px 9px; cursor: pointer; color: var(--text); font: 500 11px 'Cascadia Code', monospace; border: 1px dashed var(--line-2); border-radius: 6px; background: var(--panel); user-select: all; }
   .sample-chips button:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
   .sample-chips button.copied { border-style: solid; border-color: var(--accent); color: var(--accent); }
-  .sample-error { color: #e5484d; font-size: 10px; }
+  .sample-error { color: var(--danger); font-size: 10px; }
   .regex-presets { display: flex; gap: 8px; align-items: center; }
   .regex-presets > span { flex: 0 0 auto; color: var(--muted-2); font-size: 10px; }
   .preset-scroll { display: flex; gap: 5px; align-items: center; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
@@ -199,11 +199,11 @@
   .preset-scroll::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
   .regex-presets button { flex: 0 0 auto; height: 24px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 12px; background: transparent; white-space: nowrap; }
   .regex-presets button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
-  .regex-presets button.active { color: #fff; border-color: transparent; background: linear-gradient(135deg, var(--accent), var(--blue)); }
+  .regex-presets button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
   .preset-hint { margin: 0; color: var(--warn); font-size: 11px; }
   .regex-actions { display: flex; gap: 4px; align-items: center; }
   .regex-actions button { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: transparent; }
-  .regex-actions button.primary { color: #fff; background: linear-gradient(135deg, var(--accent), var(--blue)); border-color: transparent; }
+  .regex-actions button.primary { color: #fff; background: var(--btn-gradient); border-color: transparent; }
   .regex-actions button.primary.active { box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .regex-actions button.active:not(.primary) { color: var(--text); background: var(--panel-2); border-color: var(--line-2); }
   .regex-actions button:hover { background: var(--hover); }

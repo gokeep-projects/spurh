@@ -123,6 +123,12 @@ fn authorized(call: reqwest::RequestBuilder, api_key: &str) -> reqwest::RequestB
     }
 }
 
+/// 前端运行时错误转发到 stderr（tauri dev 终端可见），用于诊断「无输出」类问题
+#[tauri::command]
+fn app_log_error(message: String) {
+    eprintln!("[frontend-error] {message}");
+}
+
 #[tauri::command]
 async fn ai_list_models(request: AiRequest) -> Result<Vec<AiModel>, String> {
     let url = endpoint_url(&request.endpoint, "models")?;
@@ -663,6 +669,7 @@ pub fn run(cli_args: Vec<String>) {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            app_log_error,
             ai_list_models,
             ai_analyze_stream,
             set_autostart,
@@ -687,13 +694,17 @@ sql::sql_disconnect,
             sql::sql_insert_row,
             sql::sql_delete_rows,
             sql::sql_table_ddl,
+            sql::sql_export_table,
 sql::sql_create_table,
 sql::sql_alter_table,
             net::net_port_scan,
             net::net_dns_lookup,
+            net::net_tcp_send,
+            net::net_traceroute,
             net::net_ip_geo,
             ssh::ssh_connect,
             ssh::ssh_write,
+            ssh::ssh_exec,
             ssh::ssh_resize,
             ssh::ssh_close,
             apply_hotkeys

@@ -249,6 +249,14 @@
     }
   }
 
+  /** 打开数据库：展开并选中（下拉选择或双击调用） */
+  async function openDb(name: string): Promise<void> {
+    const node = databases.find((item) => item.name === name);
+    if (!node) return;
+    if (!node.expanded) await toggleDb(name);
+    selectedDb = name;
+  }
+
   async function toggleDb(name: string): Promise<void> {
     const node = databases.find((item) => item.name === name);
     if (!node) return;
@@ -276,6 +284,50 @@
     } finally {
       treeLoading = false;
     }
+  }
+
+  type SqlExportResult = { filename: string; sql: string; rows: number; truncated: boolean };
+  type CtxMenu = { x: number; y: number; db: string; table: string } | null;
+  let contextMenu = $state<CtxMenu>(null);
+  let exporting = $state(false);
+  let exportNote = $state('');
+
+  function openTableMenu(event: MouseEvent, dbName: string, table: string): void {
+    event.preventDefault();
+    contextMenu = { x: event.clientX, y: event.clientY, db: dbName, table };
+  }
+
+  async function doExport(withData: boolean): Promise<void> {
+    if (!contextMenu || !activeConn) return;
+    const target = contextMenu;
+    contextMenu = null;
+    exporting = true;
+    exportNote = '';
+    try {
+      const result = await invoke<SqlExportResult>('sql_export_table', {
+        profile: profileOf(activeConn),
+        database: target.db,
+        table: target.table,
+        withData,
+      });
+      const blob = new Blob([result.sql], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = result.filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      exportNote = `已导出 ${target.table}：${result.rows} 行${result.truncated ? '（数据已截断）' : ''}`;
+    } catch (cause) {
+      exportNote = '导出失败: ' + (cause instanceof Error ? cause.message : String(cause));
+    }
+    exporting = false;
+  }
+
+  async function copyTableName(): Promise<void> {
+    if (!contextMenu) return;
+    await navigator.clipboard.writeText(contextMenu.table);
+    contextMenu = null;
   }
 
   async function selectTable(dbName: string, table: TableInfo): Promise<void> {
@@ -836,7 +888,7 @@
         <div class="sql-tree">
           {#each databases as db}
             <div class="sql-db">
-              <button class="sql-db-row" onclick={() => toggleDb(db.name)} title={db.name}>
+              <button class="sql-db-row" onclick={() => toggleDb(db.name)} ondblclick={() => openDb(db.name)} title={`${db.name}（单击展开，双击打开）`}>
                 <span class="chev" class:open={db.expanded}>▸</span>
                 <span class="sql-db-ico">{@html DB_CYLINDER}</span>
                 <b>{db.name}</b>
@@ -849,7 +901,7 @@
                     <div class="sql-tree-loading">加载表…</div>
                   {:else if db.tables && db.tables.length > 0}
                     {#each db.tables as table}
-                      <button class="sql-table-row" class:active={selectedTable === table.name && selectedDb === db.name} onclick={() => selectTable(db.name, table)}>
+                      <button class="sql-table-row" class:active={selectedTable === table.name && selectedDb === db.name} onclick={() => selectTable(db.name, table)} oncontextmenu={(event) => openTableMenu(event, db.name, table.name)}>
                         <span class="tbl-ico">{@html table.kind === 'VIEW' ? VIEW_ICON : TABLE_ICON}</span>
                         <b>{table.name}</b>
                         {#if table.kind === 'VIEW'}<em>视图</em>{/if}
@@ -866,6 +918,20 @@
             <div class="sql-tree-loading">连接成功，点击刷新获取数据库</div>
           {/if}
         </div>
+      {/if}
+      {#if contextMenu}
+        <button type="button" class="sql-ctx-backdrop" aria-label="关闭菜单" tabindex="-1" oncontextmenu={(event) => event.preventDefault()} onclick={() => (contextMenu = null)}></button>
+        <div class="sql-ctx" style={`left:${Math.min(contextMenu.x, window.innerWidth - 200)}px;top:${Math.min(contextMenu.y, window.innerHeight - 180)}px`}>
+          <b>{contextMenu.table}</b>
+          <button disabled={exporting} onclick={() => doExport(false)}>导出表结构</button>
+          <button disabled={exporting} onclick={() => doExport(true)}>导出结构 + 数据</button>
+          <button onclick={() => copyTableName()}>复制表名</button>
+          <button onclick={() => { const target = contextMenu; if (!target) return; const name = target.db; contextMenu = null; loadTables(name); }}>刷新表列表</button>
+          {#if exportNote}<small class:err={exportNote.startsWith('导出失败')}>{exportNote}</small>{/if}
+        </div>
+      {/if}
+      {#if exportNote}
+        <div class="sql-export-note" class:err={exportNote.startsWith('导出失败')}>{exportNote}<button onclick={() => (exportNote = '')}>×</button></div>
       {/if}
     </aside>
 
@@ -892,6 +958,12 @@
             <button class:active={tab === 'sql'} onclick={() => (tab = 'sql')}>SQL 查询</button>
           </div>
           <div class="sql-tabs-info">
+            {#if databases.length > 0}
+              <select class="sql-db-select" value={selectedDb || ''} onchange={(e) => { const name = e.currentTarget.value; if (name) openDb(name); }} title="选择数据库（默认全部）">
+                <option value="">全部数据库</option>
+                {#each databases as db}<option value={db.name}>{db.name}</option>{/each}
+              </select>
+            {/if}
             {#if serverVersion}<span class="sql-ver" title={serverVersion}>版本 {serverVersion.slice(0, 42)}</span>{/if}
             {#if selectedTable}<em>{selectedDb}.{selectedTable}</em>{/if}
           </div>
@@ -1147,7 +1219,7 @@
 
   {#if formOpen && formDraft}
     {@const d = formDraft}
-    <div class="sql-modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) formOpen = false; }} onkeydown={(event) => { if (event.key === 'Escape') formOpen = false; }}>
+    <div class="sql-modal-backdrop" role="presentation" onkeydown={(event) => { if (event.key === 'Escape') formOpen = false; }}>
       <div class="sql-modal">
         <header>
           <div><b>{editingConn ? '编辑连接' : '新建连接'}</b><small>连接信息仅保存在本机</small></div>
@@ -1215,7 +1287,7 @@
   .sql-btn.ghost { color: var(--muted); border: 1px solid var(--line); background: var(--bg); }
   .sql-btn.ghost:hover:not(:disabled) { color: var(--text); border-color: var(--line-2); background: var(--hover); }
   .sql-btn.ghost.danger:hover:not(:disabled) { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 6%, transparent); }
-  .sql-btn.primary { color: #fff; font-weight: 700; border: 0; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .sql-btn.primary { color: #fff; font-weight: 700; border: 0; background: var(--btn-gradient); box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 22%, transparent); }
   .sql-btn.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 7px 18px color-mix(in srgb, var(--accent) 32%, transparent); }
   .sql-btn:disabled { cursor: default; opacity: .4; }
   .sql-btn.big { height: 34px; padding: 0 18px; font-size: 12.6px; }
@@ -1255,6 +1327,18 @@
   .sql-tree { min-height: 0; flex: 1; padding: 6px; overflow-y: auto; }
   .sql-db { position: relative; }
   .sql-db-row { width: 100%; height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 8px; cursor: pointer; text-align: left; color: var(--text); border: 0; border-radius: 6px; background: transparent; }
+  .sql-ctx-backdrop { position: fixed; z-index: 40; inset: 0; background: transparent; }
+  .sql-ctx { position: fixed; z-index: 41; width: 190px; display: flex; flex-direction: column; gap: 2px; padding: 6px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel-2); box-shadow: 0 16px 48px rgba(0, 0, 0, .5); animation: fade-in .1s ease-out; }
+  .sql-ctx > b { padding: 4px 8px 7px; overflow: hidden; color: var(--muted); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  .sql-ctx > button { height: 28px; padding: 0 9px; cursor: pointer; text-align: left; color: var(--text); font-size: 11px; border: 0; border-radius: 7px; background: transparent; transition: background .12s ease; }
+  .sql-ctx > button:hover:not(:disabled) { background: var(--hover); }
+  .sql-ctx > button:disabled { opacity: .45; cursor: default; }
+  .sql-ctx > small { padding: 5px 8px 2px; color: var(--accent); font-size: 9.5px; }
+  .sql-ctx > small.err { color: var(--danger); }
+  .sql-export-note { position: fixed; z-index: 42; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 14px; color: var(--accent); font-size: 11px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 36px rgba(0, 0, 0, .45); animation: fade-in .15s ease-out; }
+  .sql-export-note.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
+  .sql-export-note button { width: 20px; height: 20px; cursor: pointer; color: var(--muted); font-size: 13px; border: 0; border-radius: 5px; background: transparent; }
+  .sql-export-note button:hover { color: var(--text); background: var(--hover); }
   .sql-db-row:hover { background: var(--hover); }
   .chev { width: 12px; flex: 0 0 auto; color: var(--muted-2); font-size: 10.4px; transition: transform .15s ease; }
   .chev.open { transform: rotate(90deg); color: var(--muted); }
@@ -1280,8 +1364,9 @@
   .sql-tabs-group { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   .sql-tabs-group button { height: 24px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: 11.5px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
   .sql-tabs-group button:hover:not(.active) { color: var(--text); background: var(--hover); }
-  .sql-tabs-group button.active { color: #fff; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 3px 9px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .sql-tabs-group button.active { color: #fff; font-weight: 700; background: var(--btn-gradient); box-shadow: 0 3px 9px color-mix(in srgb, var(--accent) 25%, transparent); }
   .sql-tabs-info { display: flex; align-items: center; gap: 9px; margin-left: auto; min-width: 0; }
+  .sql-tabs-info .sql-db-select { height: 27px; max-width: 190px; padding: 0 8px; color: var(--text); font-size: 11px; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--panel); }
   .sql-tabs-info .sql-ver { overflow: hidden; max-width: 220px; color: var(--muted); font: 500 9.8px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .sql-tabs-info em { overflow: hidden; max-width: 200px; padding: 3px 8px; color: var(--accent); font-size: 10.4px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); border-radius: 5px; background: var(--accent-soft); }
 
@@ -1381,7 +1466,7 @@
   .sql-kind-chips { display: inline-flex; gap: 2px; align-self: flex-start; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   .sql-kind-chips button { height: 26px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: 11.5px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
   .sql-kind-chips button:hover:not(.active) { color: var(--text); background: var(--hover); }
-  .sql-kind-chips button.active { color: #fff; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .sql-kind-chips button.active { color: #fff; font-weight: 700; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .sql-secret { position: relative; display: flex; align-items: center; }
   .sql-secret input { width: 100%; padding-right: 34px; }
   .sql-secret-toggle { position: absolute; right: 5px; width: 24px; height: 24px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); border: 0; border-radius: 5px; background: transparent; }

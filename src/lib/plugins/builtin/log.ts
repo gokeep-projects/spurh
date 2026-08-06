@@ -226,7 +226,7 @@ export const logPlugin: SpurhPlugin = {
       output: analysis.rootCause ?? summary,
       language: 'text',
       view: 'log',
-      data: analysis,
+      data: { ...analysis, lines: input.split(/\r?\n/).length, parsed: analysis.entries.length },
       summary,
       meta: {
         格式: analysis.format.toUpperCase(),

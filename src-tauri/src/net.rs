@@ -1,7 +1,8 @@
-// 网络小工具：端口探测 / DNS 查询 / IP 归属地
+// 网络小工具：端口探测 / DNS 查询 / TCP/UDP 发送 / 路由追踪
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::{Duration, Instant};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -9,6 +10,165 @@ pub struct PortResult {
     pub port: u16,
     pub open: bool,
     pub elapsed_ms: u64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TcpSendResult {
+    pub ok: bool,
+    pub message: String,
+    pub response: String,
+    pub elapsed_ms: u64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceHop {
+    pub hop: u32,
+    pub ip: String,
+    pub ms: Vec<u32>,
+}
+
+/// TCP/UDP 数据发送与响应接收（UDP 无响应属正常，等待超时返回空响应）
+#[tauri::command]
+pub async fn net_tcp_send(
+    host: String,
+    port: u16,
+    protocol: String,
+    data: Option<String>,
+    timeout_ms: Option<u64>,
+) -> Result<TcpSendResult, String> {
+    let host = host.trim().to_string();
+    if host.is_empty() {
+        return Err("请输入主机地址".into());
+    }
+    if port == 0 {
+        return Err("端口无效".into());
+    }
+    let timeout = Duration::from_millis(timeout_ms.unwrap_or(3000).clamp(500, 15_000));
+    let started = Instant::now();
+    let payload = data.unwrap_or_default();
+    let bytes = payload.as_bytes();
+
+    match protocol.as_str() {
+        "tcp" => {
+            let mut stream = tokio::time::timeout(timeout, tokio::net::TcpStream::connect((host.as_str(), port)))
+                .await
+                .map_err(|_| format!("连接超时（{} ms）", timeout.as_millis()))?
+                .map_err(|error| format!("连接失败：{error}"))?;
+            if !bytes.is_empty() {
+                stream
+                    .write_all(bytes)
+                    .await
+                    .map_err(|error| format!("发送失败：{error}"))?;
+            }
+            // 读取响应（最多 64KB，空闲 800ms 即认为结束）
+            let mut buf: Vec<u8> = Vec::with_capacity(1024);
+            let mut chunk = [0u8; 2048];
+            loop {
+                match tokio::time::timeout(Duration::from_millis(800), stream.read(&mut chunk)).await {
+                    Ok(Ok(0)) => break,
+                    Ok(Ok(n)) => {
+                        buf.extend_from_slice(&chunk[..n]);
+                        if buf.len() > 65536 {
+                            break;
+                        }
+                    }
+                    _ => break,
+                }
+            }
+            let response = String::from_utf8_lossy(&buf).to_string();
+            Ok(TcpSendResult {
+                ok: true,
+                message: format!("TCP 发送完成，收到 {} 字节响应", buf.len()),
+                response,
+                elapsed_ms: started.elapsed().as_millis() as u64,
+            })
+        }
+        "udp" => {
+            let socket = tokio::net::UdpSocket::bind("0.0.0.0:0")
+                .await
+                .map_err(|error| format!("创建 UDP 套接字失败：{error}"))?;
+            socket
+                .connect((host.as_str(), port))
+                .await
+                .map_err(|error| format!("连接失败：{error}"))?;
+            if !bytes.is_empty() {
+                socket
+                    .send(bytes)
+                    .await
+                    .map_err(|error| format!("发送失败：{error}"))?;
+            }
+            let mut buf = [0u8; 2048];
+            let received = tokio::time::timeout(timeout, socket.recv(&mut buf))
+                .await
+                .map(|result| {
+                    result.map(|n| String::from_utf8_lossy(&buf[..n]).to_string())
+                })
+                .unwrap_or(Ok(String::new()))
+                .map_err(|error| format!("接收失败：{error}"))?;
+            Ok(TcpSendResult {
+                ok: true,
+                message: if received.is_empty() {
+                    "UDP 数据已发送，未收到响应（目标可能无监听或已丢弃）".into()
+                } else {
+                    format!("UDP 发送完成，收到响应 {} 字节", received.len())
+                },
+                response: received,
+                elapsed_ms: started.elapsed().as_millis() as u64,
+            })
+        }
+        _ => Err("协议仅支持 tcp / udp".into()),
+    }
+}
+
+/// 路由追踪：调用系统 tracert（仅解析数字/IP 行，中文提示行自动忽略）
+#[tauri::command]
+pub async fn net_traceroute(host: String) -> Result<Vec<TraceHop>, String> {
+    let host = host.trim().to_string();
+    if host.is_empty() {
+        return Err("请输入目标主机".into());
+    }
+    if host.starts_with('-') {
+        return Err("主机名不能以 - 开头".into());
+    }
+    let output = tokio::process::Command::new("tracert")
+        .args(["-d", "-h", "20", "-w", "500", &host])
+        .output()
+        .await
+        .map_err(|error| format!("无法执行 tracert：{error}"))?;
+    let text = String::from_utf8_lossy(&output.stdout).to_string();
+    let mut hops: Vec<TraceHop> = Vec::new();
+    for line in text.lines() {
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        if fields.len() < 2 {
+            continue;
+        }
+        let Ok(hop) = fields[0].parse::<u32>() else { continue };
+        let mut ms: Vec<u32> = Vec::new();
+        let mut ip = String::new();
+        let mut seen_time = false;
+        for field in &fields[1..] {
+            if *field == "*" {
+                ms.push(0);
+                seen_time = true;
+            } else if let Some(value) = field.strip_suffix("ms") {
+                if let Ok(v) = value.trim().parse::<u32>() {
+                    ms.push(v);
+                    seen_time = true;
+                }
+            } else if seen_time && ip.is_empty() && field.contains('.') {
+                ip = field.to_string();
+            }
+        }
+        if seen_time || !ip.is_empty() {
+            hops.push(TraceHop { hop, ip, ms });
+        }
+    }
+    if hops.is_empty() {
+        return Err("tracert 未返回有效结果，请检查目标主机或网络".into());
+    }
+    Ok(hops)
 }
 
 #[tauri::command]

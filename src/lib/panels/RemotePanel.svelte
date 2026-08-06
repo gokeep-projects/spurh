@@ -78,6 +78,115 @@
     editing = false;
   }
 
+  let sysPanel = $state(false);
+  let sysInfo = $state('');
+  let sysLoading = $state(false);
+  let filePanel = $state(false);
+  let uploadFile = $state<File | null>(null);
+  let remotePath = $state('');
+  let transferStatus = $state('');
+  let transferBusy = $state(false);
+
+  async function loadSysInfo(): Promise<void> {
+    if (!active) return;
+    sysLoading = true;
+    try {
+      const base64 = await invoke<string>('ssh_exec', {
+        sessionId: active.id,
+        command: 'echo ===SYS===; uname -a; echo ===MEM===; free -m; echo ===DISK===; df -h; echo ===UPTIME===; uptime; echo ===LOAD===; top -bn1 2>/dev/null | head -18; echo ===END===',
+        stdin: null,
+      });
+      const decoded = decodeExecResult(base64);
+      sysInfo = decoded.text + (decoded.stderr ? `\n\n[stderr]\n${decoded.stderr}` : '') + (decoded.truncated ? '\n\n[输出已截断]' : '');
+    } catch (cause) {
+      sysInfo = '获取失败: ' + (cause instanceof Error ? cause.message : String(cause));
+    }
+    sysLoading = false;
+  }
+
+  /** 转义 shell 单引号，防止路径注入 */
+  function escPath(path: string): string {
+    return path.replace(/'/g, `'\\''`);
+  }
+
+  /** 解码 ssh_exec 返回：base64 主体 + 可选 __TRUNCATED__ / __STDERR__ 标记 */
+  function decodeExecResult(raw: string): { text: string; truncated: boolean; stderr: string } {
+    let truncated = raw.endsWith('__TRUNCATED__');
+    let body = truncated ? raw.slice(0, raw.length - 13) : raw;
+    let stderr = '';
+    const sep = body.indexOf('__STDERR__');
+    if (sep >= 0) {
+      stderr = atob(body.slice(sep + 10));
+      body = body.slice(0, sep);
+    }
+    return { text: atob(body), truncated, stderr };
+  }
+
+  async function doUpload(): Promise<void> {
+    if (!active || !uploadFile || !remotePath.trim()) return;
+    transferBusy = true;
+    transferStatus = '';
+    try {
+      // 文件读为 base64，远端用 base64 -d 解码写入，支持二进制内容
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? '').split(',')[1] ?? '');
+        reader.onerror = () => reject(new Error('读取文件失败'));
+        reader.readAsDataURL(uploadFile as File);
+      });
+      const result = await invoke<string>('ssh_exec', {
+        sessionId: active.id,
+        command: `base64 -d > '${escPath(remotePath.trim())}'`,
+        stdin: base64,
+      });
+      const decoded = decodeExecResult(result);
+      if (decoded.stderr.trim()) {
+        transferStatus = `上传失败: ${decoded.stderr.trim().split('\n')[0]}`;
+        transferBusy = false;
+        return;
+      }
+      transferStatus = `上传完成: ${uploadFile.name}（${uploadFile.size} 字节）→ ${remotePath.trim()}`;
+    } catch (cause) {
+      transferStatus = '上传失败: ' + (cause instanceof Error ? cause.message : String(cause));
+    }
+    transferBusy = false;
+  }
+
+  async function doDownload(): Promise<void> {
+    if (!active || !remotePath.trim()) return;
+    transferBusy = true;
+    transferStatus = '';
+    try {
+      // 远端 base64 编码输出；ssh_exec 通道再 base64 一层，故需双层解码
+      const encoded = await invoke<string>('ssh_exec', {
+        sessionId: active.id,
+        command: `base64 -w0 '${escPath(remotePath.trim())}'`,
+        stdin: null,
+      });
+      const decoded = decodeExecResult(encoded);
+      if (decoded.stderr.trim()) {
+        transferStatus = `下载失败: ${decoded.stderr.trim().split('\n')[0]}`;
+        transferBusy = false;
+        return;
+      }
+      const remoteBase64 = atob(decoded.text);
+      const binary = atob(remoteBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = remotePath.trim().split('/').pop() || 'download';
+      anchor.click();
+      URL.revokeObjectURL(url);
+      transferStatus = `下载完成: ${remotePath.trim()}（${bytes.length} 字节）${decoded.truncated ? ' · 输出已截断，文件可能不完整' : ''}`;
+    } catch (cause) {
+      transferStatus = '下载失败: ' + (cause instanceof Error ? cause.message : String(cause));
+    }
+    transferBusy = false;
+  }
+
   function addSession(): void {
     const created = freshSession();
     sessions = [...sessions, created];
@@ -111,9 +220,9 @@
     if (!draft) return;
     const cleaned: RemoteSession = {
       ...draft,
-      name: draft.name.trim() || (draft.user || 'root') + '@' + (draft.host || 'host'),
+      name: draft.name.trim() || (draft.user.trim() || 'root') + '@' + (draft.host || 'host'),
       host: draft.host.trim(),
-      user: draft.user.trim(),
+      user: draft.user.trim() || 'root',
       port: Math.min(65535, Math.max(1, Math.floor(Number(draft.port) || 22))),
     };
     const exists = sessions.some((item) => item.id === cleaned.id);
@@ -200,7 +309,7 @@
           {#if testMessage}<span class="form-test" class:ok={testMessage.startsWith('连接成功')}>{testMessage}</span>{/if}
           <button class="form-cancel" disabled={testing} onclick={() => (testDraft())}>{testing ? '测试中…' : '测试连接'}</button>
           <button class="form-cancel" onclick={() => { editing = false; testMessage = ''; }}>取消</button>
-          <button class="form-save" disabled={!d.host.trim() || !d.user.trim()} onclick={saveDraft}>保存</button>
+          <button class="form-save" disabled={!d.host.trim()} onclick={saveDraft}>保存</button>
         </footer>
       </div>
     {:else if active}
@@ -214,10 +323,44 @@
         </div>
         <div class="rt-actions">
           <button class="rt-connect" onclick={connect}><span class="rt-dot"></span>{activeStatus.status === 'connected' ? '重连' : '连接'}</button>
+          <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => { sysPanel = true; loadSysInfo(); }} title="查看主机系统/内存/磁盘/负载">资源信息</button>
+          <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => (filePanel = true)} title="上传 / 下载文件（基于 cat）">传输文件</button>
           <button class="rt-quiet" onclick={editSession}>编辑</button>
           <button class="rt-quiet danger" onclick={() => deleteSession(active.id)}>删除</button>
         </div>
       </div>
+      {#if sysPanel}
+        <div class="rt-modal-backdrop" role="presentation" onkeydown={(event) => { if (event.key === 'Escape') sysPanel = false; }}>
+          <div class="rt-modal">
+            <header><b>主机资源信息</b><button onclick={() => (sysPanel = false)} aria-label="关闭">×</button></header>
+            <div class="rt-modal-body">
+              {#if sysLoading}<div class="rt-modal-loading"><span class="spinner"></span>正在读取主机信息…</div>
+              {:else}<pre class="sys-info">{sysInfo || '无数据'}</pre>{/if}
+            </div>
+            <footer><button class="rt-quiet" onclick={() => loadSysInfo()}>刷新</button><button class="rt-quiet" onclick={() => (sysPanel = false)}>关闭</button></footer>
+          </div>
+        </div>
+      {/if}
+      {#if filePanel}
+        <div class="rt-modal-backdrop" role="presentation" onkeydown={(event) => { if (event.key === 'Escape') filePanel = false; }}>
+          <div class="rt-modal">
+            <header><b>文件传输</b><button onclick={() => (filePanel = false)} aria-label="关闭">×</button></header>
+            <div class="rt-modal-body">
+              <label class="rt-file-row"><span>远端路径</span><input type="text" value={remotePath} oninput={(e) => (remotePath = e.currentTarget.value)} placeholder="/root/logs/app.log" spellcheck="false" /></label>
+              <div class="rt-file-row"><span>上传文件</span>
+                <input type="file" onchange={(e) => (uploadFile = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)} />
+                <button class="rt-quiet" disabled={transferBusy || !uploadFile} onclick={doUpload}>{transferBusy ? '传输中…' : '上传'}</button>
+              </div>
+              <div class="rt-file-row"><span>下载远端文件</span>
+                <button class="rt-quiet" disabled={transferBusy || !remotePath.trim()} onclick={doDownload}>{transferBusy ? '传输中…' : '下载'}</button>
+              </div>
+              {#if transferStatus}<p class="rt-transfer-status">{transferStatus}</p>{/if}
+              <small class="rt-file-note">上传经 base64 -d 解码写入、下载经 base64 编码读取，支持任意二进制文件；建议单个文件 ≤ 8MB。</small>
+            </div>
+            <footer><button class="rt-quiet" onclick={() => (filePanel = false)}>关闭</button></footer>
+          </div>
+        </div>
+      {/if}
       {#if openTabs.length > 0}
         <div class="remote-tabs">
           {#each openTabs as tabId}
@@ -298,7 +441,7 @@
   .rt-status.error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); background: color-mix(in srgb, var(--danger) 7%, transparent); }
   .rt-status.error i { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
   .rt-actions { display: flex; gap: 6px; margin-left: auto; }
-  .rt-connect { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: 10.5px; font-weight: 700; border: 0; border-radius: 7px; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease; }
+  .rt-connect { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: 10.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease; }
   .rt-connect:hover { transform: translateY(-1px); box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 30%, transparent); }
   .rt-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
   .rt-quiet { height: 30px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
@@ -343,14 +486,32 @@
   .auth-chips { display: inline-flex; gap: 2px; align-self: flex-start; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   .auth-chips button { height: 26px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: 10px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
   .auth-chips button:hover:not(.active) { color: var(--text); background: var(--hover); }
-  .auth-chips button.active { color: #fff; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .auth-chips button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .remote-form > footer { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); }
   .form-hint { flex: 1; color: var(--muted-2); font-size: 9px; }
   .form-test { color: var(--danger); font-size: 10px; white-space: nowrap; }
   .form-test.ok { color: var(--accent); }
   .form-cancel { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
   .form-cancel:hover { color: var(--text); border-color: var(--line-2); }
-  .form-save { height: 30px; padding: 0 16px; cursor: pointer; color: #fff; font-size: 10.5px; font-weight: 700; border: 0; border-radius: 7px; background: linear-gradient(135deg, var(--accent), var(--blue)); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
+  .form-save { height: 30px; padding: 0 16px; cursor: pointer; color: #fff; font-size: 10.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
   .form-save:hover:not(:disabled) { transform: translateY(-1px); }
   .form-save:disabled { cursor: default; opacity: .4; }
+  .rt-quiet:disabled { opacity: .4; cursor: default; }
+  .rt-modal-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(4, 6, 10, .68); backdrop-filter: blur(12px); animation: fade-in .14s ease-out; }
+  .rt-modal { width: min(560px, 100%); overflow: hidden; border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel-2); box-shadow: 0 30px 100px rgba(0, 0, 0, .55); }
+  .rt-modal > header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+  .rt-modal > header b { font-size: 13px; }
+  .rt-modal > header button { width: 28px; height: 28px; cursor: pointer; color: var(--muted); font-size: 17px; border: 0; border-radius: 7px; background: transparent; }
+  .rt-modal > header button:hover { color: var(--text); background: var(--hover); }
+  .rt-modal-body { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; max-height: 60vh; overflow-y: auto; }
+  .rt-modal-body pre.sys-info { margin: 0; padding: 11px 13px; overflow: auto; color: var(--text); font: 450 11.5px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); }
+  .rt-modal-loading { display: flex; align-items: center; gap: 8px; padding: 18px; color: var(--muted); font-size: 11px; }
+  .rt-modal > footer { display: flex; justify-content: flex-end; gap: 6px; padding: 11px 16px; border-top: 1px solid var(--line); }
+  .rt-file-row { display: flex; align-items: center; gap: 9px; }
+  .rt-file-row > span { flex: 0 0 auto; width: 82px; color: var(--muted); font-size: 10.5px; }
+  .rt-file-row input[type='text'], .rt-file-row input:not([type]) { min-width: 0; flex: 1; height: 32px; padding: 0 9px; color: var(--text); font: 500 11.5px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); }
+  .rt-file-row input:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .rt-file-row input[type='file'] { font-size: 10.5px; }
+  .rt-transfer-status { margin: 0; color: var(--accent); font-size: 11px; }
+  .rt-file-note { color: var(--muted-2); font-size: 9.5px; line-height: 1.6; }
 </style>

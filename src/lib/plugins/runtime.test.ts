@@ -246,6 +246,24 @@ describe('PluginRuntime', () => {
     expect((await runtime.execute('spurh.text', 'remove-empty', 'a\n\n  \nb', {})).output).toBe('a\nb');
   });
 
+  it('all plugin views are covered by ResultView branches', async () => {
+    // ResultView 显式分支 + 最终 else 兜底(code/text):防 view 值遗漏导致结果区空白
+    const supported = new Set(['timestamp', 'http', 'jwt', 'stats', 'matches', 'list', 'hash', 'sql', 'log', 'code', 'text', '']);
+    const seen = new Set<string>();
+    for (const plugin of runtime.list()) {
+      for (const action of plugin.actions) {
+        try {
+          const result = await runtime.execute(plugin.id, action.id, '', {});
+          seen.add(result.view ?? '');
+        } catch { /* 无输入时部分动作抛错,跳过 */ }
+      }
+    }
+    expect(seen.size).toBeGreaterThan(0);
+    for (const view of seen) {
+      expect(supported.has(view)).toBe(true);
+    }
+  });
+
   it('random values', async () => {
     const r = await runtime.execute('spurh.random', 'string', '', { length: '16', count: '1' });
     expect(r.output).toHaveLength(16);
