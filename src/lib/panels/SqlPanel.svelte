@@ -6,7 +6,7 @@
   import type { AiConfig } from '../ai';
   import { deleteSecret, getSecret, setSecret } from '../secrets';
   import { highlightSql } from '../sqlHighlight';
-  import { formatSql } from '../sqlFormat';
+  import { formatSql, SQL_COMPLETION_KEYWORDS } from '../sqlFormat';
 
   let { aiConfig }: { aiConfig?: AiConfig | undefined } = $props();
 
@@ -220,6 +220,80 @@
     if (sqlHistory.length === 0) return;
     historyIndex = Math.max(-1, Math.min(sqlHistory.length - 1, historyIndex + dir));
     sqlText = historyIndex >= 0 ? sqlHistory[historyIndex] : '';
+  }
+
+  /* ── Ctrl+Space 智能补全：关键字 + 表名 + 当前表字段 ── */
+  let completionOpen = $state(false);
+  let completionItems = $state<string[]>([]);
+  let completionIndex = $state(0);
+  let completionPrefix = $state('');
+  let completionGroup = $state('');
+
+  // 表/字段名缓存（5 秒 TTL），避免每次补全都请求后端
+  let schemaCache: { at: number; names: string[] } = { at: 0, names: [] };
+
+  /** 异步获取当前库的表名（含树中已加载的表与字段） */
+  async function ensureSchemaNames(): Promise<string[]> {
+    const now = Date.now();
+    if (now - schemaCache.at < 5000) return schemaCache.names;
+    const treeNames: string[] = [];
+    for (const db of databases) {
+      for (const table of db.tables ?? []) treeNames.push(table.name);
+    }
+    try {
+      const db = selectedDb || activeConn?.database || '';
+      // SQLite 不依赖库名（连接即库）；MySQL/PG 需要库名才查询
+      const needDb = activeConn?.kind === 'sqlite' || Boolean(db);
+      const tables = needDb ? await invoke<TableInfo[]>('sql_tables', { profile: profileOf(activeConn!), database: db }) : [];
+      const names = Array.from(new Set([...treeNames, ...tables.map((table) => table.name)]));
+      schemaCache = { at: now, names };
+      return names;
+    } catch {
+      schemaCache = { at: now, names: treeNames };
+      return treeNames;
+    }
+  }
+
+  async function openCompletion(): Promise<void> {
+    const el = sqlEditorEl;
+    if (!el || !activeConn) return;
+    const cursor = el.selectionStart ?? el.value.length;
+    const before = sqlText.slice(0, cursor);
+    const match = before.match(/([A-Za-z_][A-Za-z0-9_]*)$/);
+    const prefix = match ? match[1] : '';
+    completionPrefix = prefix;
+    const lower = prefix.toLowerCase();
+    const keywords = SQL_COMPLETION_KEYWORDS.filter((item) => item.toLowerCase().startsWith(lower));
+    const schemaNames = await ensureSchemaNames();
+    if (selectedTable && meta) {
+      for (const col of meta.columns) schemaNames.push(col.name);
+    }
+    const schema = schemaNames.filter((item, index) => item.toLowerCase().startsWith(lower) && !keywords.includes(item) && schemaNames.indexOf(item) === index);
+    const items = [...keywords, ...schema];
+    if (items.length === 0) {
+      completionOpen = false;
+      return;
+    }
+    completionGroup = schema.length > 0 && prefix ? '关键字 + 表/字段' : '关键字';
+    completionItems = items.slice(0, 30);
+    completionIndex = 0;
+    completionOpen = true;
+  }
+
+  function applyCompletion(): void {
+    const el = sqlEditorEl;
+    const item = completionItems[completionIndex];
+    if (!el || !item) return;
+    const cursor = el.selectionStart ?? el.value.length;
+    const start = completionPrefix ? cursor - completionPrefix.length : cursor;
+    const next = sqlText.slice(0, start) + item + sqlText.slice(cursor);
+    sqlText = next;
+    completionOpen = false;
+    requestAnimationFrame(() => {
+      const pos = start + item.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
   }
   // 查询结果客户端分页（后端最多返回 500 行）
   const RESULT_PAGE_SIZE = 100;
@@ -733,6 +807,17 @@
 
   /* ── SQL 编辑器 ── */
   function handleSqlKeys(event: KeyboardEvent): void {
+    if (completionOpen) {
+      if (event.key === 'ArrowDown') { event.preventDefault(); completionIndex = (completionIndex + 1) % completionItems.length; return; }
+      if (event.key === 'ArrowUp') { event.preventDefault(); completionIndex = (completionIndex - 1 + completionItems.length) % completionItems.length; return; }
+      if (event.key === 'Enter' || event.key === 'Tab') { event.preventDefault(); applyCompletion(); return; }
+      if (event.key === 'Escape') { event.preventDefault(); completionOpen = false; return; }
+    }
+    if (event.key === ' ' && event.ctrlKey) {
+      event.preventDefault();
+      openCompletion();
+      return;
+    }
     if (event.key === 'Enter' && event.ctrlKey) {
       event.preventDefault();
       runSql();
@@ -1380,7 +1465,17 @@
             </div>
             <div class="sql-editor-area">
               <pre class="sql-editor-hl" bind:this={sqlHighlightElement} aria-hidden="true">{@html highlightSql(sqlText)}</pre>
-              <textarea bind:value={sqlText} bind:this={sqlEditorEl} onkeydown={handleSqlKeys} onscroll={syncSqlScroll} placeholder={'-- 在此输入 SQL，例如：\nSELECT * FROM users LIMIT 100;\n\n-- Ctrl + Enter / F5 执行，选中部分则只执行选中'} spellcheck="false"></textarea>
+              <textarea bind:value={sqlText} bind:this={sqlEditorEl} onkeydown={handleSqlKeys} onscroll={syncSqlScroll} placeholder={'-- 在此输入 SQL，例如：\nSELECT * FROM users LIMIT 100;\n\n-- Ctrl + Enter / F5 执行，Ctrl + Space 补全'} spellcheck="false"></textarea>
+              {#if completionOpen}
+                <div class="sql-completion">
+                  <small>{completionGroup}</small>
+                  {#each completionItems as item, i}
+                    <button class:active={i === completionIndex} onmousedown={(e) => e.preventDefault()} onclick={() => { completionIndex = i; applyCompletion(); }}>
+                      <code>{item}</code>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
             </div>
             {#if sqlError}<div class="sql-error"><i></i>{sqlError}</div>{/if}
             {#if sqlResult}
@@ -1795,6 +1890,12 @@
   :global(.sql-hl-string) { color: #9ece6a; }
   :global(.sql-hl-number) { color: #ff9e64; }
   :global(.sql-hl-comment) { color: #565f89; font-style: italic; }
+  .sql-completion { position: absolute; top: 6px; right: 10px; z-index: 30; width: 240px; max-height: 260px; padding: 5px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+  .sql-completion small { display: block; padding: 4px 8px 5px; color: var(--muted-2); font-size: 9.2px; letter-spacing: .5px; }
+  .sql-completion button { width: 100%; padding: 6px 8px; cursor: pointer; color: var(--text); text-align: left; border: 0; border-radius: 6px; background: transparent; }
+  .sql-completion button:hover { background: var(--hover); }
+  .sql-completion button.active { background: var(--accent-soft); }
+  .sql-completion code { font: 500 11px 'Cascadia Code', monospace; }
   .sql-result-bar { flex: 0 0 auto; display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-result-chip { padding: 2px 7px; color: var(--blue); font: 700 9.8px 'Cascadia Code', monospace; border-radius: 4px; background: color-mix(in srgb, var(--blue) 12%, transparent); }
   .sql-result-chip.query { color: var(--accent); background: var(--accent-soft); }

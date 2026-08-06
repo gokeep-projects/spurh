@@ -17,6 +17,19 @@ const CLAUSE_PHRASES = [
 
 const isIdentChar = (ch: string): boolean => /[A-Za-z0-9_$]/.test(ch);
 
+/** 编辑器补全用：常用 SQL 关键字 + 子句短语 */
+export const SQL_COMPLETION_KEYWORDS: string[] = [
+  ...Array.from(CLAUSE_KEYWORDS),
+  ...CLAUSE_PHRASES,
+  'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'OFFSET',
+  'LEFT JOIN', 'INNER JOIN', 'RIGHT JOIN', 'FULL JOIN', 'CROSS JOIN', 'ON', 'AS', 'AND', 'OR', 'NOT', 'NULL',
+  'IN', 'EXISTS', 'BETWEEN', 'LIKE', 'DISTINCT', 'UNION ALL', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+  'CREATE TABLE', 'ALTER TABLE', 'DROP TABLE', 'INSERT INTO', 'DELETE FROM', 'SET', 'VALUES', 'RETURNING',
+  'INT', 'INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT', 'VARCHAR', 'CHAR', 'TEXT', 'LONGTEXT', 'DATE', 'DATETIME',
+  'TIMESTAMP', 'TIME', 'DECIMAL', 'NUMERIC', 'FLOAT', 'DOUBLE', 'BOOLEAN', 'BLOB', 'JSON', 'JSONB',
+  'SERIAL', 'BIGSERIAL', 'REAL', 'UUID', 'BYTEA', 'PRIMARY KEY', 'FOREIGN KEY', 'REFERENCES', 'DEFAULT', 'UNIQUE',
+].filter((value, index, arr) => arr.indexOf(value) === index);
+
 /** 从 i 开始读取一个完整单词（含多词子句，如 LEFT JOIN） */
 function readPhrase(input: string, i: number): { text: string; upper: string; next: number } {
   let j = i;
