@@ -21,7 +21,10 @@
     INFO: 'var(--accent)', DEBUG: 'var(--muted)', TRACE: 'var(--muted-2)',
   };
 
-  let { externalText }: { externalText?: { text: string; ts: number } | null } = $props();
+  let { externalText, onStatus }: {
+    externalText?: { text: string; ts: number } | null;
+    onStatus?: (status: { chars: number; summary: string } | null) => void;
+  } = $props();
 
   let inputOpen = $state(false);
   let text = $state('');
@@ -43,18 +46,25 @@
 
   let debounce: ReturnType<typeof setTimeout> | undefined;
   $effect(() => {
-    if (!text.trim()) { analysis = null; analyzing = false; return; }
+    if (!text.trim()) {
+      analysis = null;
+      analyzing = false;
+      onStatus?.(null);
+      return;
+    }
     if (debounce) clearTimeout(debounce);
     analyzing = true;
     debounce = setTimeout(async () => {
       try {
         const result = await runtime.execute('spurh.log', 'analyze', text, {});
         analysis = result.data as LogAnalysis;
+        onStatus?.({ chars: text.length, summary: `已解析 ${analysis.parsed} 条` });
         error = '';
         expanded = new Set();
       } catch (cause) {
         error = cause instanceof Error ? cause.message : String(cause);
         analysis = null;
+        onStatus?.(null);
       }
       analyzing = false;
     }, 300);
@@ -70,13 +80,17 @@
     if (!file) return;
     fileError = '';
     if (file.size > 5 * 1024 * 1024) { fileError = '日志文件过大（超过 5MB），请截取片段'; return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      text = String(reader.result ?? '');
+    // 优先 UTF-8 严格解码，失败时回退 GBK（中文 Windows 常见日志编码），与主界面拖放逻辑保持一致
+    file.arrayBuffer().then((bytes) => {
+      let decoded: string;
+      try {
+        decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      } catch {
+        decoded = new TextDecoder('gbk').decode(bytes);
+      }
+      text = decoded;
       inputOpen = true;
-    };
-    reader.onerror = () => { fileError = '读取文件失败'; };
-    reader.readAsText(file, 'utf-8');
+    }).catch(() => { fileError = '读取文件失败'; });
     (event.currentTarget as HTMLInputElement).value = '';
   }
 
@@ -225,17 +239,17 @@
 
 <style>
   .log-panel { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
-  .log-bar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
+  .log-bar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10.5px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
   .log-bar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .log-btn { height: 31px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 11px; border: 1px solid var(--line); border-radius: 8px; background: transparent; transition: all .15s ease; }
   .log-btn:hover:not(:disabled) { color: var(--text); border-color: var(--line-2); background: var(--hover); }
   .log-btn.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); background: var(--accent-soft); }
   .log-btn:disabled { opacity: .4; cursor: default; }
   .log-btn span { display: inline-flex; font-size: 13px; line-height: 1; }
-  .log-status { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+  .log-status { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11.5px; white-space: nowrap; }
   .log-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line-2); }
   .log-status-dot.ok { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-  .log-file-error { color: var(--danger); font-size: 10.5px; }
+  .log-file-error { color: var(--danger); font-size: 11.5px; }
 
   .log-input { flex: 0 0 auto; display: flex; flex-direction: column; gap: 5px; }
   .log-input textarea { width: 100%; height: 170px; padding: 12px 14px; resize: vertical; color: var(--text); font: 450 12.5px/1.6 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 10px; outline: 0; background: var(--panel); }
@@ -249,16 +263,16 @@
   .log-stats { flex: 0 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
   .log-stat { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .log-stat b { font-size: 17px; font-weight: 700; color: var(--lv, var(--text)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .log-stat small { color: var(--muted); font-size: 9.5px; }
+  .log-stat small { color: var(--muted); font-size: 11px; }
   .log-stat-wide { min-width: 150px; }
   .log-stat-wide b { font-size: 11px; font-weight: 600; }
 
   .log-section-title { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; }
   .log-section-title b { font-size: 12px; }
-  .log-section-title small { color: var(--muted-2); font-size: 9.5px; }
+  .log-section-title small { color: var(--muted-2); font-size: 11px; }
 
   .log-entries { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 4px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); }
-  .log-entry { display: flex; gap: 10px; padding: 9px 11px; cursor: pointer; text-align: left; width: 100%; color: var(--text); font: inherit; border: 0; border-radius: 8px; background: transparent; transition: background .15s ease; }
+  .log-entry { display: flex; gap: 10px; padding: 10.5px 11px; cursor: pointer; text-align: left; width: 100%; color: var(--text); font: inherit; border: 0; border-radius: 8px; background: transparent; transition: background .15s ease; }
   .log-entry:hover { background: var(--hover); }
   .log-entry > i { flex: 0 0 auto; width: 3px; border-radius: 2px; align-self: stretch; }
   .log-entry.error { background: color-mix(in srgb, var(--danger) 6%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 18%, var(--line)); }
@@ -266,12 +280,12 @@
   .log-entry-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
   .log-entry-head b { color: var(--lv, var(--text)); font: 600 10px 'Cascadia Code', monospace; }
   .log-entry.error .log-entry-head b { color: var(--danger); }
-  .log-entry-head small { color: var(--muted-2); font-size: 9.5px; }
-  .log-entry p { margin: 0; color: var(--text); font: 450 11.5px/1.5 'Cascadia Code', monospace; word-break: break-word; }
-  .log-entry pre { margin: 6px 0 0; padding: 8px 10px; overflow: auto; color: var(--muted); font: 400 10.5px/1.5 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); white-space: pre-wrap; }
-  .log-more { color: var(--muted-2); font-size: 9.5px; }
+  .log-entry-head small { color: var(--muted-2); font-size: 11px; }
+  .log-entry p { margin: 0; color: var(--text); font: 450 12.5px/1.5 'Cascadia Code', monospace; word-break: break-word; }
+  .log-entry pre { margin: 6px 0 0; padding: 8px 10px; overflow: auto; color: var(--muted); font: 400 11.5px/1.5 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); white-space: pre-wrap; }
+  .log-more { color: var(--muted-2); font-size: 11px; }
 
-  .log-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; flex: 1; color: var(--muted); text-align: center; }
+  .log-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10.5px; flex: 1; color: var(--muted); text-align: center; }
   .log-empty b { font-size: 14px; }
   .log-empty p { margin: 0; font-size: 11px; line-height: 1.7; }
 </style>

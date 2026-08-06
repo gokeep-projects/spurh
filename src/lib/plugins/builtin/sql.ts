@@ -1,5 +1,5 @@
 ﻿import { TOOL_ICONS as ICONS } from '../../icons';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke } from '../../env';
 import type { PluginResult, SpurhPlugin } from '../types';
 
 export type SqlProfile = {
@@ -77,7 +77,7 @@ export const sqlPlugin: SpurhPlugin = {
   async execute(actionId, input, options = {}): Promise<PluginResult> {
     if (actionId !== 'run') throw new Error('未知操作');
     const profile = profileFromOptions(options);
-    const result = await invoke<SqlExecResult>('sql_execute', { profile, sql: input });
+    const result = await safeInvoke<SqlExecResult>('sql_execute', { profile, sql: input });
     const rows = result.rows ?? [];
     const summary = result.isQuery
       ? `${rows.length} 行${result.truncated ? '（已截断）' : ''} · ${result.elapsedMs} ms`

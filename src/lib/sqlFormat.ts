@@ -17,6 +17,9 @@ const CLAUSE_PHRASES = [
 
 const isIdentChar = (ch: string): boolean => /[A-Za-z0-9_$]/.test(ch);
 
+/** 多字符操作符（按长度降序匹配） */
+const COMPOUND_OPS = ['<=>', '->>', '#>>', '!~*', '>=', '<=', '!=', '<>', '->', '#>', '~*', '!~', '::', '||'];
+
 /** 编辑器补全用：常用 SQL 关键字 + 子句短语 */
 export const SQL_COMPLETION_KEYWORDS: string[] = [
   ...Array.from(CLAUSE_KEYWORDS),
@@ -62,15 +65,28 @@ function readPhrase(input: string, i: number): { text: string; upper: string; ne
   return { text: first, upper, next: j };
 }
 
+/** 输出缓冲区中最后一个非空白字符 */
+function lastNonSpaceChar(out: string[]): string {
+  for (let k = out.length - 1; k >= 0; k--) {
+    const s = out[k];
+    for (let pos = s.length - 1; pos >= 0; pos--) {
+      if (!/\s/.test(s[pos])) return s[pos];
+    }
+  }
+  return '';
+}
+
 export function formatSql(input: string): string {
   const out: string[] = [];
   let i = 0;
   let pendingSpace = false;
+  let afterKeyword = false;
 
   const push = (text: string): void => {
     if (pendingSpace && out.length > 0 && !/\s$/.test(out[out.length - 1])) out.push(' ');
     out.push(text);
     pendingSpace = false;
+    afterKeyword = false;
   };
   const newline = (indent = 0): void => {
     while (out.length > 0 && /\s$/.test(out[out.length - 1])) out.pop();
@@ -128,6 +144,7 @@ export function formatSql(input: string): string {
         newline(upper === 'AND' || upper === 'OR' ? 2 : 0);
         out.push(upper);
         pendingSpace = true;
+        afterKeyword = true;
       } else {
         push(text);
         pendingSpace = true;
@@ -141,15 +158,30 @@ export function formatSql(input: string): string {
       while (out.length > 0 && /\s$/.test(out[out.length - 1])) out.pop();
       out.push(',');
       pendingSpace = true;
+      afterKeyword = false;
     } else if (ch === '(') {
       push(ch); // 左括号：前留空格、后不留
     } else if (ch === ')') {
       while (out.length > 0 && /\s$/.test(out[out.length - 1])) out.pop();
       out.push(')');
       pendingSpace = true;
-    } else if ('=<>!+-*/%'.includes(ch)) {
-      push(ch);
-      pendingSpace = true; // 二元操作符两侧留空格
+      afterKeyword = false;
+    } else if ('=<>!+-*/%|:#~'.includes(ch)) {
+      // 多字符操作符整体匹配（>= <= != <> <=> :: || -> ->> #> #>> ~* !~ 等），避免被拆成单个符号
+      let op = ch;
+      for (const candidate of COMPOUND_OPS) {
+        if (input.startsWith(candidate, i)) { op = candidate; break; }
+      }
+      const last = lastNonSpaceChar(out);
+      // 一元正负号（select -1 / a > -1）后不留空格；命名参数 :id 同样不拆
+      const unary = (ch === '-' || ch === '+') &&
+        (afterKeyword || last === '' || '([,=<>!+-*/%|:#~'.includes(last));
+      // 二元运算符前也补空格（字符串字面量/括号后同样需要）
+      if (!unary) pendingSpace = true;
+      push(op);
+      if (!unary && !(op === ':' && isIdentChar(input[i + 1]))) pendingSpace = true;
+      i += op.length;
+      continue;
     } else {
       push(ch);
     }

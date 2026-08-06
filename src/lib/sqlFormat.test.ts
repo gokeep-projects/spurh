@@ -40,4 +40,40 @@ describe('formatSql', () => {
     const out = formatSql('select 1;');
     expect(out.endsWith(';')).toBe(true);
   });
+  it('复合运算符 >= <= != <> 不被拆开', () => {
+    const out = formatSql('select * from t where a>=10 and b<=20 and c!=30 and d<>40');
+    expect(out).toContain('a >= 10');
+    expect(out).toContain('b <= 20');
+    expect(out).toContain('c != 30');
+    expect(out).toContain('d <> 40');
+    expect(out).not.toContain('> =');
+    expect(out).not.toContain('< =');
+    expect(out).not.toContain('! =');
+  });
+
+  it('一元正负号不被拆开', () => {
+    const out = formatSql('select -1 as neg, +2 as pos from t where a>-1');
+    expect(out).toContain('SELECT -1');
+    expect(out).toContain('+2');
+    expect(out).toContain('a > -1');
+    expect(out).not.toContain('- 1');
+  });
+
+  it('类型转换 :: 与拼接 || 不被拆开', () => {
+    const out = formatSql("select x::int, 'a'||'b' from t where id=:id");
+    expect(out).toContain('x :: int');
+    expect(out).toContain("'a' || 'b'");
+    expect(out).toContain('id = :id');
+  });
+
+  it('PostgreSQL JSON 操作符 -> ->> #> 不被拆开', () => {
+    const out = formatSql("select data->>'name', meta#>'{a}' from t");
+    expect(out).toContain("data ->> 'name'");
+    expect(out).toContain("meta #> '{a}'");
+  });
+
+  it('乘法与减法仍保持二元运算符间距', () => {
+    const out = formatSql('select a*b-c from t');
+    expect(out).toContain('a * b - c');
+  });
 });

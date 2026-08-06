@@ -44,8 +44,25 @@ pub struct SqlExecResult {
 }
 
 fn first_keyword(sql: &str) -> String {
+    let mut rest = sql;
+    // ???????/* ... */?????-- ??????????# ????MySQL?
+    loop {
+        rest = rest.trim_start();
+        if let Some(inner) = rest.strip_prefix("/*") {
+            let Some(end) = inner.find("*/") else { return String::new() };
+            rest = &inner[end + 2..];
+        } else if let Some(inner) = rest.strip_prefix("--") {
+            let Some(end) = inner.find('\n') else { return String::new() };
+            rest = &inner[end + 1..];
+        } else if let Some(inner) = rest.strip_prefix('#') {
+            let Some(end) = inner.find('\n') else { return String::new() };
+            rest = &inner[end + 1..];
+        } else {
+            break;
+        }
+    }
     let mut keyword = String::new();
-    for ch in sql.chars() {
+    for ch in rest.chars() {
         if ch.is_ascii_alphabetic() {
             keyword.push(ch.to_ascii_uppercase());
         } else if !keyword.is_empty() || (!ch.is_whitespace() && ch != '(' && ch != ';') {
@@ -1010,7 +1027,175 @@ pub struct SqlExportResult {
 }
 
 fn sanitize_comment(text: &str) -> String {
-    text.replace(['\r', '\n'], " ")
+    text.replace("\r\n", " ").replace(['\r', '\n'], " ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn column_type_maps_dialect_and_cleans_unknown() {
+        let col = |ty: &str, length: Option<u32>| SqlColumnDef {
+            name: "c".into(), data_type: ty.into(), length, nullable: true, default: None, primary_key: false, auto_increment: false, comment: None,
+        };
+        assert_eq!(column_type("mysql", &col("INT", None)), "INT");
+        assert_eq!(column_type("mysql", &col("varchar", Some(255))), "VARCHAR(255)");
+        assert_eq!(column_type("mysql", &col("TEXT", None)), "TEXT");
+        assert_eq!(column_type("postgres", &col("INTEGER", None)), "INTEGER");
+        assert_eq!(column_type("postgres", &col("double precision", None)), "DOUBLE PRECISION");
+        assert_eq!(column_type("sqlite", &col("BLOB", None)), "BLOB");
+        // 未知类型清洗后回退，不引入任意 SQL
+        assert_eq!(column_type("mysql", &col("evil; DROP TABLE x", None)), "EVILDROPTABLEX");
+        assert_eq!(column_type("sqlite", &col("", None)), "TEXT");
+    }
+
+    #[test]
+    fn default_literal_keeps_keywords_escapes_text() {
+        assert_eq!(default_literal("CURRENT_TIMESTAMP"), "CURRENT_TIMESTAMP");
+        assert_eq!(default_literal("NOW()"), "NOW()");
+        assert_eq!(default_literal("TRUE"), "TRUE");
+        assert_eq!(default_literal("0.5"), "0.5");
+        assert_eq!(default_literal("-1"), "-1");
+        assert_eq!(default_literal("null"), "NULL");
+        assert_eq!(default_literal(""), "NULL");
+        assert_eq!(default_literal("hello"), "'hello'");
+        assert_eq!(default_literal("it's"), "'it''s'");
+    }
+
+    #[test]
+    fn mysql_value_literal_escapes_quotes_and_backslashes() {
+        use mysql::Value;
+        assert_eq!(mysql_value_literal(&Value::NULL), "NULL");
+        assert_eq!(mysql_value_literal(&Value::Int(42)), "42");
+        assert_eq!(mysql_value_literal(&Value::Bytes(b"a'b\\c".to_vec())), "'a''b\\\\c'");
+    }
+
+    #[test]
+    fn first_keyword_uppercases_and_skips_leading_noise() {
+        assert_eq!(first_keyword("select * from users"), "SELECT");
+        assert_eq!(first_keyword("  explain analyze select 1"), "EXPLAIN");
+        assert_eq!(first_keyword("/* comment */ select 1"), "SELECT");
+        assert_eq!(first_keyword("-- ??\nselect 1"), "SELECT");
+        assert_eq!(first_keyword("# MySQL ??\nupdate t set a = 1"), "UPDATE");
+        assert_eq!(first_keyword("/* ??\n?? */\n  with x as (select 1) select * from x"), "WITH");
+        assert_eq!(first_keyword("/* ???"), "");
+        assert_eq!(first_keyword("select"), "SELECT");
+        assert_eq!(first_keyword(";"), "");
+        assert_eq!(first_keyword("with x as (select 1) select * from x"), "WITH");
+    }
+
+    #[test]
+    fn is_query_sql_classifies_read_only_statements() {
+        assert!(is_query_sql("select 1"));
+        assert!(is_query_sql("SHOW TABLES"));
+        assert!(is_query_sql("describe users"));
+        assert!(is_query_sql("PRAGMA table_info(t)"));
+        assert!(!is_query_sql("insert into t values (1)"));
+        assert!(!is_query_sql("update t set a = 1"));
+        assert!(!is_query_sql("delete from t"));
+    }
+
+    #[test]
+    fn quote_ident_escapes_and_chooses_dialect() {
+        assert_eq!(quote_ident("mysql", "users"), "`users`");
+        assert_eq!(quote_ident("mysql", "a`b"), "`a``b`");
+        assert_eq!(quote_ident("postgres", "users"), "\"users\"");
+        assert_eq!(quote_ident("sqlite", "a\"b"), "\"a\"\"b\"");
+        assert_eq!(quote_ident("unknown", "t"), "\"t\"");
+    }
+
+    #[test]
+    fn sanitize_comment_flattens_newlines() {
+        assert_eq!(sanitize_comment("line1\r\nline2\nline3"), "line1 line2 line3");
+        assert_eq!(sanitize_comment("single"), "single");
+    }
+
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SQL_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    fn sqlite_profile() -> SqlProfile {
+        let id = SQL_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("spurh-sql-{}-{id}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        SqlProfile {
+            kind: "sqlite".into(),
+            host: String::new(),
+            port: None,
+            user: None,
+            password: None,
+            database: None,
+            file: Some(path.to_string_lossy().into_owned()),
+            ssl: false,
+        }
+    }
+
+    fn cleanup(profile: &SqlProfile) {
+        // 取出缓存的连接并关闭，释放 Windows 文件句柄后删除临时库
+        drop(conn_take(profile, None));
+        if let Some(path) = profile.file.as_deref() {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+
+    #[test]
+    fn sqlite_query_and_dml_roundtrip() {
+        let profile = sqlite_profile();
+        let setup = sqlite_exec(&profile, "CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, score INTEGER); INSERT INTO users (name, score) VALUES ('alice', 90), ('bob', 80), ('carol', 70);", 500).unwrap();
+        assert!(!setup.is_query, "DDL/INSERT 应为非查询");
+
+        let query = sqlite_exec(&profile, "SELECT id, name, score FROM users ORDER BY id", 500).unwrap();
+        assert!(query.is_query);
+        assert_eq!(query.columns, vec!["id", "name", "score"]);
+        assert_eq!(query.rows.len(), 3);
+        assert_eq!(query.rows[0], vec![serde_json::json!(1), serde_json::json!("alice"), serde_json::json!(90)]);
+        assert!(!query.truncated);
+
+        let update = sqlite_exec(&profile, "UPDATE users SET score = score + 5 WHERE name = 'bob'", 500).unwrap();
+        assert!(!update.is_query);
+        assert_eq!(update.affected, 1, "UPDATE 应返回受影响行数");
+        let check = sqlite_exec(&profile, "SELECT score FROM users WHERE name = 'bob'", 500).unwrap();
+        assert_eq!(check.rows[0][0], serde_json::json!(85));
+
+        let deleted = sqlite_exec(&profile, "DELETE FROM users WHERE score < 75", 500).unwrap();
+        assert!(!deleted.is_query);
+        assert_eq!(deleted.affected, 1);
+
+        let count = sqlite_exec(&profile, "SELECT COUNT(*) FROM users", 500).unwrap();
+        assert_eq!(count.rows[0][0], serde_json::json!(2));
+        cleanup(&profile);
+    }
+
+    #[test]
+    fn sqlite_multistatement_batch_and_errors() {
+        let profile = sqlite_profile();
+        sqlite_exec(&profile, "CREATE TABLE t (v TEXT)", 500).unwrap();
+        let batch = sqlite_exec(&profile, "INSERT INTO t VALUES ('a'); INSERT INTO t VALUES ('b'); INSERT INTO t VALUES ('c');", 500).unwrap();
+        assert!(!batch.is_query);
+        let count = sqlite_exec(&profile, "SELECT COUNT(*) FROM t", 500).unwrap();
+        assert_eq!(count.rows[0][0], serde_json::json!(3));
+
+        let err = sqlite_exec(&profile, "SELEC 1", 500).unwrap_err();
+        assert!(err.contains("SQL"), "错误应包含 SQL 提示：{err}");
+
+        // 带前导注释的 SELECT 应被识别为查询（回退 first_keyword 修复）
+        let commented = sqlite_exec(&profile, "/* 注释 */ SELECT COUNT(*) FROM t", 500).unwrap();
+        assert!(commented.is_query);
+        assert_eq!(commented.rows[0][0], serde_json::json!(3));
+        cleanup(&profile);
+    }
+
+    #[test]
+    fn sqlite_truncates_at_max_rows() {
+        let profile = sqlite_profile();
+        let setup = "CREATE TABLE big (n INTEGER); INSERT INTO big (n) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);";
+        sqlite_exec(&profile, setup, 500).unwrap();
+        let result = sqlite_exec(&profile, "SELECT n FROM big ORDER BY n", 4).unwrap();
+        assert!(result.truncated);
+        assert_eq!(result.rows.len(), 4);
+        cleanup(&profile);
+    }
 }
 
 fn mysql_value_literal(value: &mysql::Value) -> String {

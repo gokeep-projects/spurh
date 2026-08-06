@@ -1,6 +1,7 @@
 <script lang="ts">
   import { UI_ICONS } from '../icons';
   import { generateRegexSamples } from '../regexgen';
+  import { parseLiteral } from '../plugins/builtin/regex';
   import type { PluginResult } from '../plugins/types';
 
   let { session, onChangeAction, onChangeOption, onChangeInput, onClear, aiConfigured = false, aiBusy = false, onAiGenerate, onAiRecommend }: {
@@ -15,21 +16,49 @@
     onAiRecommend?: (samples: string) => Promise<void>;
   } = $props();
 
+  const PRESETS_VISIBLE = 8;
+  let presetsAllOpen = $state(false);
   let aiDescription = $state('');
   let samples = $state<string[]>([]);
   let samplesCopied = $state('');
   let sampleError = $state('');
+  // 记录已同步到选项的正则输入：仅在新内容路由进来时更新表达式/标志，避免与用户手动编辑冲突
+  let syncedRegex: string | null = null;
+
+  $effect(() => {
+    const input = session.input.trim();
+    if (!input || input === syncedRegex) return;
+    const literal = parseLiteral(input);
+    if (!literal) return;
+    syncedRegex = input;
+    if (session.options.pattern !== literal.pattern) onChangeOption('pattern', literal.pattern);
+    if (session.options.flags !== (literal.flags || 'g')) onChangeOption('flags', literal.flags || 'g');
+  });
 
   const PRESETS: Array<{ label: string; pattern: string; flags?: string }> = [
     { label: '邮箱', pattern: '[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+' },
     { label: 'URL', pattern: 'https?://[\\w\\-._~:/?#\\[\\]@!$&\'()*+,;=%]+' },
     { label: '手机号', pattern: '1[3-9]\\d{9}' },
     { label: 'IPv4', pattern: '(?:\\d{1,3}\\.){3}\\d{1,3}' },
+    { label: 'IPv6', pattern: '(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}' },
+    { label: 'MAC 地址', pattern: '(?:[0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}' },
+    { label: 'UUID', pattern: '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}' },
     { label: '日期', pattern: '\\d{4}-\\d{2}-\\d{2}' },
+    { label: '日期时间', pattern: '\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}(?::\\d{2})?' },
     { label: '时间', pattern: '\\d{2}:\\d{2}(?::\\d{2})?' },
+    { label: '13 位时间戳', pattern: '\\d{13}' },
+    { label: 'IP:端口', pattern: '(?:\\d{1,3}\\.){3}\\d{1,3}:\\d{2,5}' },
     { label: '16 进制色值', pattern: '#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?' },
     { label: '中文', pattern: '[\\u4e00-\\u9fa5]+' },
-    { label: '引号内容', pattern: '"[^"]*"' },
+    { label: '英文单词', pattern: '\\b[A-Za-z]+\\b' },
+    { label: '驼峰命名', pattern: '\\b[A-Z][a-z]+(?:[A-Z][a-z]+)+\\b' },
+    { label: '引号内容', pattern: '"[^"]*"|\'[^\']*\'' },
+    { label: 'HTML 标签', pattern: '<[^>]+>' },
+    { label: '空白行', pattern: '^\\s*$', flags: 'gm' },
+    { label: '注释', pattern: '//[^\n]*|/\\*[\\s\\S]*?\\*/' },
+    { label: '文件扩展名', pattern: '\\.(?:json|txt|log|js|ts|py|rs|sql|md)$', flags: 'gim' },
+    { label: 'Windows 路径', pattern: '[A-Za-z]:\\\\[^\"<>|?*]+' },
+    { label: 'JSON 键', pattern: '"[^"]*"\\s*:' },
     { label: '重复单词', pattern: '\\b(\\w+)\\s+\\1\\b' },
   ];
 
@@ -106,10 +135,13 @@
   <div class="regex-presets">
     <span>常用</span>
     <div class="preset-scroll">
-      {#each PRESETS as preset}
+      {#each (presetsAllOpen ? PRESETS : PRESETS.slice(0, PRESETS_VISIBLE)) as preset}
         <button class:active={presetApplied === preset.label} title={preset.pattern} onclick={() => applyPreset(preset)}>{preset.label}</button>
       {/each}
     </div>
+    <button class="preset-more" onclick={() => (presetsAllOpen = !presetsAllOpen)} title={presetsAllOpen ? '收起' : '展开全部常用表达式'}>
+      {presetsAllOpen ? '收起 ▲' : `更多 ${PRESETS.length - PRESETS_VISIBLE} ▾`}
+    </button>
   </div>
 
   {#if session.actionId === 'replace'}
@@ -181,7 +213,7 @@
   .regex-samples .sample-btn:hover:not(:disabled) { background: var(--accent-soft); }
   .regex-samples .sample-btn:disabled { cursor: default; opacity: .4; }
   .sample-chips { display: flex; gap: 5px; flex-wrap: wrap; }
-  .sample-chips button { padding: 3px 9px; cursor: pointer; color: var(--text); font: 500 11px 'Cascadia Code', monospace; border: 1px dashed var(--line-2); border-radius: 6px; background: var(--panel); user-select: all; }
+  .sample-chips button { padding: 3px 10.5px; cursor: pointer; color: var(--text); font: 500 11px 'Cascadia Code', monospace; border: 1px dashed var(--line-2); border-radius: 6px; background: var(--panel); user-select: all; }
   .sample-chips button:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
   .sample-chips button.copied { border-style: solid; border-color: var(--accent); color: var(--accent); }
   .sample-error { color: var(--danger); font-size: 10px; }
@@ -190,9 +222,11 @@
   .preset-scroll { display: flex; gap: 5px; align-items: center; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
   .preset-scroll::-webkit-scrollbar { height: 4px; }
   .preset-scroll::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
-  .regex-presets button { flex: 0 0 auto; height: 24px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 12px; background: transparent; white-space: nowrap; }
+  .regex-presets button { flex: 0 0 auto; height: 24px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 12px; background: transparent; white-space: nowrap; }
   .regex-presets button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
   .regex-presets button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
+  .regex-presets .preset-more { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: 10px; font-weight: 600; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 12px; background: transparent; white-space: nowrap; }
+  .regex-presets .preset-more:hover { background: var(--accent-soft); border-style: solid; }
   .preset-hint { margin: 0; color: var(--warn); font-size: 11px; }
   .regex-actions { display: flex; gap: 4px; align-items: center; }
   .regex-actions button { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: transparent; }

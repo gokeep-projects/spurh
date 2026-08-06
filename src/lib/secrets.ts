@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke } from './env';
 
 /**
  * 敏感信息统一存入系统钥匙串（Windows Credential Manager / macOS Keychain / Linux Secret Service），
@@ -15,13 +15,13 @@ export async function setSecret(name: string, value: string): Promise<void> {
     await deleteSecret(name);
     return;
   }
-  await invoke('secret_set', { key: secretKey(name), value });
+  await safeInvoke('secret_set', { key: secretKey(name), value });
 }
 
 export async function getSecret(name: string): Promise<string | null> {
-  return invoke<string | null>('secret_get', { key: secretKey(name) });
+  return safeInvoke<string | null>('secret_get', { key: secretKey(name) });
 }
 
 export async function deleteSecret(name: string): Promise<void> {
-  await invoke('secret_delete', { key: secretKey(name) }).catch(() => undefined);
+  await safeInvoke('secret_delete', { key: secretKey(name) }).catch(() => undefined);
 }

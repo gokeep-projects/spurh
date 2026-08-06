@@ -360,6 +360,13 @@ pub struct GeoInfo {
     pub timezone: Option<String>,
 }
 
+/// 构造 ip-api.com 查询 URL（免费版仅保证 HTTP，HTTPS 优先尝试后自动回退）
+fn geo_api_url(ip: &str, scheme: &str) -> String {
+    format!(
+        "{scheme}://ip-api.com/json/{ip}?lang=zh-CN&fields=status,message,country,countryCode,regionName,city,isp,org,as,lat,lon,timezone,query"
+    )
+}
+
 #[tauri::command]
 pub async fn net_ip_geo(target: String) -> Result<GeoInfo, String> {
     let target = target.trim().to_string();
@@ -384,24 +391,67 @@ pub async fn net_ip_geo(target: String) -> Result<GeoInfo, String> {
             .ok_or_else(|| "域名没有解析结果".to_string())?
     };
 
-    let url = format!(
-        "http://ip-api.com/json/{ip}?lang=zh-CN&fields=status,message,country,countryCode,regionName,city,isp,org,as,lat,lon,timezone,query"
-    );
-    let response = reqwest::Client::builder()
+    let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
-        .map_err(|error| format!("创建查询客户端失败：{error}"))?
-        .get(&url)
-        .send()
-        .await
-        .map_err(|error| format!("IP 归属地查询失败（请检查网络）：{error}"))?;
-    let value: Value = response
-        .json()
-        .await
-        .map_err(|error| format!("返回数据解析失败：{error}"))?;
-    let info: GeoInfo = serde_json::from_value(value).map_err(|error| format!("返回数据格式异常：{error}"))?;
+        .map_err(|error| format!("创建查询客户端失败：{error}"))?;
+    let mut last_error: Option<String> = None;
+    let mut info: Option<GeoInfo> = None;
+    for scheme in ["https", "http"] {
+        let response = match client.get(geo_api_url(&ip, scheme)).send().await {
+            Ok(response) => response,
+            Err(error) => {
+                last_error = Some(format!("IP 归属地查询失败（{scheme}）：{error}"));
+                continue;
+            }
+        };
+        if !response.status().is_success() {
+            last_error = Some(format!("IP 归属地查询失败（{scheme}，HTTP {}）", response.status()));
+            continue;
+        }
+        let value: Value = match response.json().await {
+            Ok(value) => value,
+            Err(error) => {
+                last_error = Some(format!("返回数据解析失败（{scheme}）：{error}"));
+                continue;
+            }
+        };
+        match serde_json::from_value(value) {
+            Ok(parsed) => {
+                info = Some(parsed);
+                break;
+            }
+            Err(error) => {
+                last_error = Some(format!("返回数据格式异常（{scheme}）：{error}"));
+            }
+        }
+    }
+    let info = info.ok_or_else(|| last_error.unwrap_or_else(|| "IP 归属地查询失败".into()))?;
     if info.status == "fail" {
         return Err(info.message.clone().unwrap_or_else(|| "查询失败，请确认输入的是合法 IP 或域名".into()));
     }
     Ok(info)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::geo_api_url;
+
+    #[test]
+    fn geo_url_keeps_scheme_ip_and_fields() {
+        let url = geo_api_url("8.8.8.8", "https");
+        assert!(url.starts_with("https://ip-api.com/json/8.8.8.8?"));
+        assert!(url.contains("lang=zh-CN"));
+        assert!(url.contains("fields=status"));
+        assert!(url.contains("query"));
+        let http = geo_api_url("1.1.1.1", "http");
+        assert!(http.starts_with("http://ip-api.com/json/1.1.1.1?"));
+    }
+
+    #[test]
+    fn geo_url_accepts_ipv6() {
+        // IPv6 地址同样可用于路径（IpAddr::to_string 输出不含非法路径字符）
+        let url = geo_api_url("2001:db8::1", "https");
+        assert!(url.contains("/json/2001:db8::1?"));
+    }
 }

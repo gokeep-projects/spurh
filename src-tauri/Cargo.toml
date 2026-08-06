@@ -30,6 +30,7 @@ keyring = "3"
 russh = "0.62.5"
 base64 = "0.23.0"
 rusqlite = { version = "0.37", features = ["bundled"] }
+encoding_rs = "0.8"
 
 [profile.release]
 strip = true

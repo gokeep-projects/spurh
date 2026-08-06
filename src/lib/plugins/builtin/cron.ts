@@ -468,10 +468,12 @@ export const cronPlugin: SpurhPlugin = {
   ],
   detect(input) {
     const v = input.trim();
-    const f = v.split(/\s+/);
+    const prefixed = /^cron[:：]/i.test(v);
+    const body = v.replace(/^cron[:：]\s*/i, '');
+    const f = body.split(/\s+/);
     if ((f.length >= 5 && f.length <= 7) && f.every((x) => /^[\d*/?,\-LWN#A-Za-z]+$/.test(x))) {
       try {
-        parseCron(v);
+        parseCron(body);
         const [sec, min, hr, dom, mon, dow, yr] = f.length === 5 ? ['0', ...f] : f;
         if (!validField(sec, 0, 59) || !validField(min, 0, 59) || !validField(hr, 0, 23)
           || !validField(dom, 1, 31, true) || !validField(mon, 1, 12, false, MONTH_NAMES)
@@ -479,7 +481,7 @@ export const cronPlugin: SpurhPlugin = {
           || (yr !== undefined && !validField(yr, 1970, 2199))) {
           return null;
         }
-        return { confidence: 0.96, reason: 'Cron 表达式' };
+        return { confidence: prefixed ? 0.92 : 0.96, reason: prefixed ? '检测到 Cron 指令' : 'Cron 表达式', suggestedAction: 'next' };
       } catch { /* not valid */ }
     }
     return null;
@@ -489,7 +491,10 @@ export const cronPlugin: SpurhPlugin = {
       const expr = buildExpression(options);
       return runsResult(expr, 5);
     }
-    const expr = input.trim();
+    // 自定义模式下以面板表达式框为准（用户编辑后结果实时跟随），否则回退到路由/输入的表达式；两处均剥离 cron: 指令前缀
+    const expr = (options.type === 'custom' && (options.customExpr || '').trim()
+      ? options.customExpr.trim().replace(/^cron[:：]\s*/i, '')
+      : input.trim().replace(/^cron[:：]\s*/i, ''));
     if (!expr) throw new Error('请先输入 Cron 表达式（支持 5~7 段）');
     const f = expr.split(/\s+/);
     parseCron(expr);

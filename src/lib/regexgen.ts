@@ -3,8 +3,9 @@
 
 type Token =
   | { kind: 'literal'; value: string }
+  | { kind: 'escape'; value: string }
   | { kind: 'class'; items: ClassItem[]; negated: boolean }
-  | { kind: 'group'; branches: Token[][]; capturing: boolean }
+  | { kind: 'group'; branches: Token[][]; capturing: boolean; negative: boolean }
   | { kind: 'quant'; base: Token; min: number; max: number };
 
 type ClassItem = { type: 'char'; value: string } | { type: 'range'; from: string; to: string } | { type: 'special'; value: string };
@@ -33,10 +34,13 @@ function parse(pattern: string): Token[] {
     const ch = pattern[index];
     if (ch === '(') {
       index++;
-      const capturing = !(pattern[index] === '?' && ['?:', '?=', '?!', '?<=', '?<!'].includes(pattern.slice(index, index + 2)));
+      const two = pattern.slice(index, index + 2);
+      const three = pattern.slice(index, index + 3);
+      const lookaround = two === '?=' || two === '?!' || two === '?:' || three === '?<=' || three === '?<!';
+      const capturing = !(pattern[index] === '?' && lookaround);
       if (pattern[index] === '?') {
-        const look = pattern.slice(index, index + 2);
-        if (['?:', '?=', '?!', '?<=', '?<!'].includes(look)) index += 2;
+        if (two === '?=' || two === '?!' || two === '?:') index += 2;
+        else if (three === '?<=' || three === '?<!') index += 3;
       }
       const branches: Token[][] = [];
       let current: Token[] = [];
@@ -59,7 +63,7 @@ function parse(pattern: string): Token[] {
         current = current.concat(parseExpression());
       }
       if (branches.length === 0) branches.push(current);
-      base = { kind: 'group', branches, capturing };
+      base = { kind: 'group', branches, capturing, negative: two === '?!' || three === '?<!' };
     } else if (ch === '[') {
       index++;
       const negated = pattern[index] === '^';
@@ -85,10 +89,13 @@ function parse(pattern: string): Token[] {
       index++;
       const escaped = pattern[index] ?? '';
       index++;
-      base = { kind: 'literal', value: escaped };
+      base = { kind: 'escape', value: escaped };
     } else if (ch === '.') {
       index++;
       base = { kind: 'class', items: [{ type: 'special', value: '.' }], negated: false };
+    } else if (ch === '^' || ch === '$') {
+      index++;
+      base = { kind: 'literal', value: '' };
     } else {
       index++;
       base = { kind: 'literal', value: ch };
@@ -119,14 +126,13 @@ function parse(pattern: string): Token[] {
   function parseExpression(): Token[] {
     if (pattern[index] === ')' || pattern[index] === '|') return [];
     const token = parseQuantified();
-    if (token) tokens.push(token);
-    return tokens;
+    return token ? [token] : [];
   }
 
   while (index < pattern.length) {
     const ch = pattern[index];
     if (ch === ')' || ch === '|') { index++; continue; }
-    parseExpression();
+    tokens.push(...parseExpression());
   }
   return tokens;
 }
@@ -180,7 +186,8 @@ function classItemValue(item: ClassItem): string {
 
 function render(token: Token, depth = 0): string {
   if (depth > 8) return '';
-  if (token.kind === 'literal') return specialValue(token.value);
+  if (token.kind === 'literal') return token.value;
+  if (token.kind === 'escape') return specialValue(token.value);
   if (token.kind === 'class') {
     if (token.items.length === 0) return pick(POOL);
     const candidates = token.items.map(classItemValue).filter((value) => value !== '');
@@ -189,6 +196,8 @@ function render(token: Token, depth = 0): string {
     return candidates[Math.floor(Math.random() * candidates.length)];
   }
   if (token.kind === 'group') {
+    // negative assertions are zero-width: render nothing
+    if (token.negative) return '';
     const branch = token.branches[Math.floor(Math.random() * token.branches.length)];
     return branch.map((item) => render(item, depth + 1)).join('');
   }

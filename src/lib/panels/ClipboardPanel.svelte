@@ -1,10 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
-  import { listen } from '@tauri-apps/api/event';
+  import { isTauri, safeInvoke, safeListen } from '../env';
   import { UI_ICONS } from '../icons';
-
-  type ClipItem = { id: string; text: string; ts: number; kind?: 'image'; image?: string };
+  import { trimImageHistory, type ClipItem } from '../clipHistory';
 
   let { onChangeInput }: { onChangeInput?: (v: string) => void } = $props();
 
@@ -72,8 +70,11 @@
         // atob 解码，避免 fetch(data:) 被生产 CSP connect-src 拦截
         const blob = await dataUrlToBlob(item.image);
         await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      } else if (isTauri) {
+        await safeInvoke('clipboard_write_text', { text: item.text });
       } else {
-        await invoke('clipboard_write_text', { text: item.text });
+        // 浏览器模式回退到 Web Clipboard API，保持复制功能可用
+        await navigator.clipboard.writeText(item.text);
       }
       copiedId = item.id;
       setTimeout(() => { if (copiedId === item.id) copiedId = ''; }, 1200);
@@ -106,30 +107,36 @@
     }
     confirmingClear = false;
     if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
-    invoke('clipboard_clear_history').catch(() => undefined);
+    safeInvoke('clipboard_clear_history').catch(() => undefined);
     items = [];
   }
 
   onMount(() => {
-    invoke<ClipItem[]>('clipboard_history').then((snapshot) => {
+    safeInvoke<ClipItem[]>('clipboard_history').then((snapshot) => {
       items = snapshot;
       loaded = true;
     }).catch(() => { loaded = true; });
-    const unlisten1 = listen<ClipItem[]>('clipboard:history', (event) => {
+    const unlisten1 = safeListen<ClipItem[]>('clipboard:history', (event) => {
       // 后端历史不含图片，合并保留本地图片项，避免被全量替换清掉
       const images = items.filter((item) => item.kind === 'image');
-      items = [...images, ...event.payload].slice(0, 100);
+      items = trimImageHistory([...images, ...event.payload].slice(0, 100));
     });
-    const unlisten2 = listen<ClipItem>('clipboard:item', (event) => {
-      // 内容去重：同文本条目移动到头并更新时间，不新增重复项
-      if (event.payload.kind !== 'image') {
+    const unlisten2 = safeListen<ClipItem>('clipboard:item', (event) => {
+      // ????????/?????????????????????
+      if (event.payload.kind === 'image' && event.payload.image) {
+        const dup = items.find((other) => other.kind === 'image' && other.image === event.payload.image);
+        if (dup) {
+          items = [{ ...dup, ts: event.payload.ts }, ...items.filter((other) => other.id !== dup.id)].slice(0, 100);
+          return;
+        }
+      } else {
         const dup = items.find((item) => item.kind !== 'image' && item.text === event.payload.text);
         if (dup) {
           items = [{ ...dup, ts: event.payload.ts }, ...items.filter((item) => item.id !== dup.id)].slice(0, 100);
           return;
         }
       }
-      items = [event.payload, ...items].slice(0, 100);
+      items = trimImageHistory([event.payload, ...items].slice(0, 100));
     });
     return () => {
       unlisten1.then((fn) => fn()).catch(() => undefined);
@@ -202,17 +209,17 @@
   .clip-search input { min-width: 0; flex: 1; color: var(--text); font-size: 12.5px; border: 0; outline: 0; background: transparent; }
   .clip-search-x { width: 18px; height: 18px; display: grid; place-items: center; padding: 0; cursor: pointer; color: var(--muted-2); font-size: 13px; line-height: 1; border: 0; border-radius: 4px; background: transparent; }
   .clip-search-x:hover { color: var(--text); background: var(--hover); }
-  .clip-count { color: var(--muted); font: 500 9.5px 'Cascadia Code', monospace; white-space: nowrap; }
+  .clip-count { color: var(--muted); font: 500 11px 'Cascadia Code', monospace; white-space: nowrap; }
   .clip-clear { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: all .15s ease; }
   .clip-clear span { display: inline-flex; }
   :global(.clip-clear span svg) { width: 12px; height: 12px; }
   .clip-clear:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
   .clip-clear.confirming { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); background: color-mix(in srgb, var(--danger) 8%, transparent); }
-  .clip-loading { display: grid; place-content: center; gap: 9px; flex: 1; color: var(--muted); font-size: 10.5px; }
+  .clip-loading { display: grid; place-content: center; gap: 10.5px; flex: 1; color: var(--muted); font-size: 11.5px; }
   .clip-list { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; overflow-y: auto; }
-  .clip-day { display: flex; align-items: center; gap: 7px; padding: 8px 2px 3px; color: var(--muted-2); font-size: 9px; font-weight: 700; letter-spacing: .8px; }
-  .clip-day i { padding: 1px 6px; color: var(--muted); font-size: 8.5px; font-style: normal; border: 1px solid var(--line); border-radius: 8px; }
-  .clip-item { display: flex; align-items: stretch; gap: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); overflow: hidden; transition: border-color .15s ease, box-shadow .15s ease; }
+  .clip-day { display: flex; align-items: center; gap: 7px; padding: 8px 2px 3px; color: var(--muted-2); font-size: 10.5px; font-weight: 700; letter-spacing: .8px; }
+  .clip-day i { padding: 1px 6px; color: var(--muted); font-size: 10px; font-style: normal; border: 1px solid var(--line); border-radius: 8px; }
+  .clip-item { display: flex; align-items: stretch; gap: 0; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); overflow: hidden; transition: border-color .15s ease, box-shadow .15s ease; }
   .clip-item:hover { border-color: var(--line-2); }
   .clip-item.active { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .clip-item.hot { border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
@@ -220,9 +227,9 @@
   .clip-main:hover { background: var(--hover); }
   .clip-main code { display: -webkit-box; overflow: hidden; color: var(--text); font: 450 13px/1.5 'Cascadia Code', monospace; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
   .clip-img { max-width: 220px; max-height: 130px; object-fit: contain; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
-  .clip-main small { color: var(--muted-2); font: 500 9.5px 'Cascadia Code', monospace; }
-  .clip-actions { display: flex; flex-direction: column; gap: 5px; justify-content: center; padding: 8px 9px; border-left: 1px solid var(--line); background: var(--panel-2); }
-  .clip-act { height: 24px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: 9px; white-space: nowrap; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); transition: all .15s ease; }
+  .clip-main small { color: var(--muted-2); font: 500 11px 'Cascadia Code', monospace; }
+  .clip-actions { display: flex; flex-direction: column; gap: 5px; justify-content: center; padding: 8px 10.5px; border-left: 1px solid var(--line); background: var(--panel-2); }
+  .clip-act { height: 24px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 10.5px; white-space: nowrap; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); transition: all .15s ease; }
   .clip-act:hover { color: var(--text); border-color: var(--line-2); }
   .clip-act.fill { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 28%, var(--line)); background: var(--accent-soft); }
   .clip-act.fill:hover { color: var(--accent); }
@@ -230,5 +237,5 @@
   .clip-empty-tile { width: 46px; height: 46px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 13px; background: var(--accent-soft); }
   :global(.clip-empty-tile svg) { width: 22px; height: 22px; }
   .clip-empty b { color: var(--text); font-size: 12.5px; }
-  .clip-empty small { font-size: 9.5px; }
+  .clip-empty small { font-size: 11px; }
 </style>

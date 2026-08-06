@@ -72,7 +72,7 @@ function htmlUnescape(input: string): string {
 export const encoderPlugin: SpurhPlugin = {
   id: 'spurh.encoder',
   name: '编码转换',
-  description: 'Base64、URL、Hex 编解码与 SHA 摘要计算',
+  description: 'Base64、URL、Hex 编解码',
   icon: ICONS['spurh.encoder'],
   version: '0.1.0',
   category: '编码',
@@ -92,32 +92,38 @@ export const encoderPlugin: SpurhPlugin = {
   options: [],
   detect(input) {
     const value = input.trim().replace(/\s/g, '');
-    if (value.length >= 8 && value.length % 4 === 0 && /^[A-Za-z0-9+/_-]+={0,2}$/.test(value)) {
-      try { decodeBase64(value); return { confidence: 0.78, reason: '检测到可解码的 Base64 文本' }; } catch { /* fall through */ }
+    if (value.length >= 8 && value.length % 4 !== 1 && /^[A-Za-z0-9+/_-]+={0,2}$/.test(value)) {
+      try { decodeBase64(value); return { confidence: 0.78, reason: '检测到可解码的 Base64 文本', suggestedAction: 'base64-decode' }; } catch { /* fall through */ }
     }
-    if (/%[0-9a-f]{2}/i.test(value)) return { confidence: 0.82, reason: '检测到 URL 百分号编码' };
-    if (/^https?:\/\//i.test(value)) return { confidence: 0.55, reason: '检测到 HTTP URL（可解码）' };
-    if (value.length >= 16 && /^[0-9a-f]+$/i.test(value) && value.length % 2 === 0) return { confidence: 0.5, reason: '内容可能是 Hex 字符串' };
-    if (/^(base64|url|hex|hash|sha)[:：]/i.test(input.trim())) return { confidence: 0.86, reason: '检测到编码指令前缀' };
+    if (/%[0-9a-f]{2}/i.test(value)) return { confidence: 0.82, reason: '检测到 URL 百分号编码', suggestedAction: 'url-decode' };
+    if (/^https?:\/\//i.test(value)) return { confidence: 0.55, reason: '检测到 HTTP URL（可解码）', suggestedAction: 'url-decode' };
+    if (value.length >= 16 && /^[0-9a-f]+$/i.test(value) && value.length % 2 === 0) return { confidence: 0.5, reason: '内容可能是 Hex 字符串', suggestedAction: 'hex-decode' };
+    if (/^(base64|url|hex|html)[:：]/i.test(input.trim())) {
+      const prefix = input.trim().match(/^(base64|url|hex|html)[:：]/i)?.[1]?.toLowerCase();
+      const prefixAction = prefix === 'base64' ? 'base64-encode' : prefix === 'url' ? 'url-encode' : prefix === 'hex' ? 'hex-encode' : prefix === 'html' ? 'html-encode' : null;
+      return { confidence: 0.86, reason: '检测到编码指令前缀', ...(prefixAction ? { suggestedAction: prefixAction } : {}) };
+    }
     return null;
   },
   async execute(actionId, input) {
+    // 剥离指令前缀（如 base64:hello → hello、html:<b> → <b>），与加解密插件行为保持一致
+    const text = input.replace(/^(base64|url|hex|html)[:：]\s*/i, '');
     let output: string; let summary: string;
     switch (actionId) {
-      case 'base64-encode': output = encodeBase64(input); summary = 'Base64 编码完成'; break;
-      case 'base64-decode': output = decodeBase64(input); summary = 'Base64 解码完成'; break;
-      case 'url-encode': output = encodeURIComponent(input); summary = 'URL 编码完成'; break;
+      case 'base64-encode': output = encodeBase64(text); summary = 'Base64 编码完成'; break;
+      case 'base64-decode': output = decodeBase64(text); summary = 'Base64 解码完成'; break;
+      case 'url-encode': output = encodeURIComponent(text); summary = 'URL 编码完成'; break;
       case 'url-decode':
-        try { output = decodeURIComponent(input); } catch { throw new Error('URL 编码不完整'); }
+        try { output = decodeURIComponent(text); } catch { throw new Error('URL 编码不完整'); }
         summary = 'URL 解码完成'; break;
-      case 'hex-encode': output = encodeHex(input); summary = 'Hex 编码完成'; break;
-      case 'hex-decode': output = decodeHex(input); summary = 'Hex 解码完成'; break;
-      case 'unicode-escape': output = unicodeEscape(input); summary = 'Unicode 转义完成'; break;
-      case 'unicode-unescape': output = unicodeUnescape(input); summary = 'Unicode 还原完成'; break;
-      case 'html-encode': output = htmlEscape(input); summary = 'HTML 转义完成'; break;
-      case 'html-decode': output = htmlUnescape(input); summary = 'HTML 还原完成'; break;
+      case 'hex-encode': output = encodeHex(text); summary = 'Hex 编码完成'; break;
+      case 'hex-decode': output = decodeHex(text); summary = 'Hex 解码完成'; break;
+      case 'unicode-escape': output = unicodeEscape(text); summary = 'Unicode 转义完成'; break;
+      case 'unicode-unescape': output = unicodeUnescape(text); summary = 'Unicode 还原完成'; break;
+      case 'html-encode': output = htmlEscape(text); summary = 'HTML 转义完成'; break;
+      case 'html-decode': output = htmlUnescape(text); summary = 'HTML 还原完成'; break;
       default: throw new Error(`未知操作 ${actionId}`);
     }
-    return { output, language: 'text', summary, meta: { 输入: input.length, 输出: output.length } as Record<string, string | number | boolean> };
+    return { output, language: 'text', summary, meta: { 输入: text.length, 输出: output.length } as Record<string, string | number | boolean> };
   },
 };

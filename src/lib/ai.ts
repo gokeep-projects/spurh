@@ -1,5 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { safeInvoke, safeListen } from './env';
 import { deleteSecret, getSecret, setSecret } from './secrets';
 
 export type AiConfig = {
@@ -154,7 +153,7 @@ export function isAiConfigured(config: AiConfig | undefined): boolean {
 }
 
 export async function fetchAiModels(config: AiConfig): Promise<AiModel[]> {
-  return invoke<AiModel[]>('ai_list_models', { request: config });
+  return safeInvoke<AiModel[]>('ai_list_models', { request: config });
 }
 
 export async function testAiConnection(config: AiConfig): Promise<string> {
@@ -191,14 +190,14 @@ export async function processWithAi(
     'CRITICAL: Output ONLY the result. No introductions, no summaries, no markdown code fences.',
   ].filter(Boolean).join(' ');
 
-  const unlisten = await listen<StreamEvent>('ai-stream', (event) => {
+  const unlisten = await safeListen<StreamEvent>('ai-stream', (event) => {
     if (event.payload.requestId !== requestId) return;
     if (event.payload.kind === 'reasoning') reasoning += event.payload.delta;
     if (event.payload.kind === 'content') content += event.payload.delta;
     onUpdate({ reasoning, content });
   });
   try {
-    const finalContent = await invoke<string>('ai_analyze_stream', {
+    const finalContent = await safeInvoke<string>('ai_analyze_stream', {
       request: { ...config, input, instruction },
       requestId,
     });

@@ -94,7 +94,7 @@
   .crypto-grp-label { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 10px; font-weight: 700; margin: 0 4px; white-space: nowrap; }
   /* svelte-ignore css_unused_selector */
   .crypto-grp-label :global(svg) { width: 13px; height: 13px; }
-  .crypto-group button { height: 26px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: 10px; border: 0; border-radius: 6px; background: transparent; white-space: nowrap; transition: all .15s ease; }
+  .crypto-group button { height: 26px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 10px; border: 0; border-radius: 6px; background: transparent; white-space: nowrap; transition: all .15s ease; }
   .crypto-group button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .crypto-group button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .crypto-key-row { display: flex; gap: 8px; align-items: center; }

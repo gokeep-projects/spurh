@@ -130,7 +130,7 @@
 
 <style>
   .ai-assist { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); overflow: hidden; }
-  .ai-head { min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 9px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, var(--accent-soft)), var(--panel)); }
+  .ai-head { min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 10.5px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, var(--accent-soft)), var(--panel)); }
   .ai-toggle { height: 26px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: 10px; font-weight: 700; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 999px; background: var(--accent-soft); transition: all .15s ease; }
   .ai-toggle:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 18%, transparent); }
   .ai-toggle.on { color: #fff; background: var(--btn-gradient); border-color: transparent; }
@@ -141,9 +141,9 @@
   @keyframes aiPulse { 50% { opacity: .35; } }
   .ai-presets { display: flex; align-items: center; gap: 5px; overflow-x: auto; scrollbar-width: none; }
   .ai-presets::-webkit-scrollbar { display: none; }
-  .ai-preset { height: 22px; flex: 0 0 auto; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .15s ease; }
+  .ai-preset { height: 22px; flex: 0 0 auto; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 10.5px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .15s ease; }
   .ai-preset:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
-  .ai-body { min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 9px; }
+  .ai-body { min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 10.5px; }
   .ai-notice { display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: var(--muted); font-size: 10px; border: 1px dashed var(--line-2); border-radius: 8px; background: var(--bg); }
   .ai-notice span { display: inline-flex; color: var(--warn); }
   :global(.ai-notice span svg) { width: 14px; height: 14px; }
@@ -156,10 +156,10 @@
   .ai-reasoning, .ai-content { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .ai-reasoning small, .ai-content small { color: var(--muted-2); font: 600 8px 'Cascadia Code', monospace; letter-spacing: .8px; }
   .ai-reasoning p { margin: 0; padding: 8px 10px; color: var(--muted); font-size: 10px; line-height: 1.6; border-left: 2px solid var(--line-2); background: var(--bg); }
-  .ai-content pre { margin: 0; padding: 10px 12px; overflow-x: auto; color: var(--text); font: 500 10.5px 'Cascadia Code', monospace; line-height: 1.65; white-space: pre-wrap; word-break: break-word; border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--accent) 4%, var(--bg)); }
+  .ai-content pre { margin: 0; padding: 10px 12px; overflow-x: auto; color: var(--text); font: 500 11.5px 'Cascadia Code', monospace; line-height: 1.65; white-space: pre-wrap; word-break: break-word; border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--accent) 4%, var(--bg)); }
   .ai-waiting { display: flex; align-items: center; gap: 8px; padding: 12px; color: var(--muted); font-size: 10px; }
   .ai-result-actions { display: flex; justify-content: flex-end; gap: 6px; }
-  .ai-result-actions button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 9.5px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); transition: all .15s ease; }
+  .ai-result-actions button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); transition: all .15s ease; }
   .ai-result-actions button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
   .ai-error { display: flex; align-items: center; gap: 7px; padding: 8px 10px; color: var(--danger); font-size: 10px; border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--line)); border-radius: 7px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
   .ai-error i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--danger); }

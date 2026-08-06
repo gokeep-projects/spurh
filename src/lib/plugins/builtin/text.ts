@@ -83,7 +83,7 @@ export const textPlugin: SpurhPlugin = {
     { id: 'aiPrompt', label: 'AI 提示语', type: 'text', defaultValue: '', placeholder: '例如：润色语气，并保持原意' },
   ],
   detect(input) {
-    if (/^text:/i.test(input.trim())) return { confidence: 0.82, reason: '检测到文本处理指令' };
+    if (/^text:/i.test(input.trim())) return { confidence: 0.82, reason: '检测到文本处理指令', suggestedAction: 'stats' };
     return null;
   },
   execute(actionId, input, options = {}): PluginResult {

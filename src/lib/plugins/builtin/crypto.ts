@@ -112,8 +112,11 @@ function md5(input: string): string {
     }
     a0 = (a0 + A) >>> 0; b0 = (b0 + B) >>> 0; c0 = (c0 + C) >>> 0; d0 = (d0 + D) >>> 0;
   }
-  const hex = (n: number) => n.toString(16).padStart(8, '0');
-  return hex(a0) + hex(b0) + hex(c0) + hex(d0);
+  // RFC 1321：摘要按每个 32 位字的小端字节序输出（低字节在前）
+  const hexLE = (n: number) =>
+    [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff]
+      .map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hexLE(a0) + hexLE(b0) + hexLE(c0) + hexLE(d0);
 }
 
 /* ── SHA / HMAC ── */
@@ -155,23 +158,36 @@ export const cryptoPlugin: SpurhPlugin = {
   ],
   detect(input) {
     const t = input.trim();
-    if (/^(encrypt|decrypt|aes|rsa|jwt|hash|hmac|md5)[:：]/i.test(t)) return { confidence: 0.85, reason: '安全指令' };
+    const cmd = t.match(/^(encrypt|decrypt|aes|rsa|jwt|hash|hmac|md5|sha\d*)[:：]/i)?.[1]?.toLowerCase();
+    if (cmd) {
+      const suggestedAction = cmd === 'encrypt' || cmd === 'aes' ? 'aes-encrypt'
+        : cmd === 'decrypt' ? 'aes-decrypt'
+        : cmd === 'rsa' ? 'rsa-gen'
+        : cmd === 'jwt' ? 'jwt-decode'
+        : cmd === 'hash' ? 'SHA-256'
+        : cmd === 'hmac' ? 'HMAC-SHA256'
+        : cmd.startsWith('sha') ? (cmd === 'sha1' ? 'SHA-1' : cmd === 'sha512' ? 'SHA-512' : 'SHA-256')
+        : 'MD5';
+      return { confidence: 0.85, reason: '安全指令', suggestedAction };
+    }
     const parts = t.split('.');
     if (parts.length === 3 && parts.every(p => /^[A-Za-z0-9_-]+$/.test(p))) {
-      try { jwtDecodePart(parts[0]); jwtDecodePart(parts[1]); return { confidence: 0.98, reason: 'JWT 令牌' }; } catch {}
+      try { jwtDecodePart(parts[0]); jwtDecodePart(parts[1]); return { confidence: 0.98, reason: 'JWT 令牌', suggestedAction: 'jwt-decode' }; } catch {}
     }
     if (t.length > 40 && /^[A-Za-z0-9+/]+={0,2}$/.test(t)) return { confidence: 0.45, reason: '可能是加密数据' };
     return null;
   },
   async execute(actionId, input, options = {}): Promise<PluginResult> {
     const secret = options.secret ?? '';
+    // 剥离指令前缀（如 md5:hello → hello、sha512:hello → hello），仅在使用者显式提供时生效
+    const text = input.replace(/^(encrypt|decrypt|aes|rsa|jwt|hash|hmac|md5|sha\d*)[:：]\s*/i, '');
 
     if (actionId === 'aes-encrypt') {
-      const out = await aesEncrypt(input, secret);
+      const out = await aesEncrypt(text, secret);
       return { output: out, language: 'text', summary: 'AES-256-GCM 加密完成', meta: { 算法: 'AES-256-GCM', 模式: 'GCM' } };
     }
     if (actionId === 'aes-decrypt') {
-      try { const out = await aesDecrypt(input, secret); return { output: out, language: 'text', summary: '解密成功', meta: { 算法: 'AES-256-GCM' } }; }
+      try { const out = await aesDecrypt(text, secret); return { output: out, language: 'text', summary: '解密成功', meta: { 算法: 'AES-256-GCM' } }; }
       catch { throw new Error('解密失败：密钥不对或密文损坏'); }
     }
     if (actionId === 'rsa-gen') {
@@ -180,7 +196,7 @@ export const cryptoPlugin: SpurhPlugin = {
     }
     if (actionId === 'jwt-gen') {
       let payload: unknown;
-      try { payload = JSON.parse(input); } catch { throw new Error('请输入 JSON Payload'); }
+      try { payload = JSON.parse(text); } catch { throw new Error('请输入 JSON Payload'); }
       const header = { alg: 'HS256', typ: 'JWT' };
       const si = `${jwtEncodePart(header)}.${jwtEncodePart(payload)}`;
       const k = await jwtImportSecret(secret, 'SHA-256');
@@ -188,7 +204,7 @@ export const cryptoPlugin: SpurhPlugin = {
       return { output: `${si}.${jwtBytesToB64Url(sig)}`, language: 'text', summary: 'HS256 JWT 已生成', meta: { 算法: 'HS256' }, view: 'text' };
     }
     if (actionId === 'jwt-decode' || actionId === 'jwt-verify') {
-      const parts = input.trim().split('.');
+      const parts = text.trim().split('.');
       if (parts.length !== 3) throw new Error('无效 JWT 格式');
       const header = jwtDecodePart(parts[0]) as Record<string, unknown>;
       const payload = jwtDecodePart(parts[1]) as Record<string, unknown>;
@@ -197,7 +213,7 @@ export const cryptoPlugin: SpurhPlugin = {
         return {
           output: JSON.stringify({ header, payload }, null, 2), language: 'json',
           summary: expired ? 'JWT 已过期' : 'JWT 已解码', view: 'jwt',
-          data: { header, payload, expired, token: input.trim() },
+          data: { header, payload, expired, token: text.trim() },
           meta: { 算法: String(header.alg || '?'), 签名: '未验证' },
         };
       }
@@ -209,24 +225,24 @@ export const cryptoPlugin: SpurhPlugin = {
         output: JSON.stringify({ valid, algorithm: header.alg, payload }, null, 2), language: 'json',
         summary: valid ? (expired ? '签名有效但已过期' : '签名验证通过') : '签名无效',
         view: 'jwt',
-        data: { header, payload, valid, expired, token: input.trim() },
+        data: { header, payload, valid, expired, token: text.trim() },
         meta: { 算法: String(header.alg || '?'), 签名: valid ? '有效' : '无效', ...(expired ? { 过期: '是' } : {}) },
       };
     }
     if (actionId === 'MD5') {
-      const out = md5(input);
+      const out = md5(text);
       return { output: out, language: 'text', view: 'hash', summary: 'MD5 (128位)', data: { algorithm: 'MD5', bits: 128, digest: out }, meta: { 算法: 'MD5', 位: 128 } };
     }
     if (actionId === 'SHA-1' || actionId === 'SHA-256' || actionId === 'SHA-512') {
       const bits = actionId === 'SHA-256' ? 256 : actionId === 'SHA-1' ? 160 : 512;
-      const out = await shaDigest(actionId, input);
+      const out = await shaDigest(actionId, text);
       return { output: out, language: 'text', view: 'hash', summary: `${actionId} (${bits}位)`, data: { algorithm: actionId, bits, digest: out }, meta: { 算法: actionId, 位: bits } };
     }
     if (actionId === 'HMAC-SHA256' || actionId === 'HMAC-SHA512') {
       if (!secret.trim()) throw new Error('HMAC 需要密钥');
       const h = actionId === 'HMAC-SHA256' ? 'SHA-256' : 'SHA-512';
       const bits = actionId === 'HMAC-SHA256' ? 256 : 512;
-      const out = await hmacDigest(h, secret, input);
+      const out = await hmacDigest(h, secret, text);
       return { output: out, language: 'text', view: 'hash', summary: `${actionId} (${bits}位)`, data: { algorithm: actionId, bits, digest: out }, meta: { 算法: actionId, 位: bits } };
     }
     throw new Error(`未知操作 ${actionId}`);

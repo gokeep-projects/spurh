@@ -1,6 +1,8 @@
 export type Detection = {
   confidence: number;
   reason: string;
+  /** 命中时建议自动切换到的动作（如 JWT → jwt-decode），可为空 */
+  suggestedAction?: string;
 };
 
 export type PluginAction = {
@@ -25,7 +27,7 @@ export type PluginResult = {
   language?: string;
   summary?: string;
   meta?: Record<string, string | number | boolean>;
-  view?: 'code' | 'text' | 'timestamp' | 'jwt' | 'hash' | 'matches' | 'stats' | 'list' | 'http' | 'sql' | 'log';
+  view?: 'code' | 'text' | 'timestamp' | 'jwt' | 'hash' | 'matches' | 'stats' | 'list' | 'http' | 'sql' | 'log' | 'colors';
   data?: unknown;
 };
 
@@ -51,6 +53,7 @@ export type PluginMatch = {
   plugin: SpurhPlugin;
   confidence: number;
   reason: string;
+  suggestedAction?: string;
 };
 
 export type DispatchResult = {

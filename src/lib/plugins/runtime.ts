@@ -42,6 +42,7 @@ export class PluginRuntime {
           plugin,
           confidence: Math.min(1, Math.max(0, detection.confidence)),
           reason: detection.reason,
+          suggestedAction: detection.suggestedAction,
         });
       } catch {
         // A broken detector must never make the command bar unusable.

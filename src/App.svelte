@@ -1,7 +1,6 @@
-﻿<script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
-  import { listen } from '@tauri-apps/api/event';
+<script lang="ts">
   import { onMount, type Component } from 'svelte';
+  import { isTauri, safeInvoke, safeListen } from './lib/env';
   import { AI_PRESETS, createAiProfile, deleteProfileSecret, fetchAiModels, flushLegacyAiSecrets, hydrateAiSecrets, isAiConfigured, loadAiProfileStore, processWithAi, saveAiProfileStore, saveProfileSecret, testAiConnection, type AiModel, type AiProfile } from './lib/ai';
   import { PROVIDER_NAMES, providerIcon } from './lib/providerIcons';
   import { BRAND_MARK, TOOL_ICONS, UI_ICONS, iconHtml } from './lib/icons';
@@ -10,7 +9,9 @@
   import CronPanel from './lib/panels/CronPanel.svelte';
   import CryptoPanel from './lib/panels/CryptoPanel.svelte';
   import RegexPanel from './lib/panels/RegexPanel.svelte';
+  import TimestampPanel from './lib/panels/TimestampPanel.svelte';
   import { runtime, type PluginResult } from './lib/plugins';
+  import { trimImageHistory, type ClipItem } from './lib/clipHistory';
 
   type ToolSession = {
     input: string;
@@ -48,10 +49,10 @@
     toolHotkeys: Record<string, string>;
     fontSize: number;
     fontFamily: string;
+    sidebarShortcuts: boolean;
   };
 
   type ContextInfo = { path: string; content: string };
-  type ClipItem = { id: string; text: string; ts: number; kind?: 'image'; image?: string };
 
   type PaletteItem = { id: string; group: string; label: string; hint: string; icon: string; run: () => void };
 
@@ -62,6 +63,7 @@
       theme: 'dark', trayEnabled: true, contextMenuEnabled: true, clipboardWatch: true, dispatchHotkey: 'ctrl+shift+space',
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
       fontSize: 14, fontFamily: '系统默认',
+      sidebarShortcuts: false,
     };
     try {
       const stored = localStorage.getItem(SETTINGS_KEY);
@@ -166,6 +168,7 @@
   let clipElement = $state<HTMLInputElement | undefined>(undefined);
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
+
   let activePlugin = $derived(plugins.find((plugin) => plugin.id === activePluginId)!);
   let activeSession = $derived(sessions[activePluginId]);
   let visibleResult = $derived(activeSession.aiResult ?? activeSession.result);
@@ -188,12 +191,19 @@
   };
   let lazyPanel = $state<Component | null>(null);
   let lazyPanelLoading = $state(false);
+  let logPanelStatus = $state<{ chars: number; summary: string } | null>(null);
   const lazyPanelProps = $derived<Record<string, unknown>>(
     activePluginId === 'spurh.clipboard'
       ? { onChangeInput: fillFromClipboard }
       : activePluginId === 'spurh.sql'
         ? { aiConfig }
-        : {},
+        : activePluginId === 'spurh.log'
+          ? {
+              onStatus: (status: { chars: number; summary: string } | null) => (logPanelStatus = status),
+              // 路由/拖拽进入日志面板的内容同步到面板输入区，避免“有结果但界面空”的割裂
+              externalText: activeSession.input.trim() ? { text: activeSession.input, ts: activeSession.revision } : null,
+            }
+          : {},
   );
 
   $effect(() => {
@@ -211,6 +221,15 @@
   let lightMode = $derived(appSettings.theme === 'light'
     || (appSettings.theme === 'system' && !window.matchMedia('(prefers-color-scheme: dark)').matches));
   let anyAiProcessing = $derived(plugins.some((p) => sessions[p.id].aiProcessing));
+  let statusText = $derived(
+    activeSession.error ? '处理失败'
+      : activeSession.aiProcessing ? 'AI 处理中…'
+        : activeSession.processing ? '处理中…'
+          : activePluginId === 'spurh.log' && logPanelStatus
+            ? `结果 ${logPanelStatus.summary} · ${logPanelStatus.chars} 字符`
+            : currentSessionResult() ? `结果 ${currentSessionResult()!.output?.length ?? 0} 字符`
+              : '等待输入',
+  );
   let dispatchHotkeyLabel = $derived(formatHotkey(dispatchHotkey));
   let paletteItems = $derived(buildPaletteItems());
   let paletteFiltered = $derived(paletteQuery
@@ -230,10 +249,18 @@
   $effect(() => {
     // 结果状态实时写入窗口标题（原生标题栏，任何渲染问题都无法遮挡）
     const result = currentSessionResult();
-    const next = result
-      ? `Spurh · ${__BUILD_DATE__} · 结果: ${(result.summary || '有结果').slice(0, 24)} · ${result.output?.length ?? 0}字符`
-      : `Spurh · ${__BUILD_DATE__} · 结果: 无`;
+    const next = activePluginId === 'spurh.log' && logPanelStatus
+      ? `Spurh · ${__BUILD_DATE__} · 日志: ${logPanelStatus.summary} · ${logPanelStatus.chars}字符`
+      : result
+        ? `Spurh · ${__BUILD_DATE__} · 结果: ${(result.summary || '有结果').slice(0, 24)} · ${result.output?.length ?? 0}字符`
+        : `Spurh · ${__BUILD_DATE__} · 结果: 无`;
     if (document.title !== next) document.title = next;
+  });
+
+  $effect(() => {
+    // 同步浏览器标签栏/桌面主题色
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', lightMode ? '#f4f6f9' : '#090b10');
   });
 
   $effect(() => {
@@ -244,9 +271,10 @@
   });
 
   async function applyHotkeys(): Promise<void> {
+    if (!isTauri) return; // 浏览器模式无全局快捷键,静默跳过
     const tools = plugins.slice(0, 9).map((_, i) => appSettings.toolHotkeys[String(i)] ?? `alt+${i + 1}`);
     try {
-      const results = await invoke<Array<{ key: string; ok: boolean; error?: string | null }>>('apply_hotkeys', { dispatch: dispatchHotkey, tools });
+      const results = await safeInvoke<Array<{ key: string; ok: boolean; error?: string | null }>>('apply_hotkeys', { dispatch: dispatchHotkey, tools });
       const failed = results.filter((r) => !r.ok);
       hotkeyError = failed.length
         ? `快捷键注册失败：${failed.map((f) => `${f.key}${f.error ? `（${f.error}）` : ''}`).join('；')}。请更换为未被系统占用的组合。`
@@ -258,7 +286,7 @@
 
   onMount(() => {
     applyHotkeys();
-    const unlistenPromise = listen<{ kind: string; index?: number }>('spurh:hotkey', (event) => {
+    const unlistenPromise = safeListen<{ kind: string; index?: number }>('spurh:hotkey', (event) => {
       if (event.payload.kind === 'tool' && typeof event.payload.index === 'number') {
         const plugin = plugins[event.payload.index];
         if (plugin) selectPlugin(plugin.id);
@@ -267,14 +295,14 @@
       }
     });
 
-    invoke<{ path: string; isDir: boolean } | null>('take_pending_open').then(async (target) => {
+    safeInvoke<{ path: string; isDir: boolean } | null>('take_pending_open').then(async (target) => {
       if (!target) return;
       if (target.isDir) {
         openFileContext = { path: target.path, content: '' };
         return;
       }
       try {
-        const content = await invoke<string>('open_file', { path: target.path });
+        const content = await safeInvoke<string>('open_file', { path: target.path });
         openFileContext = { path: target.path, content };
       } catch {
         openFileContext = { path: target.path, content: '' };
@@ -289,19 +317,19 @@
 
     setTimeout(() => scheduleProcess('spurh.json', 200), 100);
     const systemTimer = setTimeout(() => {
-      invoke<boolean>('get_autostart').then((enabled) => (autostartEnabled = enabled)).catch(() => undefined);
-      invoke<boolean>('get_context_menu_enabled').then((enabled) => (contextMenuEnabled = enabled)).catch(() => undefined);
-      invoke('set_tray_enabled', { enabled: appSettings.trayEnabled }).catch(() => undefined);
-      invoke('set_clipboard_watch', { enabled: appSettings.clipboardWatch }).catch(() => undefined);
+      safeInvoke<boolean>('get_autostart').then((enabled) => (autostartEnabled = enabled)).catch(() => undefined);
+      safeInvoke<boolean>('get_context_menu_enabled').then((enabled) => (contextMenuEnabled = enabled)).catch(() => undefined);
+      safeInvoke('set_tray_enabled', { enabled: appSettings.trayEnabled }).catch(() => undefined);
+      safeInvoke('set_clipboard_watch', { enabled: appSettings.clipboardWatch }).catch(() => undefined);
     }, 800);
     // 剪贴板历史：初始快照 + 实时事件
-    invoke<ClipItem[]>('clipboard_history').then((snapshot) => { clipItems = snapshot; }).catch(() => undefined);
-    const clipUnlisten1 = listen<ClipItem[]>('clipboard:history', (event) => {
+    safeInvoke<ClipItem[]>('clipboard_history').then((snapshot) => { clipItems = snapshot; }).catch(() => undefined);
+    const clipUnlisten1 = safeListen<ClipItem[]>('clipboard:history', (event) => {
       // 后端历史不含图片，合并保留本地图片项，避免被全量替换清掉
       const images = clipItems.filter((item) => item.kind === 'image');
-      clipItems = [...images, ...event.payload].slice(0, 100);
+      clipItems = trimImageHistory([...images, ...event.payload].slice(0, 100));
     });
-    const clipUnlisten2 = listen<ClipItem>('clipboard:item', (event) => {
+    const clipUnlisten2 = safeListen<ClipItem>('clipboard:item', (event) => {
       const item = event.payload;
       // 内容去重：同文本/同图片条目移动到头并更新时间，不新增重复项
       if (item.kind === 'image' && item.image) {
@@ -318,7 +346,7 @@
           return;
         }
       }
-      clipItems = [item, ...clipItems].slice(0, 100);
+      clipItems = trimImageHistory([item, ...clipItems].slice(0, 100));
     });
     window.addEventListener('paste', handleGlobalPaste);
     // 可见版本标识：窗口标题带构建日期，用于确认当前运行的是最新代码
@@ -327,7 +355,7 @@
       const message = event instanceof PromiseRejectionEvent
         ? `unhandledrejection: ${event.reason instanceof Error ? event.reason.message : String(event.reason)}`
         : `error: ${event.message} @ ${event.filename}:${event.lineno}`;
-      invoke('app_log_error', { message }).catch(() => undefined);
+      safeInvoke('app_log_error', { message }).catch(() => undefined);
     };
     window.addEventListener('error', onFrontendError);
     window.addEventListener('unhandledrejection', onFrontendError);
@@ -391,7 +419,7 @@
   }
 
   function logDebug(message: string): void {
-    invoke('app_log_error', { message: `[debug] ${message}` }).catch(() => undefined);
+    safeInvoke('app_log_error', { message: `[debug] ${message}` }).catch(() => undefined);
   }
 
   /** 直接读取当前会话结果（模板变量级响应，绕过 $: 链，杜绝 legacy 响应式不重算） */
@@ -423,23 +451,73 @@
     changeInput((event.currentTarget as HTMLTextAreaElement).value);
   }
 
-  /** Tab 键插入缩进而不是移出焦点 */
+  /** 编辑器键位：Tab 缩进（Shift+Tab 反缩进）、Enter 延续缩进、括号/引号自动闭合 */
   function handleInputKeys(event: KeyboardEvent): void {
     if (event.key === 'Enter' && event.ctrlKey && activePluginId === 'spurh.sql') {
       event.preventDefault();
       runSql();
       return;
     }
-    if (event.key !== 'Tab') return;
-    event.preventDefault();
     const target = event.currentTarget as HTMLTextAreaElement;
     const start = target.selectionStart ?? target.value.length;
     const end = target.selectionEnd ?? start;
-    changeInput(target.value.slice(0, start) + '  ' + target.value.slice(end));
-    // 受控组件更新后恢复光标位置
-    requestAnimationFrame(() => {
-      target.selectionStart = target.selectionEnd = start + 2;
-    });
+    const value = target.value;
+
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      if (start === end) {
+        // 单点：插入两个空格
+        changeInput(value.slice(0, start) + '  ' + value.slice(end));
+        requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 2; });
+        return;
+      }
+      // 多行选区：整块缩进 / 反缩进
+      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const lineEndIdx = value.indexOf('\n', end);
+      const blockEnd = lineEndIdx < 0 ? value.length : lineEndIdx;
+      const block = value.slice(lineStart, blockEnd);
+      const next = block.split('\n').map((line) =>
+        event.shiftKey
+          ? (line.startsWith('  ') ? line.slice(2) : line.startsWith(' ') ? line.slice(1) : line)
+          : '  ' + line,
+      ).join('\n');
+      changeInput(value.slice(0, lineStart) + next + value.slice(blockEnd));
+      requestAnimationFrame(() => { target.selectionStart = lineStart; target.selectionEnd = lineStart + next.length; });
+      return;
+    }
+
+    if (event.key === 'Enter' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      event.preventDefault();
+      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const lineText = value.slice(lineStart, start);
+      const indentMatch = lineText.match(/^[\t ]*/);
+      const indent = indentMatch ? indentMatch[0] : '';
+      // 行尾是开放括号 / 冒号时追加一级缩进（JSON、对象字面量场景）
+      const extra = /[{[(]$/.test(lineText.trimEnd()) ? '  ' : '';
+      const insert = '\n' + indent + extra;
+      changeInput(value.slice(0, start) + insert + value.slice(end));
+      requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + insert.length; });
+      return;
+    }
+
+    // 括号 / 引号自动闭合
+    const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'", '`': '`' };
+    if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      const openChar = PAIRS[event.key];
+      if (openChar) {
+        event.preventDefault();
+        changeInput(value.slice(0, start) + event.key + openChar + value.slice(end));
+        requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 1; });
+        return;
+      }
+      const isCloser = Object.values(PAIRS).includes(event.key);
+      if (isCloser && value[start] === event.key) {
+        // 下一个字符就是配对的闭合符号：跳过而不是重复输入
+        event.preventDefault();
+        target.selectionStart = target.selectionEnd = start + 1;
+        return;
+      }
+    }
   }
 
   function syncInputScroll(): void {
@@ -452,9 +530,17 @@
     });
   }
 
-  let hideInputPane = $derived(activePluginId === 'spurh.timestamp' && activeSession.actionId === 'to-unix');
+  // to-unix 用 picker 作为输入时隐藏文本框；但文本框有内容（自动识别粘贴/手动输入）时保留可见，避免残留输入不可见
+  let hideInputPane = $derived(activePluginId === 'spurh.timestamp' && activeSession.actionId === 'to-unix' || activeSession.actionId === 'now');
 
   function changeAction(actionId: string): void {
+    // Cron 面板内配置的表达式（手写/自定义）需同步到共享输入，解析/执行时间才有内容可用
+    if (activePluginId === 'spurh.cron' && (actionId === 'explain' || actionId === 'next')) {
+      const custom = activeSession.options.customExpr?.trim();
+      if (!activeSession.input.trim() && custom) {
+        patchSession(activePluginId, { input: custom });
+      }
+    }
     patchSession(activePluginId, { actionId });
     scheduleProcess(activePluginId, 0);
   }
@@ -475,9 +561,9 @@
     return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
   }
 
-  function routeToPlugin(pluginId: string, content: string): void {
+  function routeToPlugin(pluginId: string, content: string, suggestedAction?: string): void {
     activePluginId = pluginId;
-    patchSession(pluginId, { input: content, aiResult: null, aiError: '' });
+    patchSession(pluginId, { input: content, aiResult: null, aiError: '', ...(suggestedAction ? { actionId: suggestedAction } : {}) });
     dispatcherInput = '';
     dispatchIndex = 0;
     scheduleProcess(pluginId, 0);
@@ -487,12 +573,13 @@
   /** 顶部输入框内容变化：用户主动输入即实时路由（不读取剪贴板），低置信度保留下拉等待回车确认 */
   let dispatcherOpen = $state(false);
   let liveSyncedContent = '';
+  let draggingFile = $state(false);
 
-  function routeLive(pluginId: string, content: string): void {
+  function routeLive(pluginId: string, content: string, suggestedAction?: string): void {
     const trimmed = content.trim();
     liveSyncedContent = trimmed;
     activePluginId = pluginId;
-    patchSession(pluginId, { input: trimmed, aiResult: null, aiError: '' });
+    patchSession(pluginId, { input: trimmed, aiResult: null, aiError: '', ...(suggestedAction ? { actionId: suggestedAction } : {}) });
     scheduleProcess(pluginId, 120); // 保留防抖窗口，避免输入过程重复执行
   }
 
@@ -503,7 +590,7 @@
     const match = runtime.dispatch(text).selected;
     const target = match && match.confidence >= 0.4 && !SELF_CONTAINED_PANELS.has(match.plugin.id) ? match.plugin.id : 'spurh.json';
     activePluginId = target;
-    patchSession(target, { input: text, aiResult: null, aiError: '' });
+    patchSession(target, { input: text, aiResult: null, aiError: '', ...(match?.suggestedAction ? { actionId: match.suggestedAction } : {}) });
     scheduleProcess(target, 0);
   }
 
@@ -514,10 +601,10 @@
     const match = runtime.dispatch(value).selected;
     if (match && match.confidence >= 0.75 && !SELF_CONTAINED_PANELS.has(match.plugin.id)) {
       // 高置信度：立即路由执行并清空输入框，交互干脆
-      routeLive(match.plugin.id, value);
+      routeLive(match.plugin.id, value, match.suggestedAction);
       dispatcherInput = '';
     } else if (match && match.confidence >= 0.5 && !SELF_CONTAINED_PANELS.has(match.plugin.id)) {
-      routeLive(match.plugin.id, value);
+      routeLive(match.plugin.id, value, match.suggestedAction);
     }
   }
 
@@ -526,10 +613,18 @@
     const matches = [dispatchResult.selected, ...dispatchResult.alternatives].filter(Boolean) as NonNullable<typeof dispatchResult.selected>[];
     const match = matches[pluginIndex];
     if (match) {
-      routeToPlugin(match.plugin.id, content);
+      if (SELF_CONTAINED_PANELS.has(match.plugin.id)) {
+        // 自包含面板不接受输入→输出路由：只切换面板，不注入内容
+        activePluginId = match.plugin.id;
+      } else {
+        routeToPlugin(match.plugin.id, content, match.suggestedAction);
+      }
     } else {
       const plugin = plugins[pluginIndex] ?? plugins[0];
-      if (plugin) routeToPlugin(plugin.id, content);
+      if (plugin) {
+        if (SELF_CONTAINED_PANELS.has(plugin.id)) activePluginId = plugin.id;
+        else routeToPlugin(plugin.id, content);
+      }
     }
   }
 
@@ -547,7 +642,7 @@
         return;
       }
       const item: ClipItem = { id: crypto.randomUUID(), text: '', ts: Date.now(), kind: 'image', image: dataUrl };
-      clipItems = [item, ...clipItems].slice(0, 100);
+      clipItems = trimImageHistory([item, ...clipItems].slice(0, 100));
     };
     reader.readAsDataURL(image);
   }
@@ -576,7 +671,7 @@
         dispatcherInput = '';
         dispatchIndex = 0;
       } else {
-        routeContent(content, dispatch.selected || matchedPlugins.length > 0 ? Math.min(dispatchIndex, matchedPlugins.length) : 0);
+        routeContent(content, dispatch.selected || matchedPlugins.length > 0 ? Math.min(dispatchIndex, matchedPlugins.length) : dispatchIndex);
       }
       return;
     }
@@ -585,6 +680,57 @@
 
   async function pasteToTool(): Promise<void> {
     try { changeInput(await navigator.clipboard.readText()); } catch { dispatcherElement?.focus(); }
+  }
+
+  /* ── 浏览器预览模式:拖拽文件直接打开分析(桌面模式请用右键菜单) ── */
+  function handleFileDragOver(event: DragEvent): void {
+    if (isTauri || !event.dataTransfer?.types.includes('Files')) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    draggingFile = true;
+  }
+
+  function handleFileDragLeave(event: DragEvent): void {
+    if (event.relatedTarget === null || (event.relatedTarget instanceof Node && !document.body.contains(event.relatedTarget))) {
+      draggingFile = false;
+    }
+  }
+
+  async function handleFileDrop(event: DragEvent): Promise<void> {
+    if (isTauri) return;
+    event.preventDefault();
+    draggingFile = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      patchSession(activePluginId, { error: '文件过大(超过 2MB),请使用桌面应用的右键菜单打开' });
+      return;
+    }
+    try {
+      // 图片在浏览器预览中无法分析（后端有专用打开链路），直接提示而非读成乱码
+      if (file.type.startsWith('image/')) {
+        patchSession(activePluginId, { error: '图片文件请使用桌面应用的右键菜单打开分析' });
+        return;
+      }
+      const bytes = await file.arrayBuffer();
+      // 优先 UTF-8 严格解码；失败时回退 GBK（中文 Windows 常见编码），避免中文文本被误判为二进制
+      let content: string;
+      try {
+        content = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      } catch {
+        content = new TextDecoder('gbk').decode(bytes);
+      }
+      // 二进制文件（zip/exe 等）读成文本会大量出现替换字符，拒绝而非路由乱码
+      if ((content.match(/\uFFFD/g) ?? []).length > Math.max(4, content.length / 100)) {
+        patchSession(activePluginId, { error: '二进制文件无法直接分析，请使用桌面应用的右键菜单打开' });
+        return;
+      }
+      const match = runtime.dispatch(content).selected;
+      const target = match && match.confidence >= 0.5 && !SELF_CONTAINED_PANELS.has(match.plugin.id) ? match.plugin.id : 'spurh.json';
+      routeToPlugin(target, content, match?.suggestedAction);
+    } catch {
+      patchSession(activePluginId, { error: '无法读取文件内容(可能不是文本文件)' });
+    }
   }
 
   async function copyResult(): Promise<void> {
@@ -675,28 +821,28 @@
 
   async function changeAutostart(enabled: boolean): Promise<void> {
     settingsBusy = 'autostart'; settingsError = '';
-    try { autostartEnabled = await invoke<boolean>('set_autostart', { enabled }); }
+    try { autostartEnabled = await safeInvoke<boolean>('set_autostart', { enabled }); }
     catch (cause) { settingsError = cause instanceof Error ? cause.message : String(cause); }
     finally { settingsBusy = ''; }
   }
 
   async function changeTray(enabled: boolean): Promise<void> {
     settingsBusy = 'tray'; settingsError = '';
-    try { await invoke('set_tray_enabled', { enabled }); saveAppSettings({ trayEnabled: enabled }); }
+    try { await safeInvoke('set_tray_enabled', { enabled }); saveAppSettings({ trayEnabled: enabled }); }
     catch (cause) { settingsError = cause instanceof Error ? cause.message : String(cause); }
     finally { settingsBusy = ''; }
   }
 
   async function changeContextMenu(enabled: boolean): Promise<void> {
     settingsBusy = 'contextMenu'; settingsError = '';
-    try { await invoke('set_context_menu_enabled', { enabled }); contextMenuEnabled = enabled; saveAppSettings({ contextMenuEnabled: enabled }); }
+    try { await safeInvoke('set_context_menu_enabled', { enabled }); contextMenuEnabled = enabled; saveAppSettings({ contextMenuEnabled: enabled }); }
     catch (cause) { settingsError = cause instanceof Error ? cause.message : String(cause); }
     finally { settingsBusy = ''; }
   }
 
   async function changeClipboardWatch(enabled: boolean): Promise<void> {
     settingsBusy = 'clipboard'; settingsError = '';
-    try { await invoke('set_clipboard_watch', { enabled }); saveAppSettings({ clipboardWatch: enabled }); }
+    try { await safeInvoke('set_clipboard_watch', { enabled }); saveAppSettings({ clipboardWatch: enabled }); }
     catch (cause) { settingsError = cause instanceof Error ? cause.message : String(cause); }
     finally { settingsBusy = ''; }
   }
@@ -903,8 +1049,11 @@
   }
 
   function handleWindowKeydown(event: KeyboardEvent): void {
+    // 先记录录制状态：onRecordKeydown 可能将 recordingTool/recordingDispatch 置空（取消或保存），
+    // 若在之后判断会导致 Esc / 刚录制的组合键泄漏到 handleKeys（如 Esc 误关设置）
+    const wasRecording = recordingTool !== null || recordingDispatch;
     onRecordKeydown(event);
-    if (recordingTool !== null || recordingDispatch) return;
+    if (wasRecording) return;
     handleKeys(event);
   }
 
@@ -947,6 +1096,14 @@
     if ([...mods, key].join('+') === dispatchHotkey) {
       event.preventDefault();
       dispatcherElement?.focus();
+      return;
+    }
+    // 工具切换热键（Alt+1..8）：浏览器模式无全局快捷键，本地兜底保证一致体验
+    const combo = [...mods, key].join('+');
+    const toolIndex = plugins.slice(0, 9).findIndex((_, i) => (appSettings.toolHotkeys[String(i)] ?? `alt+${i + 1}`).toLowerCase() === combo);
+    if (toolIndex >= 0) {
+      event.preventDefault();
+      selectPlugin(plugins[toolIndex].id);
     }
   }
 
@@ -1013,7 +1170,7 @@
     applyHotkeys().catch(() => undefined);
   }
 </script>
-<svelte:window onkeydown={handleWindowKeydown} />
+<svelte:window onkeydown={handleWindowKeydown} ondragover={handleFileDragOver} ondragleave={handleFileDragLeave} ondrop={handleFileDrop} />
 
 <div class:light={lightMode} class="app" style={`--app-font-size: ${appSettings.fontSize}px; --app-font-family: ${FONT_STACKS[appSettings.fontFamily] ?? FONT_STACKS['系统默认']}`}>
   <header class="app-bar">
@@ -1038,7 +1195,7 @@
         <div class="dispatch-matches">
           <div class="dispatch-header">未匹配 — 选择工具：</div>
           {#each plugins as plugin, i}
-            <button class:active={i === dispatchIndex} onmousedown={(event) => event.preventDefault()} onclick={() => routeToPlugin(plugin.id, dispatcherInput)}>
+            <button class:active={i === dispatchIndex} onmousedown={(event) => event.preventDefault()} onclick={() => { if (SELF_CONTAINED_PANELS.has(plugin.id)) activePluginId = plugin.id; else routeToPlugin(plugin.id, dispatcherInput); }}>
               <span class="match-icon">{@html iconHtml(plugin.icon)}</span><b>{plugin.name}</b>{#if i === dispatchIndex}<i>↵</i>{/if}
             </button>
           {/each}
@@ -1061,7 +1218,7 @@
 
   <div class:sidebar-hidden={!sidebarOpen} class="app-body">
     <aside class="sidebar">
-      <div class="side-heading"><small>spurh</small></div>
+      <div class="side-heading"><small>??</small></div>
       <label class="tool-search"><span>{@html UI_ICONS.search}</span><input bind:value={toolSearch} placeholder="搜索" /></label>
       <div class="category-tabs">
         {#each categories as item}<button class:active={category === item} onclick={() => (category = item)}>{item}</button>{/each}
@@ -1072,8 +1229,8 @@
           <button class:active={activePluginId === plugin.id} onclick={() => selectPlugin(plugin.id)}>
             <span class="tool-icon">{@html iconHtml(plugin.icon)}</span><span class="tool-name"><b>{plugin.name}</b><small>{plugin.description}</small></span>
             {#if realIndex >= 0 && realIndex < 9}
-              {@const binding = appSettings.toolHotkeys[String(realIndex)]}
-              {#if binding && binding !== 'off' && binding !== ''}<kbd class="tool-kbd">{formatHotkey(binding)}</kbd>{/if}
+              {@const binding = appSettings.toolHotkeys[String(realIndex)] ?? `alt+${realIndex + 1}`}
+              {#if appSettings.sidebarShortcuts && binding && binding !== 'off' && binding !== ''}<kbd class="tool-kbd">{formatHotkey(binding)}</kbd>{/if}
             {/if}
           </button>
         {/each}
@@ -1082,6 +1239,9 @@
 
     <main class="workspace">
       {#if activePluginId === 'spurh.network' || activePluginId === 'spurh.log' || activePluginId === 'spurh.clipboard' || activePluginId === 'spurh.remote' || activePluginId === 'spurh.sql'}
+        {#if !isTauri && activePluginId !== 'spurh.log'}
+          <div class="browser-note"><span>{@html UI_ICONS.info}</span>浏览器预览模式:{activePlugin.name} 需要桌面能力,请运行 <code>npm run tauri dev</code> 获得完整功能</div>
+        {/if}
         {#if lazyPanel}
           {@const Panel = lazyPanel}
           <Panel {...lazyPanelProps} />
@@ -1096,6 +1256,8 @@
           <CryptoPanel session={activeSession} onChangeAction={changeAction} onChangeOption={changeOption} onClear={clearActive} />
         {:else if activePluginId === 'spurh.regex'}
           <RegexPanel session={activeSession} onChangeAction={changeAction} onChangeOption={changeOption} onChangeInput={changeInput} onClear={clearActive} aiConfigured={isAiConfigured(aiConfig)} aiBusy={activeSession.aiProcessing} onAiGenerate={aiGenerateRegex} onAiRecommend={aiRecommendRegex} />
+        {:else if activePluginId === 'spurh.timestamp'}
+          <TimestampPanel session={activeSession} onChangeAction={changeAction} onChangeOption={changeOption} onChangeInput={changeInput} onClear={clearActive} />
         {:else}
           <div class="actions" aria-label="操作">
             {#each activePlugin.actions as action}
@@ -1128,11 +1290,11 @@
           {/if}
           <div class="control-spacer"></div>
         {/if}
-        {#if activePluginId !== 'spurh.cron' && activePluginId !== 'spurh.crypto' && activePluginId !== 'spurh.regex'}
+        {#if activePluginId !== 'spurh.cron' && activePluginId !== 'spurh.crypto' && activePluginId !== 'spurh.regex' && activePluginId !== 'spurh.timestamp'}
           <div class="control-spacer"></div>
         {/if}
-        {#if activePluginId !== 'spurh.cron' && activePluginId !== 'spurh.crypto' && activePluginId !== 'spurh.regex'}
-          <button class="ai-button" disabled={!activeSession.input.trim() || activeSession.aiProcessing} onclick={runAiProcessing}><span>{@html UI_ICONS.sparkle}</span>{activeSession.aiProcessing ? 'AI 中' : 'AI 处理'}</button>
+        {#if activePluginId !== 'spurh.cron' && activePluginId !== 'spurh.crypto' && activePluginId !== 'spurh.regex' && activePluginId !== 'spurh.timestamp'}
+          <button class="ai-button" title={!isTauri ? 'AI 处理需要桌面应用（请运行 npm run tauri dev）' : '调用 AI 处理当前内容'} disabled={!isTauri || !activeSession.input.trim() || activeSession.aiProcessing} onclick={runAiProcessing}><span>{@html UI_ICONS.sparkle}</span>{activeSession.aiProcessing ? 'AI 中' : 'AI 处理'}</button>
           <button class="quiet-button" onclick={clearActive}>清空</button>
         {/if}
         </div>
@@ -1147,7 +1309,7 @@
         </section>
         {/if}
         <section class="editor-pane output-pane">
-          <header><div><span>结果</span>{#if currentSessionResult()}<small>{currentSessionResult()!.summary}</small>{/if}<small class="diag-inline">状态 {currentSessionResult() ? '有结果' : '无'} · {currentSessionResult()?.output?.length ?? 0} 字符 · rev {sessions[activePluginId]?.revision ?? 0}</small></div>
+          <header><div><span>结果</span>{#if currentSessionResult()}<small>{currentSessionResult()!.summary}</small>{/if}</div>
             <div class="output-actions">
               {#if activeSession.aiResult && activePlugin.id === 'spurh.json' && !activeSession.aiResult.meta?.解析}<button class="apply-ai" onclick={applyAiResult}>应用修复</button>{/if}
               {#if currentSessionResult()}<button class="quiet-button" onclick={() => (resultRawMode = !resultRawMode)} title="切换原文/视图显示">{resultRawMode ? '视图' : '原文'}</button>{/if}
@@ -1172,7 +1334,7 @@
                 <ResultView result={currentSessionResult()!} />
               {/if}
             {:else}
-              <div class="output-empty"><span class="tool-icon large">{@html iconHtml(activePlugin.icon)}</span><b>等待输入</b><p>输入内容后自动处理</p><small class="diag">诊断: {activePluginId} · 输入 {activeSession.input.length} 字符 · rev {activeSession.revision} · {activeSession.processing ? '处理中' : '空闲'} · 结果 {activeSession.result ? '有' : '无'}{activeSession.error ? ' · 错误: ' + activeSession.error.slice(0, 80) : ''}</small></div>
+              <div class="output-empty"><span class="tool-icon large">{@html iconHtml(activePlugin.icon)}</span><b>等待输入</b><p>输入内容后自动处理</p><small class="hint">Alt+1..8 快速切换工具 · Ctrl+K 命令面板 · Ctrl+Shift+V 剪贴板历史</small></div>
             {/if}
           </div>
         </section>
@@ -1182,8 +1344,13 @@
       {#if currentSessionResult()?.meta}
         <div class="result-meta">{#each Object.entries(currentSessionResult()!.meta!) as [key, value]}<span><small>{key}</small><b>{value}</b></span>{/each}</div>
       {/if}
+
     </main>
   </div>
+
+  {#if draggingFile}
+    <div class="drop-overlay" role="presentation"><span>{@html UI_ICONS.file}</span><b>松开以打开文件</b><small>内容将自动识别并填入对应工具</small></div>
+  {/if}
 
   {#if paletteOpen}
     <div class="palette-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) closePalette(); }}>
@@ -1289,6 +1456,7 @@
               <label class="setting-row"><div class="setting-copy"><b>系统托盘</b></div><input type="checkbox" checked={appSettings.trayEnabled} disabled={settingsBusy === 'tray'} onchange={(event) => changeTray(event.currentTarget.checked)} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>系统右键菜单</b><small>在资源管理器中“用 Spurh 打开”</small></div><input type="checkbox" checked={contextMenuEnabled} disabled={settingsBusy === 'contextMenu'} onchange={(event) => changeContextMenu(event.currentTarget.checked)} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>剪贴板历史</b><small>自动记录复制的文本（含密码等敏感内容，注意隐私）</small></div><input type="checkbox" checked={appSettings.clipboardWatch} disabled={settingsBusy === 'clipboard'} onchange={(event) => changeClipboardWatch(event.currentTarget.checked)} /><i></i></label>
+              <label class="setting-row"><div class="setting-copy"><b>菜单栏显示快捷键</b><small>在左侧工具列表显示 Alt+1..9 快捷提示（默认隐藏）</small></div><input type="checkbox" checked={appSettings.sidebarShortcuts} onchange={(event) => saveAppSettings({ sidebarShortcuts: event.currentTarget.checked })} /><i></i></label>
               {#if settingsError}<div class="settings-error">{settingsError}</div>{/if}
             {:else if settingsTab === 'ai'}
               <div class="settings-section-title model-title"><div><h3>AI 模型</h3></div><button onclick={addAiProfile}><span>{@html UI_ICONS.plus}</span>添加</button></div>

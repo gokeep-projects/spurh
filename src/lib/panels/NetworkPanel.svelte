@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+  import { safeInvoke } from '../env';
   import { TOOL_ICONS, UI_ICONS, iconHtml } from '../icons';
 
   type PortResult = { port: number; open: boolean; elapsedMs: number };
@@ -10,7 +10,7 @@
     lat?: number | null; lon?: number | null; timezone?: string | null;
   };
 
-  type Tab = 'port' | 'dns' | 'tcp' | 'trace' | 'ref';
+  type Tab = 'port' | 'dns' | 'tcp' | 'trace' | 'geo' | 'ref';
   let tab = $state<Tab>('port');
 
   /* ── 端口扫描 ── */
@@ -83,7 +83,7 @@
       for (let offset = 0; offset < targets.length; offset += batchSize) {
         if (scanCanceled) { portLog = [...portLog, { ts: now(), text: '已手动停止扫描', ok: false }]; break; }
         const batch = targets.slice(offset, offset + batchSize).join(',');
-        const batchResults = await invoke<PortResult[]>('net_port_scan', { host: portHost.trim(), ports: batch });
+        const batchResults = await safeInvoke<PortResult[]>('net_port_scan', { host: portHost.trim(), ports: batch });
         portResults = [...portResults, ...batchResults].sort((a, b) => a.port - b.port);
         portDone = Math.min(targets.length, offset + batchSize);
         const open = batchResults.filter((item) => item.open);
@@ -119,7 +119,7 @@
     dnsError = '';
     dnsRecords = [];
     try {
-      dnsRecords = await invoke<DnsRecord[]>('net_dns_lookup', { host: dnsHost.trim(), recordType: dnsType });
+      dnsRecords = await safeInvoke<DnsRecord[]>('net_dns_lookup', { host: dnsHost.trim(), recordType: dnsType });
     } catch (cause) {
       dnsError = cause instanceof Error ? cause.message : String(cause);
     }
@@ -144,7 +144,7 @@
     tcpSending = true;
     tcpLogs = [...tcpLogs, { ts: now(), ok: true, text: `[${tcpProtocol.toUpperCase()}] 连接 ${tcpHost}:${port} 并发送 ${tcpData.length} 字节…` }];
     try {
-      const result = await invoke<SendResult>('net_tcp_send', { host: tcpHost.trim(), port, protocol: tcpProtocol, data: tcpData });
+      const result = await safeInvoke<SendResult>('net_tcp_send', { host: tcpHost.trim(), port, protocol: tcpProtocol, data: tcpData });
       tcpResult = result;
       tcpLogs = [...tcpLogs, { ts: now(), ok: result.ok, text: `${result.message}（${result.elapsedMs} ms）` }];
       if (result.response.trim()) tcpLogs = [...tcpLogs, { ts: now(), ok: true, text: `响应: ${result.response.slice(0, 500)}${result.response.length > 500 ? '…' : ''}` }];
@@ -163,13 +163,32 @@
   let traceHops = $state<TraceHop[]>([]);
   let traceError = $state('');
 
+  /* ── IP 归属地 ── */
+  let geoHost = $state('');
+  let geoLoading = $state(false);
+  let geoInfo = $state<GeoInfo | null>(null);
+  let geoError = $state('');
+
+  async function runGeo(): Promise<void> {
+    if (!geoHost.trim()) { geoError = '请输入 IP 地址或域名'; return; }
+    geoLoading = true;
+    geoError = '';
+    geoInfo = null;
+    try {
+      geoInfo = await safeInvoke<GeoInfo>('net_ip_geo', { target: geoHost.trim() });
+    } catch (cause) {
+      geoError = cause instanceof Error ? cause.message : String(cause);
+    }
+    geoLoading = false;
+  }
+
   async function runTrace(): Promise<void> {
     if (!traceHost.trim()) { traceError = '请输入目标主机'; return; }
     tracing = true;
     traceError = '';
     traceHops = [];
     try {
-      traceHops = await invoke<TraceHop[]>('net_traceroute', { host: traceHost.trim() });
+      traceHops = await safeInvoke<TraceHop[]>('net_traceroute', { host: traceHost.trim() });
     } catch (cause) {
       traceError = cause instanceof Error ? cause.message : String(cause);
     }
@@ -221,6 +240,7 @@
       <button class:active={tab === 'dns'} role="tab" aria-selected={tab === 'dns'} onclick={() => (tab = 'dns')}><span>{@html UI_ICONS.search}</span>DNS 查询</button>
       <button class:active={tab === 'tcp'} role="tab" aria-selected={tab === 'tcp'} onclick={() => (tab = 'tcp')}><span>⇄</span>TCP / UDP</button>
       <button class:active={tab === 'trace'} role="tab" aria-selected={tab === 'trace'} onclick={() => (tab = 'trace')}><span>◎</span>主机链路</button>
+      <button class:active={tab === 'geo'} role="tab" aria-selected={tab === 'geo'} onclick={() => (tab = 'geo')}><span>🌐</span>IP 归属地</button>
       <button class:active={tab === 'ref'} role="tab" aria-selected={tab === 'ref'} onclick={() => (tab = 'ref')}><span>{@html UI_ICONS.shield}</span>HTTP / MIME 速查</button>
     </div>
 
@@ -274,6 +294,13 @@
           <span class="net-dot"></span>{tracing ? '追踪中…' : '追踪'}
         </button>
         {#if traceHops.length > 0}<span class="net-summary">{traceHops.length} 跳</span>{/if}
+      {:else if tab === 'geo'}
+        <label class="net-field grow"><span>目标</span><input value={geoHost} oninput={(e) => (geoHost = e.currentTarget.value)} placeholder="8.8.8.8 或域名" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && runGeo()} /></label>
+        <button class="net-run" class:busy={geoLoading} disabled={geoLoading} onclick={runGeo} title="查询 IP 归属地">
+          <span class="net-dot"></span>{geoLoading ? '查询中…' : '查询'}
+        </button>
+        {#if geoInfo}<span class="net-summary">{geoInfo.country ?? ''}{geoInfo.city ? ' · ' + geoInfo.city : ''}</span>{/if}
+        <span class="net-geo-note">第三方免费接口（ip-api.com，明文 HTTP），仅上传 IP 地址</span>
       {:else}
         <label class="net-field grow"><span>搜索</span><input value={refSearch} oninput={(e) => (refSearch = e.currentTarget.value)} placeholder="状态码 / MIME / 关键字…" spellcheck="false" /></label>
         <span class="net-summary">{filteredMimes.length} MIME · {filteredStatusGroups.reduce((acc, g) => acc + g.items.length, 0)} 状态码</span>
@@ -396,6 +423,33 @@
           <small>追踪本机到目标主机的每一跳（tracert）<br />显示每跳 IP 与延迟，超时节点自动标记</small>
         </div>
       {/if}
+    {:else if tab === 'geo'}
+      {#if geoError}<div class="net-error"><i></i>{geoError}</div>{/if}
+      {#if geoLoading}
+        <div class="net-empty">
+          <span class="net-empty-tile">🌐</span>
+          <b>正在查询 {geoHost || '目标'} 的归属地…</b>
+          <small>通过第三方免费接口查询</small>
+        </div>
+      {:else if geoInfo && geoInfo.status === 'success'}
+        <div class="net-result-title"><span>{geoInfo.query || geoHost} 归属地</span><small>第三方接口 ip-api.com · 结果仅供参考</small></div>
+        <div class="geo-grid">
+          <div class="geo-item"><span>国家/地区</span><b>{geoInfo.country ?? '—'}{geoInfo.countryCode ? `（${geoInfo.countryCode}）` : ''}</b></div>
+          <div class="geo-item"><span>省份</span><b>{geoInfo.regionName ?? '—'}</b></div>
+          <div class="geo-item"><span>城市</span><b>{geoInfo.city ?? '—'}</b></div>
+          <div class="geo-item"><span>ISP</span><b>{geoInfo.isp ?? '—'}</b></div>
+          <div class="geo-item"><span>组织</span><b>{geoInfo.org ?? '—'}</b></div>
+          <div class="geo-item"><span>ASN</span><b>{geoInfo.asn ?? '—'}</b></div>
+          <div class="geo-item"><span>坐标</span><b>{geoInfo.lat != null && geoInfo.lon != null ? `${geoInfo.lat.toFixed(3)}, ${geoInfo.lon.toFixed(3)}` : '—'}</b></div>
+          <div class="geo-item"><span>时区</span><b>{geoInfo.timezone ?? '—'}</b></div>
+        </div>
+      {:else if !geoError}
+        <div class="net-empty">
+          <span class="net-empty-tile">🌐</span>
+          <b>IP 归属地查询</b>
+          <small>输入 IP 地址或域名，查询国家、城市、ISP 与 ASN。<br />桌面模式可用（浏览器预览不可调用）</small>
+        </div>
+      {/if}
     {:else}
       <div class="ref-layout">
         <section class="ref-col">
@@ -434,7 +488,7 @@
 
 <style>
   .network-panel { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
-  .net-head { flex: 0 0 auto; display: flex; flex-direction: column; gap: 9px; padding: 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .net-head { flex: 0 0 auto; display: flex; flex-direction: column; gap: 10.5px; padding: 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .net-modes { display: inline-flex; gap: 2px; align-self: flex-start; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   .net-modes button { height: 26px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 10px; border: 0; border-radius: 6px; background: transparent; white-space: nowrap; transition: all .15s ease; }
   .net-modes button span { display: inline-flex; }
@@ -442,23 +496,23 @@
   .net-modes button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .net-modes button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .net-tools { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-  .net-field { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
+  .net-field { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10.5px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .net-field:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .net-field > span { flex: 0 0 auto; color: var(--muted-2); font-size: 9px; white-space: nowrap; }
+  .net-field > span { flex: 0 0 auto; color: var(--muted-2); font-size: 10.5px; white-space: nowrap; }
   .net-field input { min-width: 0; width: 130px; height: 100%; padding: 0; color: var(--text); font: 500 11px 'Cascadia Code', monospace; border: 0; outline: 0; background: transparent; }
   .net-field.grow { flex: 1; min-width: 200px; }
   .net-field.grow input { width: 100%; flex: 1; }
   .net-select select { height: 100%; padding: 0 16px 0 2px; cursor: pointer; color: var(--text); font: 600 11px 'Cascadia Code', monospace; border: 0; outline: 0; background: transparent; }
-  .net-run { height: 28px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: 10.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
+  .net-run { height: 28px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: 11.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
   .net-run:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 7px 18px color-mix(in srgb, var(--accent) 30%, transparent); }
   .net-run:disabled { cursor: default; opacity: .45; }
   .net-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
   .net-run.busy .net-dot { animation: net-pulse 1s ease-in-out infinite; }
   @keyframes net-pulse { 50% { opacity: .3; } }
-  .net-summary { color: var(--muted); font: 500 9px 'Cascadia Code', monospace; white-space: nowrap; }
+  .net-summary { color: var(--muted); font: 500 10.5px 'Cascadia Code', monospace; white-space: nowrap; }
   .net-run.ghost { color: var(--danger); background: transparent; border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line)); box-shadow: none; }
   .net-common-ports { display: flex; gap: 4px; flex-wrap: wrap; }
-  .net-common-ports button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 9px; border: 1px solid var(--line); border-radius: 11px; background: transparent; white-space: nowrap; transition: all .15s ease; }
+  .net-common-ports button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 10.5px; border: 1px solid var(--line); border-radius: 11px; background: transparent; white-space: nowrap; transition: all .15s ease; }
   .net-common-ports button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
   .net-common-ports button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
   .send-log { display: flex; flex-direction: column; gap: 3px; max-height: 170px; overflow-y: auto; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
@@ -469,9 +523,9 @@
   .send-log-line span { min-width: 0; color: var(--text); word-break: break-all; }
   .send-log-line.bad span { color: var(--danger); }
   .send-body { display: flex; flex-direction: column; gap: 8px; }
-  .send-body textarea.send-data { width: 100%; height: 88px; padding: 10px 12px; resize: vertical; color: var(--text); font: 450 12px/1.5 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 9px; outline: 0; background: var(--panel); }
+  .send-body textarea.send-data { width: 100%; height: 88px; padding: 10px 12px; resize: vertical; color: var(--text); font: 450 12px/1.5 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 10.5px; outline: 0; background: var(--panel); }
   .send-body textarea.send-data:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .send-response { margin: 0; padding: 10px 12px; overflow: auto; color: var(--text); font: 450 12px/1.6 'Cascadia Code', monospace; white-space: pre-wrap; word-break: break-all; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
+  .send-response { margin: 0; padding: 10px 12px; overflow: auto; color: var(--text); font: 450 12px/1.6 'Cascadia Code', monospace; white-space: pre-wrap; word-break: break-all; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
   .trace-loading { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 44px 20px; color: var(--muted); }
   .trace-loading p { margin: 0; font-size: 11px; }
   .trace-map { display: flex; flex-direction: column; gap: 2px; padding: 12px; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
@@ -480,7 +534,7 @@
   .trace-start i { color: var(--accent); font-style: normal; animation: trace-flow 1.6s ease-in-out infinite; }
   @keyframes trace-flow { 50% { transform: translateX(6px); opacity: .4; } }
   .trace-hop { display: flex; flex-direction: column; }
-  .trace-node { display: flex; align-items: center; gap: 9px; padding: 6px 10px; border-radius: 8px; transition: background .15s ease; }
+  .trace-node { display: flex; align-items: center; gap: 10.5px; padding: 6px 10px; border-radius: 8px; transition: background .15s ease; }
   .trace-node:hover { background: var(--hover); }
   .trace-node b { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); font: 700 11px 'Cascadia Code', monospace; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 50%; background: var(--accent-soft); }
   .trace-node small { min-width: 0; flex: 1; overflow: hidden; color: var(--text); font: 500 12px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
@@ -491,13 +545,13 @@
   .trace-link span { width: 2px; height: 16px; border-radius: 1px; background: linear-gradient(180deg, var(--accent), var(--line-2)); animation: trace-drop 1.2s ease-in-out infinite; }
   @keyframes trace-drop { 50% { opacity: .4; transform: scaleY(.7); } }
   .net-body { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px; overflow: auto; }
-  .net-error { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--danger); font-size: 10.5px; border: 1px solid color-mix(in srgb, var(--danger) 26%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
+  .net-error { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--danger); font-size: 11.5px; border: 1px solid color-mix(in srgb, var(--danger) 26%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
   .net-error i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }
   .net-result-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  .net-result-title span { font-size: 11.5px; font-weight: 700; }
-  .net-result-title small { color: var(--muted-2); font-size: 9px; }
+  .net-result-title span { font-size: 12.5px; font-weight: 700; }
+  .net-result-title small { color: var(--muted-2); font-size: 10.5px; }
   .net-results { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
-  .port-chip { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 66px; padding: 9px 12px; cursor: pointer; color: var(--muted); border: 1px solid var(--line); border-radius: 9px; background: var(--panel); transition: border-color .15s ease, transform .12s ease, box-shadow .15s ease; }
+  .port-chip { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 66px; padding: 10.5px 12px; cursor: pointer; color: var(--muted); border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); transition: border-color .15s ease, transform .12s ease, box-shadow .15s ease; }
   .port-chip:hover { transform: translateY(-1px); border-color: var(--line-2); box-shadow: 0 5px 14px rgba(0, 0, 0, .10); }
   .port-chip b { color: var(--text); font: 650 13px 'Cascadia Code', monospace; }
   .port-chip small { font: 600 8px 'Cascadia Code', monospace; letter-spacing: .6px; }
@@ -507,32 +561,37 @@
   .port-chip i { position: absolute; top: -8px; right: -6px; padding: 2px 6px; color: #fff; font-size: 8px; font-style: normal; border-radius: 4px; background: var(--btn-gradient); box-shadow: 0 3px 8px color-mix(in srgb, var(--accent) 30%, transparent); }
   .dns-card { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .dns-table { width: 100%; border-collapse: collapse; font: 450 11px/1.5 'Cascadia Code', monospace; }
-  .dns-table th { position: sticky; top: 0; z-index: 1; padding: 9px 12px; text-align: left; color: var(--accent); font-size: 9.5px; font-weight: 650; border-bottom: 1px solid var(--line); background: var(--panel-2); }
+  .dns-table th { position: sticky; top: 0; z-index: 1; padding: 10.5px 12px; text-align: left; color: var(--accent); font-size: 11px; font-weight: 650; border-bottom: 1px solid var(--line); background: var(--panel-2); }
   .dns-table td { padding: 8px 12px; border-bottom: 1px solid var(--line); }
   .dns-table td:nth-child(2) { color: var(--muted); white-space: nowrap; }
   .dns-table td:nth-child(3) { max-width: 460px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dns-table tr:last-child td { border-bottom: 0; }
   .dns-table tbody tr:hover td { background: var(--hover); }
   .dns-table .dns-copy { width: 1%; text-align: right; }
-  .dns-table button { height: 22px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: 9px; border: 1px solid var(--line); border-radius: 5px; background: transparent; transition: all .15s ease; }
+  .dns-table button { height: 22px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 10.5px; border: 1px solid var(--line); border-radius: 5px; background: transparent; transition: all .15s ease; }
   .dns-table button:hover { color: var(--text); border-color: var(--line-2); }
   .net-empty { min-height: 220px; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--muted); text-align: center; border: 1px dashed var(--line-2); border-radius: 12px; background: color-mix(in srgb, var(--panel) 60%, transparent); }
   .net-empty-tile { width: 44px; height: 44px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 12px; background: var(--accent-soft); }
   :global(.net-empty-tile svg) { width: 22px; height: 22px; }
+  .net-geo-note { margin-left: auto; color: var(--muted-2); font-size: 10.5px; white-space: nowrap; }
+  .geo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+  .geo-item { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
+  .geo-item span { color: var(--muted-2); font-size: 10.5px; }
+  .geo-item b { font-size: 12.5px; font-weight: 650; word-break: break-all; }
   .net-empty b { color: var(--text); font-size: 12.5px; }
-  .net-empty small { font-size: 9.5px; }
+  .net-empty small { font-size: 11px; }
   .ref-layout { min-height: 0; flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .ref-col { min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
-  .ref-col > header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 13px; border-bottom: 1px solid var(--line); background: var(--panel-2); }
-  .ref-col > header span { font-size: 11.5px; font-weight: 700; }
-  .ref-col > header small { color: var(--muted); font: 500 9px 'Cascadia Code', monospace; }
+  .ref-col > header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10.5px 13px; border-bottom: 1px solid var(--line); background: var(--panel-2); }
+  .ref-col > header span { font-size: 12.5px; font-weight: 700; }
+  .ref-col > header small { color: var(--muted); font: 500 10.5px 'Cascadia Code', monospace; }
   .ref-scroll { min-height: 0; flex: 1; overflow: auto; }
-  .status-group > b { position: sticky; top: 0; z-index: 1; display: block; padding: 6px 13px; font-size: 9px; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--panel-2); }
+  .status-group > b { position: sticky; top: 0; z-index: 1; display: block; padding: 6px 13px; font-size: 10.5px; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--panel-2); }
   .status-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 13px; cursor: pointer; text-align: left; color: var(--muted); font-size: 10px; border: 0; background: transparent; }
   .status-row:hover { background: var(--hover); }
   .status-row .code { min-width: 36px; font: 650 10px 'Cascadia Code', monospace; }
   .status-row .label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .status-row i { color: var(--accent); font-size: 9px; font-style: normal; white-space: nowrap; }
+  .status-row i { color: var(--accent); font-size: 10.5px; font-style: normal; white-space: nowrap; }
   .tone-info { color: var(--blue); }
   .tone-ok { color: var(--accent); }
   .tone-redirect { color: var(--warn); }
@@ -540,9 +599,9 @@
   .tone-error { color: var(--danger); }
   .mime-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 13px; cursor: pointer; text-align: left; border: 0; background: transparent; }
   .mime-row:hover { background: var(--hover); }
-  .mime-row code { color: var(--text); font: 500 10.5px 'Cascadia Code', monospace; }
-  .mime-row span { min-width: 0; flex: 1; overflow: hidden; color: var(--muted); font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
-  .mime-row i { color: var(--accent); font-size: 9px; font-style: normal; white-space: nowrap; }
+  .mime-row code { color: var(--text); font: 500 11.5px 'Cascadia Code', monospace; }
+  .mime-row span { min-width: 0; flex: 1; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+  .mime-row i { color: var(--accent); font-size: 10.5px; font-style: normal; white-space: nowrap; }
   .ref-none { padding: 26px 13px; color: var(--muted-2); font-size: 10px; text-align: center; }
   @media (max-width: 980px) { .ref-layout { grid-template-columns: 1fr; } }
 </style>

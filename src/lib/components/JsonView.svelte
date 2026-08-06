@@ -304,10 +304,10 @@
   .jv-tools button:hover { color: var(--accent); background: var(--hover); }
   .jv-tools button.copied { color: var(--accent); }
   .jv-search { display: flex; align-items: center; gap: 3px; margin-left: auto; margin-right: 8px; }
-  .jv-search input { width: 150px; height: 22px; padding: 0 8px; color: var(--text); font-size: 10.5px; border: 1px solid var(--line); border-radius: 5px; outline: 0; background: var(--bg); }
+  .jv-search input { width: 150px; height: 22px; padding: 0 8px; color: var(--text); font-size: 11.5px; border: 1px solid var(--line); border-radius: 5px; outline: 0; background: var(--bg); }
   .jv-search input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
   .jv-search input::placeholder { color: var(--muted-2); }
-  .jv-search button { height: 22px; min-width: 22px; padding: 0 6px; cursor: pointer; color: var(--muted); font-size: 10.5px; border: 0; border-radius: 4px; background: transparent; }
+  .jv-search button { height: 22px; min-width: 22px; padding: 0 6px; cursor: pointer; color: var(--muted); font-size: 11.5px; border: 0; border-radius: 4px; background: transparent; }
   .jv-search button:hover { color: var(--accent); background: var(--hover); }
   .jv-search-count { color: var(--accent); font: 500 9.6px 'Cascadia Code', monospace; white-space: nowrap; }
   .jv-row.match { background: color-mix(in srgb, var(--warn) 16%, transparent); }
@@ -316,7 +316,7 @@
   .jv-row { display: flex; align-items: stretch; min-width: max-content; min-height: 21px; padding-right: 18px; font: 450 12px/21px 'Cascadia Code', Consolas, monospace; color: var(--text); }
   .jv-row:hover { background: var(--hover); }
   .jv-fold { flex: 0 0 auto; width: 15px; display: grid; place-items: center; padding: 0; cursor: pointer; color: var(--muted-2); border: 0; background: transparent; }
-  .jv-fold svg { width: 9px; height: 9px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: transform .12s ease; }
+  .jv-fold svg { width: 10.5px; height: 10.5px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: transform .12s ease; }
   .jv-fold.folded svg { transform: rotate(-90deg); }
   .jv-fold:hover { color: var(--accent); }
   .jv-fold.ph { visibility: hidden; pointer-events: none; }
@@ -332,6 +332,6 @@
   .jv-bracket { color: var(--muted-2); }
   .jv-ellipsis { color: var(--muted); font-style: italic; margin: 0 5px; font-size: 10px; }
   .jv-preview { margin-left: 8px; color: var(--muted-2); font-size: 10px; opacity: .8; }
-  .jv-len { color: var(--muted); font-size: 9px; font-style: normal; margin-left: 5px; }
+  .jv-len { color: var(--muted); font-size: 10.5px; font-style: normal; margin-left: 5px; }
   .jv-error { color: var(--danger); padding: 20px; display: block; }
 </style>

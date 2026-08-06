@@ -18,11 +18,23 @@ function parseTimestamp(input: string, unit: string): Date {
 }
 
 /** 从任意文本（如日志行）中提取第一个日期时间，本地时区构造，避免各浏览器解析差异 */
-function extractDate(input: string): Date | null {
+function matchDateParts(input: string): number[] | null {
   const m = input.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
-  if (!m) return null;
-  const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4] ?? 0), Number(m[5] ?? 0), Number(m[6] ?? 0));
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4] ?? 0), Number(m[5] ?? 0), Number(m[6] ?? 0)] : null;
+}
+
+/** 构造本地时间并回读校验：JS Date 会把 2 月 30 日溢出到 3 月 2 日，必须拒绝 */
+function strictLocalDate(parts: number[]): Date | null {
+  const [year, month, day, hour, minute, second] = parts;
+  const date = new Date(year, month - 1, day, hour, minute, second);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day
+    || date.getHours() !== hour || date.getMinutes() !== minute || date.getSeconds() !== second) return null;
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function extractDate(input: string): Date | null {
+  const parts = matchDateParts(input);
+  return parts ? strictLocalDate(parts) : null;
 }
 
 function fmt(date: Date): string {
@@ -49,22 +61,44 @@ export const timestampPlugin: SpurhPlugin = {
   ],
   detect(input) {
     const v = input.trim();
-    if (/^\d{10}$/.test(v)) return { confidence:.93, reason:'10位秒时间戳' };
-    if (/^\d{13}$/.test(v)) return { confidence:.96, reason:'13位毫秒时间戳' };
-    if (/^\d{4}-\d{1,2}-\d{1,2}/.test(v)) return { confidence:.84, reason:'日期时间' };
+    const prefixed = /^(?:timestamp|时间戳)[:：]/i.test(v);
+    const body = v.replace(/^(?:timestamp|时间戳)[:：]\s*/i, '');
+    if (/^\d{10}$/.test(body)) return { confidence: prefixed ? .9 : .93, reason: prefixed ? '时间戳指令' : '10位秒时间戳', suggestedAction: 'to-date' };
+    if (/^\d{13}$/.test(body)) return { confidence: prefixed ? .9 : .96, reason: prefixed ? '时间戳指令' : '13位毫秒时间戳', suggestedAction: 'to-date' };
+    if (/^\d{4}-\d{1,2}-\d{1,2}/.test(body)) return { confidence: prefixed ? .86 : .84, reason: prefixed ? '时间戳指令' : '日期时间', suggestedAction: 'to-unix' };
     return null;
   },
   execute(actionId, input, options = {}): PluginResult {
     if (actionId === 'now') return toResult(new Date(), actionId);
     if (actionId === 'to-unix') {
       const raw = (options.pickDateTime ?? '').trim();
+      const typed = input.trim().replace(/^(?:timestamp|时间戳)[:：]\s*/i, '');
       const fromPicker = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
-      const date = fromPicker
-        ? new Date(Number(fromPicker[1]), Number(fromPicker[2]) - 1, Number(fromPicker[3]), Number(fromPicker[4]), Number(fromPicker[5]))
-        : raw
-          ? new Date(raw.replace('T', ' '))
-          : extractDate(input) ?? new Date(input.trim() || localDatetimeValue().replace('T', ' '));
-      if (Number.isNaN(date.getTime())) throw new Error(`无法解析日期 "${raw || input}"，请用 YYYY-MM-DD HH:mm 格式`);
+      let date: Date;
+      if (typed) {
+        // 文本框内容优先（粘贴/输入日期），避免被 picker 默认值覆盖
+        const parts = matchDateParts(typed);
+        if (parts) {
+          const strict = strictLocalDate(parts);
+          if (!strict) throw new Error("无效日期 " + typed + "：请检查年月日是否正确（如 2 月没有 30 日）");
+          date = strict;
+        } else {
+          date = new Date(typed.replace('T', ' '));
+        }
+      } else if (fromPicker) {
+        const strict = strictLocalDate([Number(fromPicker[1]), Number(fromPicker[2]), Number(fromPicker[3]), Number(fromPicker[4]), Number(fromPicker[5]), 0]);
+        if (!strict) throw new Error('选择的日期时间无效');
+        date = strict;
+      } else if (raw) {
+        const parts = matchDateParts(raw);
+        if (!parts) throw new Error("无法解析日期 " + raw + "，请用 YYYY-MM-DD HH:mm 格式");
+        const strict = strictLocalDate(parts);
+        if (!strict) throw new Error("无效日期 " + raw + "：请检查年月日是否正确");
+        date = strict;
+      } else {
+        date = new Date(localDatetimeValue().replace('T', ' '));
+      }
+      if (Number.isNaN(date.getTime())) throw new Error(`无法解析日期 "${typed || raw}"，请用 YYYY-MM-DD HH:mm 格式`);
       return toResult(date, actionId);
     }
     // to-date：支持纯时间戳、日志行（含日期时间或数字）等任意文本

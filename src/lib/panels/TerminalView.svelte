@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { Terminal } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
-  import { Channel, invoke } from '@tauri-apps/api/core';
+  import { Channel } from '@tauri-apps/api/core';
+  import { safeInvoke } from '../env';
   import '@xterm/xterm/css/xterm.css';
 
   type SshEvent = { kind: string; data?: string | null; message?: string | null };
@@ -84,8 +85,9 @@
     if (!term || connected || connecting || disposed) return;
     connecting = true;
     onState(session.id, { status: 'connecting', message: '正在连接 ' + session.host + ':' + session.port + ' …' });
-    channel = new Channel<SshEvent>();
-    channel.onmessage = (event) => {
+    try {
+      channel = new Channel<SshEvent>();
+      channel.onmessage = (event) => {
       if (event.kind === 'ready') {
         connected = true;
         connecting = false;
@@ -102,9 +104,8 @@
         connecting = false;
         onState(session.id, { status: 'error', message: event.message ?? '连接失败' });
       }
-    };
-    try {
-      await invoke('ssh_connect', {
+      };
+      await safeInvoke('ssh_connect', {
         sessionId: session.id,
         profile: {
           host: session.host,
@@ -121,7 +122,7 @@
       });
       // 组件在连接期间被卸载（例如重连）时，立即关闭新会话，避免悬挂
       if (disposed) {
-        invoke('ssh_close', { sessionId: session.id }).catch(() => undefined);
+        safeInvoke('ssh_close', { sessionId: session.id }).catch(() => undefined);
         return;
       }
     } catch (cause) {
@@ -136,7 +137,7 @@
     try {
       fitAddon.fit();
       if (connected) {
-        invoke('ssh_resize', { sessionId: session.id, cols: term.cols, rows: term.rows }).catch(() => undefined);
+        safeInvoke('ssh_resize', { sessionId: session.id, cols: term.cols, rows: term.rows }).catch(() => undefined);
       }
     } catch { /* 隐藏状态下无法计算尺寸 */ }
   }
@@ -164,7 +165,7 @@
     navigator.clipboard.readText()
       .then((text) => {
         if (text && connected) {
-          invoke('ssh_write', { sessionId: session.id, data: toBase64(text) }).catch(() => undefined);
+          safeInvoke('ssh_write', { sessionId: session.id, data: toBase64(text) }).catch(() => undefined);
         }
       })
       .catch(() => undefined);
@@ -213,10 +214,10 @@
       return true;
     });
     term.onData((data) => {
-      if (connected) invoke('ssh_write', { sessionId: session.id, data: toBase64(data) }).catch(() => undefined);
+      if (connected) safeInvoke('ssh_write', { sessionId: session.id, data: toBase64(data) }).catch(() => undefined);
     });
     term.onResize(({ cols, rows }) => {
-      if (connected) invoke('ssh_resize', { sessionId: session.id, cols, rows }).catch(() => undefined);
+      if (connected) safeInvoke('ssh_resize', { sessionId: session.id, cols, rows }).catch(() => undefined);
     });
     const observer = new ResizeObserver(() => fit());
     observer.observe(wrapEl!);
@@ -228,11 +229,13 @@
     if (appEl) {
       themeObserver.observe(appEl, { attributes: true, attributeFilter: ['class'] });
     }
+    // 首次挂载即建立连接：$effect 先于 onMount 运行时 term 尚未创建，connect() 会被跳过，需在此补连
+    if (active) connect();
     return () => {
       disposed = true;
       observer.disconnect();
       themeObserver.disconnect();
-      invoke('ssh_close', { sessionId: session.id }).catch(() => undefined);
+      safeInvoke('ssh_close', { sessionId: session.id }).catch(() => undefined);
       channel = undefined;
       term?.dispose();
       term = undefined;

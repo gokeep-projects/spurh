@@ -426,14 +426,29 @@ fn get_context_menu_enabled() -> bool {
 /// 通过右键菜单打开文件时的最大体积（50MB），防止超大文件读满内存
 const MAX_OPEN_FILE_BYTES: u64 = 50 * 1024 * 1024;
 
+/// 读取文本文件：优先 UTF-8，失败时回退 GBK（中文 Windows 常见编码）；
+/// 若两种解码都出现大量替换字符则视为二进制文件
+fn read_text_flexible(bytes: &[u8]) -> Result<String, String> {
+    match std::str::from_utf8(bytes) {
+        Ok(text) => Ok(text.to_string()),
+        Err(_) => {
+            let (decoded, _, _) = encoding_rs::GBK.decode(bytes);
+            let replacement_count = decoded.chars().filter(|&ch| ch == '\u{FFFD}').count();
+            if replacement_count > usize::max(4, bytes.len() / 100) {
+                return Err("文件不是文本文件（无法识别的编码或二进制内容）".into());
+            }
+            Ok(decoded.into_owned())
+        }
+    }
+}
+
 #[tauri::command]
 async fn open_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
-    let metadata = std::fs::metadata(&path).map_err(|e| format!("无法读取文件 {}：{e}", path))?;
-    if metadata.len() > MAX_OPEN_FILE_BYTES {
-        return Err(format!("文件过大（{} MB），超过 50MB 上限，请手动打开", metadata.len() / (1024 * 1024)));
+    let bytes = std::fs::read(&path).map_err(|e| format!("无法读取文件 {}：{e}", path))?;
+    if bytes.len() as u64 > MAX_OPEN_FILE_BYTES {
+        return Err(format!("文件过大（{} MB），超过 50MB 上限，请手动打开", bytes.len() / (1024 * 1024)));
     }
-    let content = std::fs::read_to_string(&path)
-        .map_err(|e| format!("无法读取文件 {}：{e}", path))?;
+    let content = read_text_flexible(&bytes)?;
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
         let _ = window.set_focus();
@@ -785,4 +800,32 @@ sql::sql_alter_table,
                 ssh::close_all(&app.state::<ssh::SshSessions>());
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::read_text_flexible;
+
+    #[test]
+    fn utf8_text_passes_through() {
+        let text = "spurh 工具箱 你好\n";
+        assert_eq!(read_text_flexible(text.as_bytes()).unwrap(), text);
+    }
+
+    #[test]
+    fn gbk_text_decodes_fallback() {
+        let (gbk_bytes, _, _) = encoding_rs::GBK.encode("中文日志：连接失败\n");
+        let decoded = read_text_flexible(&gbk_bytes).unwrap();
+        assert!(decoded.contains("中文日志"));
+        assert!(decoded.contains("连接失败"));
+        // 回退解码不应产生替换字符
+        assert!(!decoded.contains('\u{FFFD}'));
+    }
+
+    #[test]
+    fn binary_bytes_rejected() {
+        // 伪随机二进制：两种解码都会产生大量替换字符
+        let bytes: Vec<u8> = (0..200u8).map(|i| i.wrapping_mul(37).wrapping_add(11)).collect();
+        assert!(read_text_flexible(&bytes).is_err());
+    }
 }

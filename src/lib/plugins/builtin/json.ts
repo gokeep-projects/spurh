@@ -24,13 +24,21 @@ function sortValue(value: unknown): unknown {
 
 function queryJsonPath(value: unknown, path: string): unknown {
   if (!path.startsWith('$')) throw new Error('JSONPath 必须以 $ 开头');
-  const tokens = [...path.slice(1).matchAll(/\.([\w-]+)|\[['"]([^'"]+)['"]\]|\[(\d+|\*)\]/g)];
+  const tokens = [...path.slice(1).matchAll(/\.\.([\w-]+)|\.([\w-]+)|\[['"]([^'"]+)['"]\]|\[(\d+|\*)\]/g)];
   const consumed = tokens.map((token) => token[0]).join('');
-  if (consumed !== path.slice(1)) throw new Error('当前支持 $.key、[index] 和 [*] 路径');
+  if (consumed !== path.slice(1)) throw new Error('当前支持 $.key、..key、[index] 和 [*] 路径');
   let current: unknown[] = [value];
+  let wildcard = false;
   for (const token of tokens) {
-    const key = token[1] ?? token[2];
-    const index = token[3];
+    const recursiveKey = token[1];
+    const key = token[2] ?? token[3];
+    const index = token[4];
+    if (index === '*') wildcard = true;
+    if (recursiveKey !== undefined) {
+      // 递归下降：收集当前集合中所有后代对象里匹配该键的值
+      current = current.flatMap((item) => collectDescendantKeys(item, recursiveKey));
+      continue;
+    }
     current = current.flatMap((item) => {
       if (key !== undefined && item !== null && typeof item === 'object' && key in item) {
         return [(item as Record<string, unknown>)[key]];
@@ -40,7 +48,24 @@ function queryJsonPath(value: unknown, path: string): unknown {
       return [];
     });
   }
-  return current.length === 1 ? current[0] : current;
+  // 含 [*] 时保持数组语义（JSONPath 通配符），否则单值退化为标量
+  return wildcard ? current : current.length === 1 ? current[0] : current;
+}
+
+function collectDescendantKeys(value: unknown, key: string): unknown[] {
+  const out: unknown[] = [];
+  const walk = (node: unknown): void => {
+    if (node === null || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item);
+      return;
+    }
+    const record = node as Record<string, unknown>;
+    if (key in record) out.push(record[key]);
+    for (const item of Object.values(record)) walk(item);
+  };
+  walk(value);
+  return out;
 }
 
 /* ─────────────────────────── XML 格式化（纯字符串实现，node/浏览器均可用） ─────────────────────────── */
@@ -174,27 +199,36 @@ export const jsonPlugin: SpurhPlugin = {
   ],
   detect(input) {
     const value = input.trim();
+    const prefix = value.match(/^(json|xml)\s*[:：]/i)?.[1]?.toLowerCase();
+    if (prefix) {
+      // json:/xml: 指令前缀 → 直接路由对应动作（与 hash:/base64: 等一致）
+      return prefix === 'json'
+        ? { confidence: 0.9, reason: '检测到 JSON 指令', suggestedAction: 'format' }
+        : { confidence: 0.9, reason: '检测到 XML 指令', suggestedAction: 'xml-format' };
+    }
     if (/^<[\w:?/-]/.test(value)) {
       try {
         formatXml(value);
-        return { confidence: 0.92, reason: '检测到 XML 结构' };
+        return { confidence: 0.92, reason: '检测到 XML 结构', suggestedAction: 'xml-format' };
       } catch {
-        return { confidence: 0.6, reason: '内容看起来像 XML，但存在语法错误' };
+        return { confidence: 0.6, reason: '内容看起来像 XML，但存在语法错误', suggestedAction: 'xml-format' };
       }
     }
     if (!(value.startsWith('{') || value.startsWith('['))) return null;
     try {
       JSON.parse(value);
-      return { confidence: 0.99, reason: '检测到有效 JSON 结构' };
+      return { confidence: 0.99, reason: '检测到有效 JSON 结构', suggestedAction: 'format' };
     } catch {
-      return { confidence: 0.64, reason: '内容看起来像 JSON，但存在语法错误' };
+      return { confidence: 0.64, reason: '内容看起来像 JSON，但存在语法错误', suggestedAction: 'format' };
     }
   },
   execute(actionId, input, options = {}): PluginResult {
+    // 剥离 json:/xml: 指令前缀（如 json:{"a":1} → {"a":1}）
+    const text = input.replace(/^(json|xml)[:：]\s*/i, '');
     // 超大输入会让格式化/解析在主线程长时间阻塞，先做上限保护
-    if (input.length > 3_000_000) throw new Error('输入过大（超过 300 万字符），请分片处理');
+    if (text.length > 3_000_000) throw new Error('输入过大（超过 300 万字符），请分片处理');
     if (actionId === 'xml-format' || actionId === 'xml-minify') {
-      const output = actionId === 'xml-format' ? formatXml(input) : minifyXml(input);
+      const output = actionId === 'xml-format' ? formatXml(text) : minifyXml(text);
       return {
         output,
         language: 'text',
@@ -203,7 +237,7 @@ export const jsonPlugin: SpurhPlugin = {
         meta: { 字符数: output.length, 行数: actionId === 'xml-format' ? output.split('\n').length : 1 },
       };
     }
-    const parsed = parseJson(input);
+    const parsed = parseJson(text);
     if (actionId === 'path') {
       const queried = queryJsonPath(parsed, options.path || '$');
       return {

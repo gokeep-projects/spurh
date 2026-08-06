@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
+  import { safeInvoke } from '../env';
   import { TOOL_ICONS, UI_ICONS, iconHtml } from '../icons';
   import AiAssist from './AiAssist.svelte';
   import type { AiConfig } from '../ai';
   import { deleteSecret, getSecret, setSecret } from '../secrets';
   import { highlightSql } from '../sqlHighlight';
   import { formatSql, SQL_COMPLETION_KEYWORDS } from '../sqlFormat';
+  import { toCsv } from '../csv';
 
   let { aiConfig }: { aiConfig?: AiConfig | undefined } = $props();
 
@@ -105,7 +106,7 @@
     return {
       kind: conn.kind,
       host: conn.host,
-      port: conn.port || undefined,
+      port: conn.port ? Number(conn.port) : undefined,
       user: conn.user || undefined,
       password: conn.password || undefined,
       database: conn.database || undefined,
@@ -244,7 +245,7 @@
       const db = selectedDb || activeConn?.database || '';
       // SQLite 不依赖库名（连接即库）；MySQL/PG 需要库名才查询
       const needDb = activeConn?.kind === 'sqlite' || Boolean(db);
-      const tables = needDb ? await invoke<TableInfo[]>('sql_tables', { profile: profileOf(activeConn!), database: db }) : [];
+      const tables = needDb ? await safeInvoke<TableInfo[]>('sql_tables', { profile: profileOf(activeConn!), database: db }) : [];
       const names = Array.from(new Set([...treeNames, ...tables.map((table) => table.name)]));
       schemaCache = { at: now, names };
       return names;
@@ -335,6 +336,8 @@
   let testing = $state(false);
   let formError = $state('');
   let formOk = $state('');
+  let dbFetching = $state(false);
+  let dbList = $state<string[]>([]);
   let confirmDeleteId = $state('');
   let confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -364,7 +367,7 @@
     meta = null;
     rows = [];
     try {
-      const names = await invoke<string[]>('sql_databases', { profile: profileOf(activeConn) });
+      const names = await safeInvoke<string[]>('sql_databases', { profile: profileOf(activeConn) });
       connected = true;
       databases = names.map((name) => ({ name, expanded: false, tables: null, loading: false }));
       // 默认展开第一个数据库
@@ -372,7 +375,7 @@
         databases[0].expanded = true;
         await loadTables(databases[0].name);
       }
-      invoke('sql_test', { profile: profileOf(activeConn) }).then((t) => {
+      safeInvoke('sql_test', { profile: profileOf(activeConn) }).then((t) => {
         serverVersion = (t as { serverVersion: string }).serverVersion;
       }).catch(() => undefined);
     } catch (cause) {
@@ -383,7 +386,7 @@
   }
 
   function disconnect(): void {
-    if (activeConn) invoke('sql_disconnect', { profile: profileOf(activeConn) }).catch(() => undefined);
+    if (activeConn) safeInvoke('sql_disconnect', { profile: profileOf(activeConn) }).catch(() => undefined);
     connected = false;
     databases = [];
     selectedTable = '';
@@ -400,7 +403,7 @@
     if (!node) return;
     node.loading = true;
     try {
-      node.tables = await invoke<TableInfo[]>('sql_tables', { profile: profileOf(activeConn), database: dbName });
+      node.tables = await safeInvoke<TableInfo[]>('sql_tables', { profile: profileOf(activeConn), database: dbName });
     } catch (cause) {
       node.tables = [];
       connError = cause instanceof Error ? cause.message : String(cause);
@@ -433,7 +436,7 @@
     treeLoading = true;
     connError = '';
     try {
-      const names = await invoke<string[]>('sql_databases', { profile: profileOf(activeConn) });
+      const names = await safeInvoke<string[]>('sql_databases', { profile: profileOf(activeConn) });
       const keepExpanded = new Set(databases.filter((db) => db.expanded).map((db) => db.name));
       databases = names.map((name) => ({ name, expanded: keepExpanded.has(name), tables: null, loading: false }));
       for (const db of databases) {
@@ -464,7 +467,7 @@
     exporting = true;
     exportNote = '';
     try {
-      const result = await invoke<SqlExportResult>('sql_export_table', {
+      const result = await safeInvoke<SqlExportResult>('sql_export_table', {
         profile: profileOf(activeConn),
         database: target.db,
         table: target.table,
@@ -511,7 +514,7 @@
     loadingRows = true;
     rowError = '';
     try {
-      const result = await invoke<RowsResult>('sql_table_rows', {
+      const result = await safeInvoke<RowsResult>('sql_table_rows', {
         profile: profileOf(activeConn),
         database: selectedDb,
         table: selectedTable,
@@ -527,7 +530,7 @@
       selectedRows = new Set();
       pendingDeletes = [];
       // 建表语句（异步、失败不阻塞）
-      invoke<string>('sql_table_ddl', { profile: profileOf(activeConn), database: selectedDb, table: selectedTable })
+      safeInvoke<string>('sql_table_ddl', { profile: profileOf(activeConn), database: selectedDb, table: selectedTable })
         .then((text) => { ddl = text; ddlError = ''; })
         .catch((cause) => { ddl = ''; ddlError = cause instanceof Error ? cause.message : String(cause); });
     } catch (cause) {
@@ -664,7 +667,7 @@
     rowError = '';
     saveMessage = '';
     try {
-      const affected = await invoke<number>('sql_delete_rows', { profile: profileOf(activeConn!), database: selectedDb, table: selectedTable, keyColumn: keyCol, keyValues: values as string[] });
+      const affected = await safeInvoke<number>('sql_delete_rows', { profile: profileOf(activeConn!), database: selectedDb, table: selectedTable, keyColumn: keyCol, keyValues: values as string[] });
       saveMessage = affected === values.length
         ? '已删除 ' + affected + ' 行'
         : `警告：请求删除 ${values.length} 行，实际影响 ${affected} 行`;
@@ -701,7 +704,7 @@
         for (let ci = 0; ci < meta!.columns.length; ci++) {
           if (isDirty(ri, ci)) changes.push({ column: meta!.columns[ci].name, value: draftKey(ri, ci) ?? null });
         }
-        updated += await invoke<number>('sql_update_row', {
+        updated += await safeInvoke<number>('sql_update_row', {
           profile: profileOf(activeConn),
           database: selectedDb,
           table: selectedTable,
@@ -712,7 +715,7 @@
       // 插入新增行
       for (const row of newRowDrafts) {
         const values = meta!.columns.map((col) => row[col.name] ?? null);
-        inserted += await invoke<number>('sql_insert_row', {
+        inserted += await safeInvoke<number>('sql_insert_row', {
           profile: profileOf(activeConn),
           database: selectedDb,
           table: selectedTable,
@@ -800,17 +803,6 @@
   }
 
   /* ── CSV 导出 ── */
-  function toCsv(columns: string[], dataRows: Array<Array<string | number | boolean | null>>): string {
-    const escape = (value: unknown): string => {
-      if (value === null || value === undefined) return '';
-      const text = String(value);
-      return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
-    };
-    const head = columns.map(escape).join(',');
-    const body = dataRows.map((row) => row.map(escape).join(',')).join('\r\n');
-    return head + (body ? '\r\n' + body : '');
-  }
-
   function downloadText(filename: string, text: string): void {
     // \uFEFF BOM 让 Excel 正确识别 UTF-8
     const blob = new Blob(['\uFEFF' + text], { type: 'text/csv;charset=utf-8' });
@@ -887,7 +879,7 @@
     sqlError = '';
     sqlResult = null;
     try {
-      sqlResult = await invoke<ExecResult>('sql_execute', { profile: profileOf(activeConn), sql });
+      sqlResult = await safeInvoke<ExecResult>('sql_execute', { profile: profileOf(activeConn), sql });
       resultPage = 0;
       const next = [sql, ...sqlHistory.filter((item) => item !== sql)].slice(0, 30);
       sqlHistory = next;
@@ -928,7 +920,7 @@
     designError = '';
     designSaved = '';
     try {
-      const cols = await invoke<ColumnInfo[]>('sql_table_columns', { profile: profileOf(activeConn), database: selectedDb, table: selectedTable });
+      const cols = await safeInvoke<ColumnInfo[]>('sql_table_columns', { profile: profileOf(activeConn), database: selectedDb, table: selectedTable });
       const kind = activeConn.kind;
       designColumns = cols.map((col) => {
         const upper = col.dataType.toUpperCase();
@@ -982,7 +974,7 @@
     designSaved = '';
     try {
       if (designIsNew) {
-        await invoke<number>('sql_create_table', {
+        await safeInvoke<number>('sql_create_table', {
           profile: profileOf(activeConn),
           database: selectedDb,
           table: name,
@@ -1007,7 +999,7 @@
             original.comment !== col.comment.trim();
           if (changed) modifies.push({ ...designColPayload(col), oldName: original.name });
         }
-        await invoke<number>('sql_alter_table', {
+        await safeInvoke<number>('sql_alter_table', {
           profile: profileOf(activeConn),
           database: selectedDb,
           table: selectedTable,
@@ -1079,6 +1071,7 @@
     formError = '';
     formOk = '';
     showSecret = false;
+    dbList = [];
     formOpen = true;
   }
 
@@ -1089,6 +1082,7 @@
     formError = '';
     formOk = '';
     showSecret = false;
+    dbList = [];
     formOpen = true;
   }
 
@@ -1098,6 +1092,7 @@
     formError = '';
     formOk = '';
     showSecret = false;
+    dbList = [];
     formOpen = true;
   }
 
@@ -1107,12 +1102,29 @@
     formError = '';
     formOk = '';
     try {
-      const result = await invoke<{ serverVersion: string; elapsedMs: number }>('sql_test', { profile: profileOf(formDraft) });
+      const result = await safeInvoke<{ serverVersion: string; elapsedMs: number }>('sql_test', { profile: profileOf(formDraft) });
       formOk = '连接成功 · ' + result.serverVersion + ' · ' + result.elapsedMs + ' ms';
     } catch (cause) {
       formError = cause instanceof Error ? cause.message : String(cause);
     } finally {
       testing = false;
+    }
+  }
+
+  /** 从服务器拉取数据库列表，供默认数据库下拉选择（密码与端口均来自表单草稿） */
+  async function fetchFormDatabases(): Promise<void> {
+    if (!formDraft || formDraft.kind === 'sqlite') return;
+    dbFetching = true;
+    formError = '';
+    formOk = '';
+    try {
+      const names = await safeInvoke<string[]>('sql_databases', { profile: profileOf(formDraft) });
+      dbList = names;
+      formOk = '已发现 ' + names.length + ' 个数据库，可在上方选择（留空 = 全部）';
+    } catch (cause) {
+      formError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      dbFetching = false;
     }
   }
 
@@ -1150,7 +1162,7 @@
     if (confirmTimer) { clearTimeout(confirmTimer); confirmTimer = null; }
     const target = connections.find((item) => item.id === id);
     if (!target) return;
-    invoke('sql_disconnect', { profile: profileOf(target) }).catch(() => undefined);
+    safeInvoke('sql_disconnect', { profile: profileOf(target) }).catch(() => undefined);
     deleteSecret('sql.' + id + '.password').catch(() => undefined);
     connections = connections.filter((item) => item.id !== id);
     saveConnections(connections);
@@ -1687,7 +1699,12 @@
           </div>
           {#if d.kind !== 'sqlite'}
             <label><span>主机</span><input bind:value={d.host} placeholder="127.0.0.1" spellcheck="false" /></label>
-            <label class="port"><span>端口</span><input bind:value={d.port} placeholder={d.kind === 'mysql' ? '3306' : '5432'} spellcheck="false" /></label>
+            <label class="port"><span>端口</span>
+              <span class="port-ssl">
+                <input bind:value={d.port} placeholder={d.kind === 'mysql' ? '3306' : '5432'} spellcheck="false" />
+                <label class="ssl-inline" title="SSL 加密连接（远程数据库建议开启）"><input type="checkbox" bind:checked={d.ssl} /><span>SSL</span></label>
+              </span>
+            </label>
             <label><span>用户名</span><input bind:value={d.user} placeholder="root" spellcheck="false" /></label>
             <label class="pwd"><span>密码</span>
               <span class="sql-secret">
@@ -1695,8 +1712,13 @@
                 <button class="sql-secret-toggle" onclick={() => (showSecret = !showSecret)} title={showSecret ? '隐藏密码' : '显示密码'}>{@html showSecret ? UI_ICONS.eyeOff : UI_ICONS.eye}</button>
               </span>
             </label>
-            <label class="full"><span>默认数据库（可选）</span><input bind:value={d.database} placeholder="留空则在连接后选择" spellcheck="false" /></label>
-            <label class="full ssl-row"><span>SSL 加密连接</span><input type="checkbox" bind:checked={d.ssl} /><i>连接远程数据库时建议开启，避免密码明文传输</i></label>
+            <label class="full"><span>默认数据库</span>
+              <span class="sql-db-picker">
+                <input list="sql-db-list" bind:value={d.database} placeholder="全部（留空则连接后选择）" spellcheck="false" />
+                <datalist id="sql-db-list">{#each dbList as name}<option value={name}></option>{/each}</datalist>
+                <button class="sql-btn ghost" disabled={dbFetching} onclick={fetchFormDatabases}>{dbFetching ? '拉取中…' : '拉取数据库'}</button>
+              </span>
+            </label>
           {:else}
             <label class="full"><span>数据库文件</span><input bind:value={d.file} placeholder="C:\path\to\app.db 或 :memory:" spellcheck="false" /></label>
           {/if}
@@ -1715,9 +1737,6 @@
 </div>
 
 <style>
-  .ssl-row { display: flex; align-items: center; gap: 8px; }
-  .ssl-row input[type="checkbox"] { width: auto; }
-  .ssl-row i { font-style: normal; color: var(--muted-2); font-size: 12px; }
   .sql-panel { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); zoom: calc(var(--app-font-size, 14px) / 14); }
 
   /* ── 顶栏 ── */
@@ -1737,7 +1756,7 @@
   .sql-bar-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 
   /* ── 按钮 ── */
-  .sql-btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; cursor: pointer; font-size: 11.5px; border-radius: 7px; white-space: nowrap; transition: all .15s ease; }
+  .sql-btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; cursor: pointer; font-size: 12.5px; border-radius: 7px; white-space: nowrap; transition: all .15s ease; }
   :global(.sql-btn svg) { width: 12px; height: 12px; }
   .sql-btn.ghost { color: var(--muted); border: 1px solid var(--line); background: var(--bg); }
   .sql-btn.ghost:hover:not(:disabled) { color: var(--text); border-color: var(--line-2); background: var(--hover); }
@@ -1763,7 +1782,7 @@
   .sql-conn:hover { background: var(--hover); }
   .sql-conn.live { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 5%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
   .sql-conn.active { border-color: color-mix(in srgb, var(--accent) 24%, var(--line)); background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
-  .sql-conn-main { min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px; padding: 7px 6px 7px 9px; cursor: pointer; text-align: left; color: var(--text); border: 0; background: transparent; }
+  .sql-conn-main { min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px; padding: 7px 6px 7px 10.5px; cursor: pointer; text-align: left; color: var(--text); border: 0; background: transparent; }
   .sql-conn-ico { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
   :global(.sql-conn-ico svg) { width: 13px; height: 13px; }
   .sql-conn-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
@@ -1779,10 +1798,10 @@
   .sql-conn-ops button.confirm { color: #fff; background: var(--danger); font-size: 10.4px; }
   .sql-conns-empty { padding: 16px 10px; color: var(--muted-2); font-size: 10.9px; line-height: 1.8; text-align: center; }
   .sql-quick-conns { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 4px 0 12px; }
-  .sql-quick-conn { display: flex; align-items: center; gap: 9px; padding: 9px 13px; cursor: pointer; color: var(--text); text-align: left; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); transition: border-color .15s ease, transform .12s ease, box-shadow .15s ease; }
+  .sql-quick-conn { display: flex; align-items: center; gap: 10.5px; padding: 10.5px 13px; cursor: pointer; color: var(--text); text-align: left; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel-2); transition: border-color .15s ease, transform .12s ease, box-shadow .15s ease; }
   .sql-quick-conn:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 12%, transparent); transform: translateY(-1px); }
   .sql-quick-conn .sql-quick-copy { display: flex; flex-direction: column; gap: 2px; }
-  .sql-quick-conn b { font-size: 11.5px; }
+  .sql-quick-conn b { font-size: 12.5px; }
   .sql-quick-conn small { color: var(--muted-2); font-size: 9.8px; }
   .sql-quick-conn i { color: var(--accent); font-size: 10.4px; font-style: normal; }
 
@@ -1796,16 +1815,16 @@
   .sql-ctx-backdrop { position: fixed; z-index: 40; inset: 0; background: transparent; }
   .sql-ctx { position: fixed; z-index: 41; width: 190px; display: flex; flex-direction: column; gap: 2px; padding: 6px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel-2); box-shadow: 0 16px 48px rgba(0, 0, 0, .5); animation: fade-in .1s ease-out; }
   .sql-ctx > b { padding: 4px 8px 7px; overflow: hidden; color: var(--muted); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--line); }
-  .sql-ctx > button { height: 28px; padding: 0 9px; cursor: pointer; text-align: left; color: var(--text); font-size: 11px; border: 0; border-radius: 7px; background: transparent; transition: background .12s ease; }
+  .sql-ctx > button { height: 28px; padding: 0 10.5px; cursor: pointer; text-align: left; color: var(--text); font-size: 11px; border: 0; border-radius: 7px; background: transparent; transition: background .12s ease; }
   .sql-ctx > button:hover:not(:disabled) { background: var(--hover); }
   .sql-ctx > button:disabled { opacity: .45; cursor: default; }
-  .sql-ctx > small { padding: 5px 8px 2px; color: var(--accent); font-size: 9.5px; }
+  .sql-ctx > small { padding: 5px 8px 2px; color: var(--accent); font-size: 11px; }
   .sql-ctx > small.err { color: var(--danger); }
   .sql-cell-menu { position: fixed; z-index: 41; width: 190px; display: flex; flex-direction: column; gap: 2px; padding: 6px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel-2); box-shadow: 0 16px 48px rgba(0, 0, 0, .5); animation: fade-in .1s ease-out; }
   .sql-cell-menu b { padding: 4px 8px 7px; color: var(--muted); font-size: 10px; font-weight: 600; border-bottom: 1px solid var(--line); }
-  .sql-cell-menu button { height: 28px; padding: 0 9px; cursor: pointer; text-align: left; color: var(--text); font-size: 11px; border: 0; border-radius: 7px; background: transparent; transition: background .12s ease; }
+  .sql-cell-menu button { height: 28px; padding: 0 10.5px; cursor: pointer; text-align: left; color: var(--text); font-size: 11px; border: 0; border-radius: 7px; background: transparent; transition: background .12s ease; }
   .sql-cell-menu button:hover { background: var(--hover); }
-  .sql-export-note { position: fixed; z-index: 42; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 14px; color: var(--accent); font-size: 11px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 36px rgba(0, 0, 0, .45); animation: fade-in .15s ease-out; }
+  .sql-export-note { position: fixed; z-index: 42; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 14px; color: var(--accent); font-size: 11px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 36px rgba(0, 0, 0, .45); animation: fade-in .15s ease-out; }
   .sql-export-note.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
   .sql-export-note button { width: 20px; height: 20px; cursor: pointer; color: var(--muted); font-size: 13px; border: 0; border-radius: 5px; background: transparent; }
   .sql-export-note button:hover { color: var(--text); background: var(--hover); }
@@ -1832,10 +1851,10 @@
   .sql-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
   .sql-tabs { height: 40px; flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-tabs-group { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  .sql-tabs-group button { height: 24px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: 11.5px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
+  .sql-tabs-group button { height: 24px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: 12.5px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
   .sql-tabs-group button:hover:not(.active) { color: var(--text); background: var(--hover); }
-  .sql-tabs-group button.active { color: #fff; font-weight: 700; background: var(--btn-gradient); box-shadow: 0 3px 9px color-mix(in srgb, var(--accent) 25%, transparent); }
-  .sql-tabs-info { display: flex; align-items: center; gap: 9px; margin-left: auto; min-width: 0; }
+  .sql-tabs-group button.active { color: #fff; font-weight: 700; background: var(--btn-gradient); box-shadow: 0 3px 10.5px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .sql-tabs-info { display: flex; align-items: center; gap: 10.5px; margin-left: auto; min-width: 0; }
   .sql-tabs-info .sql-db-select { height: 27px; max-width: 190px; padding: 0 8px; color: var(--text); font-size: 11px; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--panel); }
   .sql-tabs-info .sql-ver { overflow: hidden; max-width: 220px; color: var(--muted); font: 500 9.8px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .sql-tabs-info em { overflow: hidden; max-width: 200px; padding: 3px 8px; color: var(--accent); font-size: 10.4px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); border-radius: 5px; background: var(--accent-soft); }
@@ -1845,13 +1864,13 @@
   .sql-empty-tile { width: 52px; height: 52px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 14px; background: var(--accent-soft); }
   :global(.sql-empty-tile svg) { width: 26px; height: 26px; }
   .sql-empty b { color: var(--text); font-size: 15px; }
-  .sql-empty p { margin: 0; font-size: 11.5px; }
+  .sql-empty p { margin: 0; font-size: 12.5px; }
   .sql-empty .sql-btn { margin-top: 6px; }
-  .sql-loading { flex: 1; display: grid; place-content: center; justify-items: center; gap: 9px; color: var(--muted); font-size: 12.1px; }
+  .sql-loading { flex: 1; display: grid; place-content: center; justify-items: center; gap: 10.5px; color: var(--muted); font-size: 12.1px; }
 
-  .sql-error { display: flex; align-items: flex-start; gap: 8px; margin: 9px 12px 0; padding: 8px 12px; color: var(--danger); font-size: 12.1px; line-height: 1.5; border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
+  .sql-error { display: flex; align-items: flex-start; gap: 8px; margin: 10.5px 12px 0; padding: 8px 12px; color: var(--danger); font-size: 12.1px; line-height: 1.5; border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
   .sql-error i { width: 6px; height: 6px; flex: 0 0 auto; margin-top: 4px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }
-  .sql-ok { display: flex; align-items: center; gap: 8px; margin: 9px 12px 0; padding: 7px 12px; color: var(--accent); font-size: 12.1px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
+  .sql-ok { display: flex; align-items: center; gap: 8px; margin: 10.5px 12px 0; padding: 7px 12px; color: var(--accent); font-size: 12.1px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
   .sql-ok i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 
   /* ── 表数据视图 ── */
@@ -1898,7 +1917,7 @@
   .sql-pager button:disabled { cursor: default; opacity: .35; }
   .sql-pager span { color: var(--muted); font-size: 10.9px; }
   .sql-pager .sql-page-size { height: 24px; padding: 0 6px; color: var(--muted); font-size: 10.4px; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--bg); cursor: pointer; }
-  .sql-filter { width: 180px; height: 25px; padding: 0 9px; color: var(--text); font-size: 11px; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
+  .sql-filter { width: 180px; height: 25px; padding: 0 10.5px; color: var(--text); font-size: 11px; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .sql-filter:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .sql-filter::placeholder { color: var(--muted-2); }
   .sql-where { display: flex; align-items: center; gap: 5px; height: 25px; padding: 0 4px 0 0; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
@@ -1918,23 +1937,23 @@
   .cell-view.read { cursor: default; }
   .cell-view.read:hover { color: inherit; }
   .sql-history-wrap { position: relative; }
-  .sql-history { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 360px; max-height: 260px; padding: 5px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+  .sql-history { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 360px; max-height: 260px; padding: 5px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
   .sql-history button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; color: var(--text); font-size: 11px; text-align: left; border: 0; border-radius: 6px; background: transparent; }
   .sql-history button:hover { background: var(--hover); }
   .sql-history button span { flex: 0 0 auto; color: var(--muted-2); font: 500 9.6px 'Cascadia Code', monospace; }
   .sql-history button code { min-width: 0; overflow: hidden; color: var(--muted); font: 400 10.6px/1.5 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .sql-history-empty { padding: 14px; color: var(--muted-2); font-size: 10.9px; text-align: center; }
   .sql-help-wrap { position: relative; }
-  .sql-help { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 300px; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+  .sql-help { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 300px; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
   .sql-help b { display: block; margin-bottom: 6px; color: var(--muted); font-size: 10px; letter-spacing: .5px; }
   .sql-help span { display: flex; align-items: center; gap: 6px; padding: 3px 0; color: var(--text); font-size: 10.8px; }
   .sql-help kbd { margin: 0; }
 
-  .sql-ddl { flex: 0 0 auto; margin: 9px 12px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); overflow: hidden; }
-  .sql-ddl summary { padding: 8px 12px; cursor: pointer; color: var(--muted); font-size: 11.5px; user-select: none; }
+  .sql-ddl { flex: 0 0 auto; margin: 10.5px 12px 12px; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); overflow: hidden; }
+  .sql-ddl summary { padding: 8px 12px; cursor: pointer; color: var(--muted); font-size: 12.5px; user-select: none; }
   .sql-ddl summary:hover { color: var(--text); }
   .sql-ddl pre { margin: 0; padding: 10px 12px; overflow: auto; color: var(--text); font: 450 12.1px/1.6 'Cascadia Code', monospace; border-top: 1px solid var(--line); background: var(--bg); white-space: pre-wrap; }
-  .sql-ddl-note { flex: 0 0 auto; margin: 9px 12px 12px; padding: 8px 12px; color: var(--muted-2); font-size: 10.9px; border: 1px dashed var(--line-2); border-radius: 8px; }
+  .sql-ddl-note { flex: 0 0 auto; margin: 10.5px 12px 12px; padding: 8px 12px; color: var(--muted-2); font-size: 10.9px; border: 1px dashed var(--line-2); border-radius: 8px; }
 
   /* ── SQL 编辑器 ── */
   .sql-editor { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; }
@@ -1952,13 +1971,13 @@
   :global(.sql-hl-string) { color: #9ece6a; }
   :global(.sql-hl-number) { color: #ff9e64; }
   :global(.sql-hl-comment) { color: #565f89; font-style: italic; }
-  .sql-completion { position: absolute; top: 6px; right: 10px; z-index: 30; width: 240px; max-height: 260px; padding: 5px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+  .sql-completion { position: absolute; top: 6px; right: 10px; z-index: 30; width: 240px; max-height: 260px; padding: 5px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
   .sql-completion small { display: block; padding: 4px 8px 5px; color: var(--muted-2); font-size: 9.2px; letter-spacing: .5px; }
   .sql-completion button { width: 100%; padding: 6px 8px; cursor: pointer; color: var(--text); text-align: left; border: 0; border-radius: 6px; background: transparent; }
   .sql-completion button:hover { background: var(--hover); }
   .sql-completion button.active { background: var(--accent-soft); }
   .sql-completion code { font: 500 11px 'Cascadia Code', monospace; }
-  .sql-result-bar { flex: 0 0 auto; display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .sql-result-bar { flex: 0 0 auto; display: flex; align-items: center; gap: 10.5px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-result-chip { padding: 2px 7px; color: var(--blue); font: 700 9.8px 'Cascadia Code', monospace; border-radius: 4px; background: color-mix(in srgb, var(--blue) 12%, transparent); }
   .sql-result-chip.query { color: var(--accent); background: var(--accent-soft); }
   .sql-result-bar b { font-size: 12.6px; }
@@ -1975,11 +1994,11 @@
   .sql-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; overflow-y: auto; }
   .sql-form .full { grid-column: 1 / -1; }
   .sql-form label, .sql-form > div { display: flex; flex-direction: column; gap: 6px; }
-  .sql-form label > span { color: var(--muted); font-size: 11.5px; }
+  .sql-form label > span { color: var(--muted); font-size: 12.5px; }
   .sql-form input { height: 32px; padding: 0 11px; color: var(--text); font: 500 12.6px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .sql-form input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .sql-kind-chips { display: inline-flex; gap: 2px; align-self: flex-start; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  .sql-kind-chips button { height: 26px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: 11.5px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
+  .sql-kind-chips button { height: 26px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: 12.5px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
   .sql-kind-chips button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .sql-kind-chips button.active { color: #fff; font-weight: 700; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .sql-secret { position: relative; display: flex; align-items: center; }
@@ -1989,16 +2008,24 @@
   .sql-secret-toggle:hover { color: var(--text); background: var(--hover); }
   .sql-modal > footer { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); }
   .sql-form-hint { flex: 1; color: var(--muted-2); font-size: 10.4px; }
+  .sql-db-picker { display: flex; align-items: center; gap: 8px; }
+  .sql-db-picker input { min-width: 0; flex: 1; }
+  .sql-db-picker .sql-btn { flex: 0 0 auto; height: 32px; }
+  .port-ssl { display: flex; align-items: center; gap: 8px; }
+  .port-ssl input { width: 100%; }
+  .ssl-inline { display: inline-flex; flex-direction: row; align-items: center; gap: 5px; white-space: nowrap; cursor: pointer; }
+  .ssl-inline input { width: auto; }
+  .ssl-inline span { color: var(--muted); font-size: 12.5px; }
 
   @media (max-width: 900px) {
     .sql-body { grid-template-columns: 210px minmax(0, 1fr); }
   }
 
   /* ── 表设计器 ── */
-  .sql-design { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 9px; padding: 12px; overflow: hidden; }
+  .sql-design { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10.5px; padding: 12px; overflow: hidden; }
   .sql-design-name { width: 220px; height: 30px; padding: 0 10px; color: var(--text); font: 600 15px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .sql-design-name:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .sql-design-wrap { min-height: 0; flex: 1; overflow: auto; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); }
+  .sql-design-wrap { min-height: 0; flex: 1; overflow: auto; border: 1px solid var(--line); border-radius: 10.5px; background: var(--bg); }
   .sql-grid.design { min-width: 860px; }
   .sql-grid.design th { position: sticky; top: 0; z-index: 2; }
   .sql-grid.design td input, .sql-grid.design td select { width: 100%; height: 26px; padding: 0 8px; color: var(--text); font: 500 12.1px 'Cascadia Code', monospace; border: 1px solid transparent; border-radius: 5px; outline: 0; background: transparent; transition: all .15s ease; }

@@ -405,3 +405,57 @@ pub fn close_all(state: &SshSessions) {
         session.task.abort();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{load_known_hosts, save_known_hosts};
+    use std::collections::HashMap;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    fn temp_path(name: &str) -> std::path::PathBuf {
+        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
+        std::env::temp_dir().join(format!("spurh-known-hosts-{name}-{}-{id}.json", std::process::id()))
+    }
+
+    #[tokio::test]
+    async fn load_missing_file_returns_empty() {
+        let path = temp_path("missing");
+        let map = load_known_hosts(&path).await.expect("缺失文件应视为空表");
+        assert!(map.is_empty());
+    }
+
+    #[tokio::test]
+    async fn load_corrupt_file_returns_err() {
+        let path = temp_path("corrupt");
+        tokio::fs::write(&path, "{not-json").await.unwrap();
+        assert!(load_known_hosts(&path).await.is_err());
+        let _ = tokio::fs::remove_file(&path).await;
+    }
+
+    #[tokio::test]
+    async fn save_then_load_roundtrips() {
+        let path = temp_path("roundtrip");
+        let mut map = HashMap::new();
+        map.insert("example.com:22".into(), "sha256:AbCdEf123456".into());
+        map.insert("127.0.0.1:2222".into(), "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...".into());
+        save_known_hosts(&path, &map).await;
+        let loaded = load_known_hosts(&path).await.expect("写入后应能读回");
+        assert_eq!(loaded, map);
+        let _ = tokio::fs::remove_file(&path).await;
+    }
+
+    #[tokio::test]
+    async fn load_ignores_tmp_leftovers() {
+        // 临时文件残留不应影响正常读取
+        let path = temp_path("leftover");
+        let tmp = path.with_extension("tmp");
+        tokio::fs::write(&tmp, "leftover").await.unwrap();
+        tokio::fs::write(&path, "{}").await.unwrap();
+        let map = load_known_hosts(&path).await.expect("正常文件应可读");
+        assert!(map.is_empty());
+        let _ = tokio::fs::remove_file(&path).await;
+        let _ = tokio::fs::remove_file(&tmp).await;
+    }
+}

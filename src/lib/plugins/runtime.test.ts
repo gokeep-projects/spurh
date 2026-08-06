@@ -22,6 +22,16 @@ describe('PluginRuntime', () => {
     await expect(runtime.execute('spurh.cron', 'explain', '*/5 * * * *')).resolves.toMatchObject({ output: '每5分钟' });
   });
 
+  it('prefers customExpr in custom mode for next/explain', async () => {
+    // 路由输入与面板自定义表达式不一致时，以面板表达式为准（用户编辑后结果实时跟随）
+    const options = { type: 'custom', customExpr: '0 0 12 * * *' };
+    const result = await runtime.execute('spurh.cron', 'next', '*/5 * * * *', options);
+    expect(result.meta?.['表达式']).toBe('0 0 12 * * *');
+    expect(result.summary).toContain('每天 12:00');
+    const explained = await runtime.execute('spurh.cron', 'explain', '*/5 * * * *', options);
+    expect(explained.output).toBe('每天 12:00');
+  });
+
   it('formats JSON', async () => {
     const r = await runtime.execute('spurh.json', 'format', '{"ok":true}');
     expect(r.output).toBe('{\n  "ok": true\n}');
@@ -135,6 +145,29 @@ describe('PluginRuntime', () => {
     const tok = await runtime.execute('spurh.crypto', 'jwt-gen', '{"sub":"x"}', { secret: 's' });
     const ver = await runtime.execute('spurh.crypto', 'jwt-verify', tok.output, { secret: 's' });
     expect(JSON.parse(ver.output)).toMatchObject({ valid: true, payload: { sub: 'x' } });
+    // JWT 令牌应建议 jwt-decode；安全指令前缀映射到对应动作
+    expect(runtime.dispatch(tok.output).selected?.suggestedAction).toBe('jwt-decode');
+    expect(runtime.dispatch('md5:hello').selected?.suggestedAction).toBe('MD5');
+    expect(runtime.dispatch('encrypt:secret').selected?.suggestedAction).toBe('aes-encrypt');
+    expect(runtime.dispatch('rsa:gen').selected?.suggestedAction).toBe('rsa-gen');
+    // 指令前缀剥离：md5:hello 应哈希 hello 而非整串
+    const md5pre = await runtime.execute('spurh.crypto', 'MD5', 'md5:hello', {});
+    expect(md5pre.output).toBe('5d41402abc4b2a76b9719d911017c592');
+  });
+
+  it('MD5 matches RFC 1321 test vectors', async () => {
+    // 标准测试向量：RFC 1321 与广泛参考值
+    const cases: Array<[string, string]> = [
+      ['', 'd41d8cd98f00b204e9800998ecf8427e'],
+      ['a', '0cc175b9c0f1b6a831c399e269772661'],
+      ['abc', '900150983cd24fb0d6963f7d28e17f72'],
+      ['hello', '5d41402abc4b2a76b9719d911017c592'],
+      ['The quick brown fox jumps over the lazy dog', '9e107d9d372bb6826bd81d3542a419d6'],
+    ];
+    for (const [input, expected] of cases) {
+      const r = await runtime.execute('spurh.crypto', 'MD5', input, {});
+      expect(r.output, `MD5(${JSON.stringify(input)})`).toBe(expected);
+    }
   });
 
   it('regex test and replace', async () => {
@@ -155,8 +188,27 @@ describe('PluginRuntime', () => {
 
   it('timestamp detection and conversion', async () => {
     expect(runtime.dispatch('1700000000').selected?.plugin.id).toBe('spurh.timestamp');
+    // 纯数字时间戳应建议 to-date，日期串应建议 to-unix
+    expect(runtime.dispatch('1700000000').selected?.suggestedAction).toBe('to-date');
+    expect(runtime.dispatch('1700000000123').selected?.suggestedAction).toBe('to-date');
+    expect(runtime.dispatch('2024-01-15 10:30').selected?.suggestedAction).toBe('to-unix');
     const r = await runtime.execute('spurh.timestamp', 'to-date', '1700000000', { unit: 'auto' });
     expect(JSON.parse(r.output).unixSeconds).toBe(1700000000);
+  });
+
+  it('rejects invalid calendar dates instead of overflowing', async () => {
+    // JS Date 会把 2026-02-30 静默溢出为 2026-03-02，必须拒绝
+    await expect(runtime.execute('spurh.timestamp', 'to-unix', '2026-02-30 10:00', {})).rejects.toThrow(/\u65e0\u6548\u65e5\u671f/);
+    await expect(runtime.execute('spurh.timestamp', 'to-unix', '2026-13-01 00:00', {})).rejects.toThrow(/\u65e0\u6548\u65e5\u671f/);
+    await expect(runtime.execute('spurh.timestamp', 'to-unix', '2026-00-10 00:00', {})).rejects.toThrow(/\u65e0\u6548\u65e5\u671f/);
+    await expect(runtime.execute('spurh.timestamp', 'to-unix', '2026-04-31 12:00', {})).rejects.toThrow(/\u65e0\u6548\u65e5\u671f/);
+    // 合法日期（含闰年 2/29）与边界仍正常工作
+    const leap = await runtime.execute('spurh.timestamp', 'to-unix', '2024-02-29 00:00', {});
+    expect(leap.output).toContain('2024-02-29');
+    const valid = await runtime.execute('spurh.timestamp', 'to-unix', '2026-02-28 23:59', {});
+    expect(valid.output).toContain('2026-02-28 23:59:00');
+    // picker 路径同样拒绝无效日期
+    await expect(runtime.execute('spurh.timestamp', 'to-unix', '', { pickDateTime: '2026-02-30T10:00' })).rejects.toThrow();
   });
 
   it('timestamp converts log lines with embedded datetimes', async () => {
@@ -173,6 +225,13 @@ describe('PluginRuntime', () => {
     const r = await runtime.execute('spurh.timestamp', 'to-unix', '', { pickDateTime: '2024-06-01T12:30' });
     const data = JSON.parse(r.output);
     expect(data.unixMilliseconds).toBe(new Date(2024, 5, 1, 12, 30, 0).getTime());
+  });
+
+  it('timestamp to-unix prefers typed input over picker default', async () => {
+    // 回归：粘贴日期后点“日期→时间戳”，应使用文本框内容而非 picker 默认值
+    const r = await runtime.execute('spurh.timestamp', 'to-unix', '2024-01-15 10:30:00', { pickDateTime: '2024-06-01T12:30' });
+    const data = JSON.parse(r.output);
+    expect(data.unixMilliseconds).toBe(new Date(2024, 0, 15, 10, 30, 0).getTime());
   });
 
   it('cron rejects zero-step ranges instead of hanging', async () => {
@@ -270,6 +329,16 @@ describe('PluginRuntime', () => {
     expect((await runtime.execute('spurh.random', 'uuid', '', {})).output).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   });
 
+  it('honors count/length from random/uuid prefixes', async () => {
+    const uuids = await runtime.execute('spurh.random', 'uuid', 'uuid: 5');
+    expect(uuids.output.split('\n')).toHaveLength(5);
+    for (const id of uuids.output.split('\n')) {
+      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    }
+    const password = await runtime.execute('spurh.random', 'password', 'random: 12');
+    expect(password.output).toHaveLength(12);
+  });
+
   it('random number within range', async () => {
     const r = await runtime.execute('spurh.random', 'number', '', { min: '5', max: '9' });
     const value = Number(r.output);
@@ -322,6 +391,34 @@ describe('PluginRuntime', () => {
     expect(r.output).toHaveLength(32);
   });
 
+  it('SHA/HMAC known-answer tests', async () => {
+    expect((await runtime.execute('spurh.crypto', 'SHA-1', 'hello')).output).toBe('aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d');
+    expect((await runtime.execute('spurh.crypto', 'SHA-256', '')).output).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+    expect((await runtime.execute('spurh.crypto', 'SHA-512', '')).output).toBe('cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e');
+    // RFC 4231 test case 2: key="Jefe", data="what do ya want for nothing?"
+    expect((await runtime.execute('spurh.crypto', 'HMAC-SHA256', 'what do ya want for nothing?', { secret: 'Jefe' })).output)
+      .toBe('5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843');
+  });
+
+
+  it('JSONPath recursive descent collects nested keys', async () => {
+    const input = '{"a":{"name":"root","b":{"name":"child"}},"list":[{"name":"item"},{"x":{"name":"deep"}}]}';
+    const r = await runtime.execute('spurh.json', 'path', input, { path: '$..name' });
+    expect(r.output).toBe('[\n  "root",\n  "child",\n  "item",\n  "deep"\n]');
+    const deep = await runtime.execute('spurh.json', 'path', input, { path: '$..b.name' });
+    expect(deep.output).toBe('"child"');
+    const wild = await runtime.execute('spurh.json', 'path', input, { path: '$..list[*].name' });
+    expect(wild.output).toBe('[\n  "item"\n]');
+    await expect(runtime.execute('spurh.json', 'path', input, { path: '$.a[?(@.name)]' })).rejects.toThrow('当前支持');
+  });
+  it('JSONPath queries arrays, bracket keys and wildcards', async () => {
+    const input = '{"users":[{"name":"alice"}],"meta":{"x":1}}';
+    expect((await runtime.execute('spurh.json', 'path', input, { path: '$.users[0].name' })).output).toBe('"alice"');
+    expect((await runtime.execute('spurh.json', 'path', input, { path: "$['meta']['x']" })).output).toBe('1');
+    expect((await runtime.execute('spurh.json', 'path', input, { path: '$.users[*].name' })).output).toBe('[\n  "alice"\n]');
+    await expect(runtime.execute('spurh.json', 'path', input, { path: 'users' })).rejects.toThrow('$');
+  });
+
   it('HMAC hash', async () => {
     const r = await runtime.execute('spurh.crypto', 'HMAC-SHA256', 'hello', { secret: 'k' });
     expect(r.output).toHaveLength(64);
@@ -340,5 +437,98 @@ describe('PluginRuntime', () => {
 
   it('rejects duplicate ids', () => {
     expect(() => new PluginRuntime([jsonPlugin, jsonPlugin])).toThrow('already');
+  });
+
+  it('suggests decode action for base64 input', () => {
+    const r = runtime.dispatch('aGVsbG8gd29ybGQ=');
+    expect(r.selected?.plugin.id).toBe('spurh.encoder');
+    expect(r.selected?.suggestedAction).toBe('base64-decode');
+  });
+
+  it('suggests format action for json and xml', () => {
+    const j = runtime.dispatch('{"a":1}');
+    expect(j.selected?.suggestedAction).toBe('format');
+    const x = runtime.dispatch('<root><a>1</a></root>');
+    expect(x.selected?.suggestedAction).toBe('xml-format');
+  });
+
+  it('suggests next action for cron expression', () => {
+    const r = runtime.dispatch('*/15 * * * *');
+    expect(r.selected?.plugin.id).toBe('spurh.cron');
+    expect(r.selected?.suggestedAction).toBe('next');
+  });
+
+  it('suggests test action for regex literal', () => {
+    const r = runtime.dispatch('/ab+c/gi');
+    expect(r.selected?.plugin.id).toBe('spurh.regex');
+    expect(r.selected?.suggestedAction).toBe('test');
+  });
+
+  it('parses regex literal with same-line test text', async () => {
+    const r = runtime.dispatch('/\\w+@\\w+\\.com/gi 联系 test@b.com');
+    expect(r.selected?.plugin.id).toBe('spurh.regex');
+    const result = await runtime.execute('spurh.regex', 'test', '/\\w+@\\w+\\.com/gi 联系 test@b.com');
+    expect(result.meta?.['匹配数']).toBe(1);
+    expect(result.data).toMatchObject([{ value: 'test@b.com' }]);
+  });
+
+  it('keeps newline test text after regex literal', async () => {
+    const result = await runtime.execute('spurh.regex', 'test', '/\\d+/g\n12 34');
+    expect(result.meta?.['匹配数']).toBe(2);
+  });
+
+  it('suggests uuid action for uuid prefix', () => {
+    const r = runtime.dispatch('uuid: 4');
+    expect(r.selected?.plugin.id).toBe('spurh.random');
+    expect(r.selected?.suggestedAction).toBe('uuid');
+  });
+
+  it('routes hash/sha prefixes to crypto not encoder', () => {
+    const hash = runtime.dispatch('hash: hello');
+    expect(hash.selected?.plugin.id).toBe('spurh.crypto');
+    expect(hash.selected?.suggestedAction).toBe('SHA-256');
+    const sha512 = runtime.dispatch('sha512: hello');
+    expect(sha512.selected?.plugin.id).toBe('spurh.crypto');
+    expect(sha512.selected?.suggestedAction).toBe('SHA-512');
+    const md5 = runtime.dispatch('md5: hello');
+    expect(md5.selected?.plugin.id).toBe('spurh.crypto');
+    expect(md5.selected?.suggestedAction).toBe('MD5');
+  });
+
+  it('strips crypto command prefixes before hashing', async () => {
+    // sha512: hello 必须对 hello 取摘要，而不是把前缀一起算进去
+    expect((await runtime.execute('spurh.crypto', 'SHA-512', 'sha512: hello')).output)
+      .toBe('9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043');
+    expect((await runtime.execute('spurh.crypto', 'SHA-256', 'hash: hello')).output)
+      .toBe('2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824');
+    expect((await runtime.execute('spurh.crypto', 'MD5', 'md5: hello')).output)
+      .toBe('5d41402abc4b2a76b9719d911017c592');
+  });
+
+  it('keeps base64/url/hex prefixes in encoder', () => {
+    expect(runtime.dispatch('base64: hello').selected?.plugin.id).toBe('spurh.encoder');
+    expect(runtime.dispatch('hex: ff').selected?.suggestedAction).toBe('hex-encode');
+  });
+
+  it('strips encoder command prefixes before encoding', async () => {
+    expect((await runtime.execute('spurh.encoder', 'base64-encode', 'base64: hello')).output).toBe('aGVsbG8=');
+    expect((await runtime.execute('spurh.encoder', 'hex-encode', 'hex: hello')).output).toBe('68656c6c6f');
+    expect((await runtime.execute('spurh.encoder', 'url-encode', 'url: hello world')).output).toBe('hello%20world');
+    expect((await runtime.execute('spurh.encoder', 'base64-decode', 'base64: aGVsbG8=')).output).toBe('hello');
+    expect(runtime.dispatch('html: <b>x</b>').selected?.suggestedAction).toBe('html-encode');
+    expect((await runtime.execute('spurh.encoder', 'html-encode', 'html: <b>x</b>')).output).toBe('&lt;b&gt;x&lt;/b&gt;');
+  });
+
+  it('routes json/xml prefixes and strips them before formatting', async () => {
+    const j = runtime.dispatch('json: {"a":1}');
+    expect(j.selected?.plugin.id).toBe('spurh.json');
+    expect(j.selected?.suggestedAction).toBe('format');
+    const x = runtime.dispatch('xml: <root><a>1</a></root>');
+    expect(x.selected?.plugin.id).toBe('spurh.json');
+    expect(x.selected?.suggestedAction).toBe('xml-format');
+    const fmt = await runtime.execute('spurh.json', 'format', 'json: {"a":1}');
+    expect(fmt.output).toContain('"a": 1');
+    const xml = await runtime.execute('spurh.json', 'xml-format', 'xml: <root><a>1</a></root>');
+    expect(xml.output).toBe('<root>\n  <a>\n    1\n  </a>\n</root>');
   });
 });

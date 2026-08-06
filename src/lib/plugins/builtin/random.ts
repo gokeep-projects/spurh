@@ -60,14 +60,30 @@ export const randomPlugin: SpurhPlugin = {
   options: [
     { id: 'length', label: '长度', type: 'select', defaultValue: '24', actions: ['password', 'string', 'hex'], choices: LENGTH_CHOICES },
     { id: 'count', label: '数量', type: 'select', defaultValue: '1', choices: COUNT_CHOICES },
+    { id: 'caseType', label: '大小写', type: 'select', defaultValue: 'mixed', actions: ['password', 'string'], choices: [
+      { value: 'mixed', label: '大小写混合' },
+      { value: 'upper', label: '仅大写' },
+      { value: 'lower', label: '仅小写' },
+      { value: 'digits', label: '仅数字' },
+    ] },
     { id: 'min', label: '最小值', type: 'text', defaultValue: '0', placeholder: '0', actions: ['number'] },
     { id: 'max', label: '最大值', type: 'text', defaultValue: '100', placeholder: '100', actions: ['number'] },
   ],
   detect(input) {
-    if (/^(random|随机|uuid):/i.test(input.trim())) return { confidence: 0.9, reason: '检测到随机生成指令' };
+    const command = input.trim().match(/^(random|\u968f\u673a|uuid|ulid)\s*[:：]/i)?.[1]?.toLowerCase();
+    if (command) {
+      const suggestedAction = command === 'uuid' ? 'uuid' : command === 'ulid' ? 'ulid' : command === 'random' || command === '随机' ? 'password' : null;
+      return { confidence: 0.9, reason: '检测到随机生成指令', ...(suggestedAction ? { suggestedAction } : {}) };
+    }
     return null;
   },
   execute(actionId, _input, options = {}): PluginResult {
+    // 指令前缀携带的数量/长度（uuid: 5 → 5 个 UUID；random: 12 → 12 位密码；ulid: 3 → 3 个 ULID）
+    const prefixNumber = _input.trim().match(/^(random|\u968f\u673a|uuid|ulid)\s*[:：]\s*(\d+)/i);
+    if (prefixNumber) {
+      const value = String(Number(prefixNumber[2]));
+      options = actionId === 'uuid' || actionId === 'ulid' ? { ...options, count: value } : { ...options, length: value };
+    }
     // 严格解析：拒绝 "100abc" 这类非法尾缀
     const parseStrict = (raw: string, fallback: number): number => {
       const value = raw.trim();
@@ -76,6 +92,16 @@ export const randomPlugin: SpurhPlugin = {
     const length = parseStrict(options.length || '24', 24);
     const count = Math.min(100, Math.max(1, parseStrict(options.count || '1', 1) || 1));
     if (!Number.isFinite(length) || length < 4 || length > 512) throw new Error('长度请输入 4 到 512');
+    // 大小写策略：控制密码 / 随机字符的字符集
+    const caseType = options.caseType || 'mixed';
+    const baseAlphabet = actionId === 'password' ? PASSWORD : ALPHANUMERIC;
+    const alphabet = caseType === 'upper'
+      ? baseAlphabet.replace(/[a-z]/g, '')
+      : caseType === 'lower'
+        ? baseAlphabet.replace(/[A-Z]/g, '')
+        : caseType === 'digits'
+          ? '23456789'
+          : baseAlphabet;
     const values = Array.from({ length: count }, () => {
       if (actionId === 'uuid') return crypto.randomUUID();
       if (actionId === 'ulid') return ulid();
@@ -101,15 +127,18 @@ export const randomPlugin: SpurhPlugin = {
         } while (value >= limit);
         return String(BigInt(min) + (value % span));
       }
-      return secureString(length, actionId === 'password' ? PASSWORD : ALPHANUMERIC);
+      return secureString(length, alphabet);
     });
+    const isColors = actionId === 'color';
     return {
       output: values.join('\n'),
       language: 'text',
-      view: 'list',
+      view: isColors ? 'colors' : 'list',
       data: values,
-      summary: `已安全生成 ${values.length} 个结果`,
-      meta: { 数量: values.length, ...(actionId === 'uuid' ? {} : { 长度: length }), 随机源: 'Web Crypto' },
+      summary: isColors
+        ? `已生成 ${values.length} 个颜色值`
+        : `已安全生成 ${values.length} 个结果`,
+      meta: { 数量: values.length, ...(actionId === 'uuid' || isColors ? {} : { 长度: length }), 随机源: 'Web Crypto' },
     };
   },
 };

@@ -1,4 +1,4 @@
-# ⚡ Spurh — AI Native Developer Toolbox
+﻿# ⚡ Spurh — AI Native Developer Toolbox
 
 > 别找工具，直接粘贴。Spurh 自动识别你的内容，把结果放回你的指尖。
 
@@ -102,7 +102,7 @@
 # 安装依赖
 npm install
 
-# 浏览器模式（仅前端，部分系统能力不可用）
+# 浏览器模式（仅前端，部分系统能力不可用：SQL/SSH/网络/剪贴板会提示需桌面应用；拖拽文件可直接打开分析）
 npm run dev
 
 # 桌面应用（完整能力：托盘/全局快捷键/右键菜单/SSH/SQL/剪贴板）
@@ -113,8 +113,9 @@ npm run tauri dev
 
 ```bash
 npm run check      # svelte-check（0 错误 0 警告）
-npm test           # vitest（73 个测试）
+npm test           # vitest（197 个测试）
 npm run build      # 前端生产构建
+cargo test --manifest-path src-tauri/Cargo.toml --lib   # Rust 单元测试（19 个：SQL 识别/引用/注释/SQLite 往返）
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings   # Rust 静态检查
 ```
 
@@ -174,7 +175,7 @@ runtime.register(plugin);
 | `Ctrl+↑` / `Ctrl+↓`（SQL） | 历史查询切换 |
 | `Ctrl+L`（终端） | 清屏 |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V`（终端） | 复制 / 粘贴 |
-| `Alt+1..8` | 快速切换工具 |
+| `Alt+1..9` | 快速切换工具 |
 | `Esc` | 关闭浮层 / 菜单 / 补全 |
 
 ---
@@ -198,7 +199,7 @@ flowchart LR
   AI[AI 处理] --> GW[OpenAI 兼容端点]
 ```
 
-- **前端**：Svelte 5（runes）+ TypeScript + Vite 8，重型面板按需懒加载（主 chunk ≈ 178KB）
+- **前端**：Svelte 5（runes）+ TypeScript + Vite 8，重型面板按需懒加载（首屏 JS ≈ 82KB gzip）
 - **后端**：Tauri 2（Rust），模块化 `sql` / `ssh` / `net` / `clipboard` / `secrets`
 - **数据流**：前端 `invoke` → Rust 命令 → 结果经统一 `PluginResult` 结构渲染
 

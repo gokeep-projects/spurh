@@ -28,6 +28,30 @@
   const M = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
   let copied = $state(false);
+  // 记录已同步到生成器的输入，仅在新内容路由进来时切换「自定义」模式，避免与用户手动切换类型冲突
+  let syncedInput: string | null = null;
+
+  $effect(() => {
+    const input = session.input.trim();
+    if (!input) {
+      syncedInput = null;
+      return;
+    }
+    if (input === syncedInput) return;
+    // 剥离 cron: 指令前缀，避免把前缀同步进表达式导致解析/展示异常（如“cron: 秒 · 每 5 分”）
+    const expr = input.replace(/^cron[:：]\s*/i, '');
+    if (!expr) return;
+    try {
+      parseCron(expr);
+    } catch {
+      return;
+    }
+    syncedInput = input;
+    if (type !== 'custom' || (session.options.customExpr || '').trim() !== expr) {
+      onChangeOption('type', 'custom');
+      onChangeOption('customExpr', expr);
+    }
+  });
 
   const type = $derived(session.options.type || 'daily');
   const weekdaySet = $derived(new Set((session.options.weekdays || '1,3,5').split(',').filter(Boolean)));
@@ -54,6 +78,22 @@
   const previewExplain = $derived(preview
     ? (() => { try { return explainCron(preview); } catch { return ''; } })()
     : '');
+
+  const EXAMPLES = [
+    { label: '每分钟', expr: '* * * * *' },
+    { label: '每 5 分钟', expr: '*/5 * * * *' },
+    { label: '每 10 秒', expr: '*/10 * * * * *' },
+    { label: '每小时', expr: '0 * * * *' },
+    { label: '每天 09:00', expr: '0 9 * * *' },
+    { label: '工作日 09:30', expr: '30 9 * * 1-5' },
+    { label: '每周一 09:00', expr: '0 9 * * 1' },
+    { label: '每月 1 号 00:00', expr: '0 0 1 * *' },
+  ];
+
+  function applyExample(expr: string): void {
+    onChangeOption('type', 'custom');
+    onChangeOption('customExpr', expr);
+  }
 
   function toggleWeekday(value: string): void {
     const next = new Set(weekdaySet);
@@ -100,6 +140,13 @@
             {/each}
           </div>
         </div>
+      </div>
+
+      <div class="cron-examples">
+        <span>试试</span>
+        {#each EXAMPLES as ex}
+          <button class:active={type === 'custom' && (session.options.customExpr || '').trim() === ex.expr} title={ex.expr} onclick={() => applyExample(ex.expr)}>{ex.label}</button>
+        {/each}
       </div>
 
       <div class="cron-sec-title"><b>配置</b><small>调整后实时生成表达式</small></div>
@@ -209,11 +256,11 @@
   .cron-config { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
   .cron-sec-title { display: flex; align-items: baseline; gap: 8px; }
   .cron-sec-title b { color: var(--muted); font-size: 10px; letter-spacing: 1.5px; }
-  .cron-sec-title small { color: var(--muted-2); font-size: 9px; }
+  .cron-sec-title small { color: var(--muted-2); font-size: 10.5px; }
 
   .cron-types { display: flex; flex-direction: column; gap: 7px; padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .cron-type-group { display: flex; align-items: center; gap: 10px; }
-  .cron-type-group > small { flex: 0 0 auto; width: 50px; color: var(--muted-2); font-size: 9px; }
+  .cron-type-group > small { flex: 0 0 auto; width: 50px; color: var(--muted-2); font-size: 10.5px; }
   .cron-type-btns { display: flex; gap: 5px; flex-wrap: wrap; }
   .cron-type-btns button { height: 30px; min-width: 44px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: 11px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
   .cron-type-btns button:hover { color: var(--text); background: var(--hover); border-color: var(--line-2); }
@@ -241,7 +288,7 @@
   .preview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; color: var(--muted); font-size: 10px; letter-spacing: 1.5px; }
   .preview-head button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: 10px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 6px; background: var(--accent-soft); }
   .cron-preview code { display: block; padding: 8px 10px; color: var(--accent); font: 600 13px 'Cascadia Code', monospace; word-break: break-all; border: 1px dashed var(--line-2); border-radius: 7px; background: var(--bg); }
-  .preview-explain { margin: 8px 0 0; color: var(--muted); font-size: 10.5px; line-height: 1.6; }
+  .preview-explain { margin: 8px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.6; }
   .preview-error { margin: 0; color: var(--danger); font-size: 11px; }
   .preview-empty { margin: 0; color: var(--muted-2); font-size: 11px; }
   .preview-runs { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -257,4 +304,9 @@
   .cron-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; }
   .cron-clear:hover { color: var(--text); border-color: var(--line); }
   .control-spacer { flex: 1; }
+  .cron-examples { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 0 2px; }
+  .cron-examples > span { color: var(--muted-2); font-size: 11px; }
+  .cron-examples button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 10.5px; border: 1px dashed var(--line-2); border-radius: 12px; background: transparent; white-space: nowrap; }
+  .cron-examples button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .cron-examples button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
 </style>

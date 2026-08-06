@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
+  import { safeInvoke } from '../env';
   import { UI_ICONS, TOOL_ICONS, iconHtml } from '../icons';
   import { deleteSecret, getSecret, setSecret } from '../secrets';
   import { base64ToBytes, decodeExecResult, escPath } from '../remoteExec';
@@ -102,6 +102,7 @@
   let activeId = $state(initialTabs.activeId || (initialSessions[0]?.id ?? ''));
   let editing = $state(false);
   let draft = $state<RemoteSession | null>(null);
+  let draftIsNew = $state(false);
   let openTabs = $state<string[]>(initialTabs.openTabs);
   let nonceMap = $state<Record<string, number>>({});
   let statusMap = $state<Record<string, SessionState>>({});
@@ -118,7 +119,7 @@
     testMessage = '';
     const port = Math.min(65535, Math.max(1, Math.floor(Number(draft.port) || 22)));
     try {
-      const results = await invoke<PortProbe[]>('net_port_scan', { host: draft.host.trim(), ports: String(port) });
+      const results = await safeInvoke<PortProbe[]>('net_port_scan', { host: draft.host.trim(), ports: String(port) });
       const open = results[0]?.open ?? false;
       testMessage = open ? `连接成功：${draft.host}:${port} 端口开放` : `端口不可达：${draft.host}:${port} 无响应`;
     } catch (cause) {
@@ -164,7 +165,7 @@
     if (!active) return;
     sysLoading = true;
     try {
-      const base64 = await invoke<string>('ssh_exec', {
+      const base64 = await safeInvoke<string>('ssh_exec', {
         sessionId: active.id,
         command: 'echo ===SYS===; uname -a; echo ===MEM===; free -m; echo ===DISK===; df -h; echo ===UPTIME===; uptime; echo ===LOAD===; top -bn1 2>/dev/null | head -18; echo ===END===',
         stdin: null,
@@ -189,7 +190,7 @@
         reader.onerror = () => reject(new Error('读取文件失败'));
         reader.readAsDataURL(uploadFile as File);
       });
-      const result = await invoke<string>('ssh_exec', {
+      const result = await safeInvoke<string>('ssh_exec', {
         sessionId: active.id,
         command: `base64 -d > '${escPath(remotePath.trim())}'`,
         stdin: base64,
@@ -214,7 +215,7 @@
     try {
       // 远端 base64 编码输出（base64 命令在 GNU/BSD 下默认换行，atob 会忽略空白）；
       // ssh_exec 通道再 base64 一层，decodeExecResult 已解出内层 base64，此处只需解码一次
-      const encoded = await invoke<string>('ssh_exec', {
+      const encoded = await safeInvoke<string>('ssh_exec', {
         sessionId: active.id,
         command: `base64 '${escPath(remotePath.trim())}'`,
         stdin: null,
@@ -245,12 +246,14 @@
     sessions = [...sessions, created];
     activeId = created.id;
     draft = { ...created };
+    draftIsNew = true;
     editing = true;
   }
 
   function editSession(): void {
     if (!active) return;
     draft = { ...active };
+    draftIsNew = false;
     editing = true;
   }
 
@@ -258,7 +261,7 @@
     const target = sessionById(id);
     if (!target) return;
     if (openTabs.includes(id)) {
-      invoke('ssh_close', { sessionId: id }).catch(() => undefined);
+      safeInvoke('ssh_close', { sessionId: id }).catch(() => undefined);
     }
     deleteSecret('ssh.' + id + '.password').catch(() => undefined);
     deleteSecret('ssh.' + id + '.passphrase').catch(() => undefined);
@@ -287,7 +290,19 @@
     setSecret('ssh.' + cleaned.id + '.password', cleaned.password).catch(() => undefined);
     setSecret('ssh.' + cleaned.id + '.passphrase', cleaned.passphrase).catch(() => undefined);
     activeId = cleaned.id;
+    draftIsNew = false;
     editing = false;
+  }
+
+  function cancelDraft(): void {
+    const d = draft;
+    if (d && draftIsNew) {
+      // 新建但未保存的草稿：从列表移除，避免残留空会话
+      sessions = sessions.filter((item) => item.id !== d.id);
+      if (activeId === d.id) activeId = sessions[0]?.id ?? '';
+    }
+    editing = false;
+    testMessage = '';
   }
 
   function connect(): void {
@@ -303,7 +318,7 @@
   }
 
   function closeTab(id: string): void {
-    invoke('ssh_close', { sessionId: id }).catch(() => undefined);
+    safeInvoke('ssh_close', { sessionId: id }).catch(() => undefined);
     openTabs = openTabs.filter((tabId) => tabId !== id);
     saveTabs();
   }
@@ -319,7 +334,7 @@
     const bytes = new TextEncoder().encode(cmd + '\r');
     let binary = '';
     for (const byte of bytes) binary += String.fromCharCode(byte);
-    invoke('ssh_write', { sessionId: active.id, data: btoa(binary) }).catch(() => undefined);
+    safeInvoke('ssh_write', { sessionId: active.id, data: btoa(binary) }).catch(() => undefined);
   }
 
   function statusLabel(state: SessionState): string {
@@ -357,7 +372,7 @@
     {#if editing && draft}
       {@const d = draft}
       <div class="remote-form">
-        <header><b>{d.id && sessions.some((item) => item.id === d.id) ? '编辑会话' : '新建会话'}</b><button class="form-close" onclick={() => (editing = false)} aria-label="关闭">{@html UI_ICONS.close}</button></header>
+        <header><b>{d.id && sessions.some((item) => item.id === d.id) ? '编辑会话' : '新建会话'}</b><button class="form-close" onclick={cancelDraft} aria-label="关闭">{@html UI_ICONS.close}</button></header>
         <div class="form-grid">
           <label><span>名称</span><input bind:value={d.name} placeholder="例如：生产服务器" /></label>
           <label><span>主机</span><input bind:value={d.host} placeholder="192.168.1.10 或 ssh.example.com" /></label>
@@ -381,7 +396,7 @@
           <span class="form-hint">密码与密钥仅保存在本机</span>
           {#if testMessage}<span class="form-test" class:ok={testMessage.startsWith('连接成功')}>{testMessage}</span>{/if}
           <button class="form-cancel" disabled={testing} onclick={() => (testDraft())}>{testing ? '测试中…' : '测试连接'}</button>
-          <button class="form-cancel" onclick={() => { editing = false; testMessage = ''; }}>取消</button>
+          <button class="form-cancel" onclick={cancelDraft}>取消</button>
           <button class="form-save" disabled={!d.host.trim()} onclick={saveDraft}>保存</button>
         </footer>
       </div>
@@ -496,32 +511,32 @@
   .remote-add span { display: inline-flex; }
   :global(.remote-add span svg) { width: 12px; height: 12px; }
   .remote-add:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
-  .remote-search { height: 32px; flex: 0 0 auto; display: flex; align-items: center; gap: 6px; margin: 8px 8px 0; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
+  .remote-search { height: 32px; flex: 0 0 auto; display: flex; align-items: center; gap: 6px; margin: 8px 8px 0; padding: 0 10.5px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   :global(.remote-search svg) { width: 12px; height: 12px; color: var(--muted-2); }
   .remote-search:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .remote-search input { min-width: 0; flex: 1; color: var(--text); font-size: 11px; border: 0; outline: 0; background: transparent; }
   .remote-search input::placeholder { color: var(--muted-2); }
   .remote-sessions { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; padding: 8px; overflow-y: auto; }
-  .remote-session { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 9px; padding: 7px 9px; cursor: pointer; text-align: left; color: var(--text); border: 1px solid transparent; border-radius: 9px; background: transparent; transition: background .15s ease, border-color .15s ease, box-shadow .15s ease; }
+  .remote-session { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10.5px; padding: 7px 10.5px; cursor: pointer; text-align: left; color: var(--text); border: 1px solid transparent; border-radius: 10.5px; background: transparent; transition: background .15s ease, border-color .15s ease, box-shadow .15s ease; }
   .remote-session:hover { background: var(--hover); }
   .remote-session.active { border-color: color-mix(in srgb, var(--accent) 22%, var(--line)); background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent), 0 2px 10px rgba(0, 0, 0, .08); }
   .rs-icon { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   :global(.rs-icon svg) { width: 16px; height: 16px; }
   .rs-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
-  .rs-copy b { overflow: hidden; font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
-  .rs-copy small { overflow: hidden; color: var(--muted); font: 500 8.5px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
+  .rs-copy b { overflow: hidden; font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+  .rs-copy small { overflow: hidden; color: var(--muted); font: 500 10px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .rs-dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--muted-2); transition: background .2s ease, box-shadow .2s ease; }
   .rs-dot.connected { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   .rs-dot.busy { background: var(--blue); box-shadow: 0 0 8px var(--blue); animation: rem-pulse 1s ease-in-out infinite; }
   @keyframes rem-pulse { 50% { opacity: .35; } }
-  .rs-empty { padding: 26px 10px; color: var(--muted-2); font-size: 9.5px; line-height: 1.8; text-align: center; }
+  .rs-empty { padding: 26px 10px; color: var(--muted-2); font-size: 11px; line-height: 1.8; text-align: center; }
   .remote-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
   .remote-toolbar { min-height: 54px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 8px 13px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .rt-identity { min-width: 0; display: flex; align-items: center; gap: 10px; }
   .rt-identity > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .rt-identity b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-  .rt-identity small { color: var(--muted); font: 500 9px 'Cascadia Code', monospace; }
-  .rt-status { display: flex; align-items: center; gap: 7px; padding: 5px 10px; color: var(--muted); font-size: 9.5px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .2s ease; }
+  .rt-identity small { color: var(--muted); font: 500 10.5px 'Cascadia Code', monospace; }
+  .rt-status { display: flex; align-items: center; gap: 7px; padding: 5px 10px; color: var(--muted); font-size: 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .2s ease; }
   .rt-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-2); }
   .rt-status.connected { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); background: var(--accent-soft); }
   .rt-status.connected i { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
@@ -530,7 +545,7 @@
   .rt-status.error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); background: color-mix(in srgb, var(--danger) 7%, transparent); }
   .rt-status.error i { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
   .rt-actions { display: flex; gap: 6px; margin-left: auto; }
-  .rt-connect { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: 10.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease; }
+  .rt-connect { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: 11.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease; }
   .rt-connect:hover { transform: translateY(-1px); box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 30%, transparent); }
   .rt-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
   .rt-quiet { height: 30px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
@@ -551,7 +566,7 @@
   .rt-empty > span { width: 46px; height: 46px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 13px; background: var(--accent-soft); }
   :global(.rt-empty > span svg) { width: 22px; height: 22px; }
   .rt-empty b { color: var(--text); font-size: 12.5px; }
-  .rt-empty p { margin: 0; font-size: 9.5px; }
+  .rt-empty p { margin: 0; font-size: 11px; }
   .rt-empty.main > button { margin-top: 8px; }
   .remote-form { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: auto; }
   .remote-form > header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
@@ -577,12 +592,12 @@
   .auth-chips button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .auth-chips button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .remote-form > footer { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); }
-  .form-hint { flex: 1; color: var(--muted-2); font-size: 9px; }
+  .form-hint { flex: 1; color: var(--muted-2); font-size: 10.5px; }
   .form-test { color: var(--danger); font-size: 10px; white-space: nowrap; }
   .form-test.ok { color: var(--accent); }
   .form-cancel { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
   .form-cancel:hover { color: var(--text); border-color: var(--line-2); }
-  .form-save { height: 30px; padding: 0 16px; cursor: pointer; color: #fff; font-size: 10.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
+  .form-save { height: 30px; padding: 0 16px; cursor: pointer; color: #fff; font-size: 11.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
   .form-save:hover:not(:disabled) { transform: translateY(-1px); }
   .form-save:disabled { cursor: default; opacity: .4; }
   .rt-quiet:disabled { opacity: .4; cursor: default; }
@@ -593,20 +608,20 @@
   .rt-modal > header button { width: 28px; height: 28px; cursor: pointer; color: var(--muted); font-size: 17px; border: 0; border-radius: 7px; background: transparent; }
   .rt-modal > header button:hover { color: var(--text); background: var(--hover); }
   .rt-modal-body { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; max-height: 60vh; overflow-y: auto; }
-  .rt-modal-body pre.sys-info { margin: 0; padding: 11px 13px; overflow: auto; color: var(--text); font: 450 11.5px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); }
+  .rt-modal-body pre.sys-info { margin: 0; padding: 11px 13px; overflow: auto; color: var(--text); font: 450 12.5px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; border: 1px solid var(--line); border-radius: 10.5px; background: var(--bg); }
   .rt-modal-loading { display: flex; align-items: center; gap: 8px; padding: 18px; color: var(--muted); font-size: 11px; }
   .rt-modal > footer { display: flex; justify-content: flex-end; gap: 6px; padding: 11px 16px; border-top: 1px solid var(--line); }
-  .rt-file-row { display: flex; align-items: center; gap: 9px; }
-  .rt-file-row > span { flex: 0 0 auto; width: 82px; color: var(--muted); font-size: 10.5px; }
-  .rt-file-row input[type='text'], .rt-file-row input:not([type]) { min-width: 0; flex: 1; height: 32px; padding: 0 9px; color: var(--text); font: 500 11.5px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); }
+  .rt-file-row { display: flex; align-items: center; gap: 10.5px; }
+  .rt-file-row > span { flex: 0 0 auto; width: 82px; color: var(--muted); font-size: 11.5px; }
+  .rt-file-row input[type='text'], .rt-file-row input:not([type]) { min-width: 0; flex: 1; height: 32px; padding: 0 10.5px; color: var(--text); font: 500 12.5px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); }
   .rt-file-row input:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .rt-file-row input[type='file'] { font-size: 10.5px; }
+  .rt-file-row input[type='file'] { font-size: 11.5px; }
   .rt-file-size { min-width: 0; flex: 1; overflow: hidden; color: var(--muted); font-size: 10.2px; text-overflow: ellipsis; white-space: nowrap; }
   .rt-transfer-status { margin: 0; color: var(--accent); font-size: 11px; }
-  .rt-file-note { color: var(--muted-2); font-size: 9.5px; line-height: 1.6; }
+  .rt-file-note { color: var(--muted-2); font-size: 11px; line-height: 1.6; }
   .rt-quick-wrap { position: relative; }
-  .rt-quick { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 250px; padding: 5px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
-  .rt-quick button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 9px; cursor: pointer; text-align: left; border: 0; border-radius: 6px; background: transparent; }
+  .rt-quick { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 250px; padding: 5px; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+  .rt-quick button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10.5px; cursor: pointer; text-align: left; border: 0; border-radius: 6px; background: transparent; }
   .rt-quick button:hover { background: var(--hover); }
   .rt-quick code { color: var(--text); font: 500 11px 'Cascadia Code', monospace; }
   .rt-quick small { color: var(--muted-2); font-size: 9.6px; }
