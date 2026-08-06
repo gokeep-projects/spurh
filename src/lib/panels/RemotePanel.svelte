@@ -7,6 +7,24 @@
   import TerminalView, { type RemoteSession } from './TerminalView.svelte';
 
   const STORAGE_KEY = 'spurh.remote.sessions.v1';
+  const TABS_KEY = 'spurh.remote.tabs.v1';
+
+  function loadTabs(): { openTabs: string[]; activeId: string } {
+    try {
+      const raw = localStorage.getItem(TABS_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return {
+        openTabs: Array.isArray(parsed.openTabs) ? parsed.openTabs.filter((x: unknown): x is string => typeof x === 'string') : [],
+        activeId: typeof parsed.activeId === 'string' ? parsed.activeId : '',
+      };
+    } catch {
+      return { openTabs: [], activeId: '' };
+    }
+  }
+
+  function saveTabs(): void {
+    localStorage.setItem(TABS_KEY, JSON.stringify({ openTabs, activeId }));
+  }
 
   // 旧版 localStorage 中可能残留的明文密码/口令，等待初始化时迁移到系统钥匙串
   let legacySecrets: Array<{ id: string; key: string; value: string }> = [];
@@ -46,6 +64,12 @@
       passphrase: (await getSecret('ssh.' + session.id + '.passphrase')) ?? '',
     })));
     sessions = hydrated;
+    // 恢复上次打开的标签页；过滤已删除的会话
+    openTabs = openTabs.filter((id) => sessions.some((session) => session.id === id));
+    if (activeId && !sessions.some((session) => session.id === activeId)) {
+      activeId = sessions[0]?.id ?? '';
+    }
+    saveTabs();
   }
 
   onMount(() => { migrateAndHydrateSecrets(); });
@@ -74,10 +98,11 @@
         (item.name + ' ' + item.host + ' ' + item.user + ' ' + item.port)
           .toLowerCase().includes(sessionQuery.trim().toLowerCase()))
     : sessions);
-  let activeId = $state(initialSessions[0]?.id ?? '');
+  const initialTabs = loadTabs();
+  let activeId = $state(initialTabs.activeId || (initialSessions[0]?.id ?? ''));
   let editing = $state(false);
   let draft = $state<RemoteSession | null>(null);
-  let openTabs = $state<string[]>([]);
+  let openTabs = $state<string[]>(initialTabs.openTabs);
   let nonceMap = $state<Record<string, number>>({});
   let statusMap = $state<Record<string, SessionState>>({});
   let busy = $state(false);
@@ -112,6 +137,7 @@
   function select(id: string): void {
     activeId = id;
     editing = false;
+    saveTabs();
   }
 
   const QUICK_COMMANDS = [
@@ -242,6 +268,7 @@
     delete statusMap[id];
     if (activeId === id) activeId = sessions[0]?.id ?? '';
     saveSessions(sessions);
+    saveTabs();
     if (editing && draft?.id === id) editing = false;
   }
 
@@ -271,12 +298,14 @@
       openTabs = [...openTabs, active.id];
       nonceMap = { ...nonceMap, [active.id]: 0 };
     }
+    saveTabs();
     statusMap = { ...statusMap, [active.id]: { status: 'connecting', message: '正在连接 ' + active.host + ':' + active.port + ' …' } };
   }
 
   function closeTab(id: string): void {
     invoke('ssh_close', { sessionId: id }).catch(() => undefined);
     openTabs = openTabs.filter((tabId) => tabId !== id);
+    saveTabs();
   }
 
   function handleTerminalState(id: string, state: SessionState): void {

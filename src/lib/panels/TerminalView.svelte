@@ -51,6 +51,19 @@
     return getComputedStyle(app).getPropertyValue(name).trim() || fallback;
   }
 
+  function currentTheme(): Record<string, string> {
+    return {
+      background: cssVar('--bg', '#080b0e'),
+      foreground: cssVar('--text', '#e4e9ef'),
+      cursor: cssVar('--accent', '#5ee8a5'),
+      selectionBackground: cssVar('--accent-soft', 'rgba(94,232,165,.3)'),
+      black: '#0b0f14', red: '#f5637a', green: '#5ee8a5', yellow: '#e6c36a', blue: '#5ec8f0',
+      magenta: '#d8a6ff', cyan: '#5fd7d4', white: '#d7dde3', brightBlack: '#7a8794',
+      brightRed: '#ff8fa0', brightGreen: '#8af0bd', brightYellow: '#f2d98f', brightBlue: '#8fd8f7',
+      brightMagenta: '#e6c0ff', brightCyan: '#8fe7e4', brightWhite: '#eef2f5',
+    };
+  }
+
   function toBase64(text: string): string {
     const bytes = new TextEncoder().encode(text);
     let binary = '';
@@ -174,16 +187,7 @@
       fontFamily: "'Cascadia Code', Consolas, 'Courier New', monospace",
       lineHeight: 1.3,
       scrollback: 6000,
-      theme: {
-        background: cssVar('--bg', '#080b0e'),
-        foreground: cssVar('--text', '#e4e9ef'),
-        cursor: cssVar('--accent', '#5ee8a5'),
-        selectionBackground: cssVar('--accent-soft', 'rgba(94,232,165,.3)'),
-        black: '#0b0f14', red: '#f5637a', green: '#5ee8a5', yellow: '#e6c36a', blue: '#5ec8f0',
-        magenta: '#d8a6ff', cyan: '#5fd7d4', white: '#d7dde3', brightBlack: '#7a8794',
-        brightRed: '#ff8fa0', brightGreen: '#8af0bd', brightYellow: '#f2d98f', brightBlue: '#8fd8f7',
-        brightMagenta: '#e6c0ff', brightCyan: '#8fe7e4', brightWhite: '#eef2f5',
-      },
+      theme: currentTheme(),
     });
     fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
@@ -196,9 +200,18 @@
     });
     const observer = new ResizeObserver(() => fit());
     observer.observe(wrapEl!);
+    // 应用主题切换（亮/暗/跟随系统）时同步终端配色
+    const appEl = document.querySelector('.app');
+    const themeObserver = new MutationObserver(() => {
+      if (term) term.options.theme = currentTheme();
+    });
+    if (appEl) {
+      themeObserver.observe(appEl, { attributes: true, attributeFilter: ['class'] });
+    }
     return () => {
       disposed = true;
       observer.disconnect();
+      themeObserver.disconnect();
       invoke('ssh_close', { sessionId: session.id }).catch(() => undefined);
       channel = undefined;
       term?.dispose();

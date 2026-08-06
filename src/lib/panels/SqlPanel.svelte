@@ -6,6 +6,7 @@
   import type { AiConfig } from '../ai';
   import { deleteSecret, getSecret, setSecret } from '../secrets';
   import { highlightSql } from '../sqlHighlight';
+  import { formatSql } from '../sqlFormat';
 
   let { aiConfig }: { aiConfig?: AiConfig | undefined } = $props();
 
@@ -1294,6 +1295,7 @@
                   </div>
                 {/if}
               </div>
+              <button class="sql-btn ghost" disabled={!sqlText} onclick={() => (sqlText = formatSql(sqlText))} title="格式化 SQL：关键字大写、从句换行">格式化</button>
               <button class="sql-btn ghost" disabled={!sqlText} onclick={() => (sqlText = '')}>清空</button>
               <button class="sql-btn ghost" onclick={() => copyText(sqlText, 'sql')}>{copiedKey === 'sql' ? '已复制 ✓' : '复制'}</button>
             </div>
