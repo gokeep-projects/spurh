@@ -1131,8 +1131,10 @@
         {#if activePluginId !== 'spurh.cron' && activePluginId !== 'spurh.crypto' && activePluginId !== 'spurh.regex'}
           <div class="control-spacer"></div>
         {/if}
-        <button class="ai-button" disabled={!activeSession.input.trim() || activeSession.aiProcessing} onclick={runAiProcessing}><span>{@html UI_ICONS.sparkle}</span>{activeSession.aiProcessing ? 'AI 中' : 'AI 处理'}</button>
-        <button class="quiet-button" onclick={clearActive}>清空</button>
+        {#if activePluginId !== 'spurh.cron' && activePluginId !== 'spurh.crypto' && activePluginId !== 'spurh.regex'}
+          <button class="ai-button" disabled={!activeSession.input.trim() || activeSession.aiProcessing} onclick={runAiProcessing}><span>{@html UI_ICONS.sparkle}</span>{activeSession.aiProcessing ? 'AI 中' : 'AI 处理'}</button>
+          <button class="quiet-button" onclick={clearActive}>清空</button>
+        {/if}
         </div>
         <div class="editor-grid" class:single={hideInputPane}>
         {#if !hideInputPane}

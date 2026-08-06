@@ -144,13 +144,6 @@
     {#if sampleError}<small class="sample-error">{sampleError}</small>{/if}
   </div>
 
-  <div class="regex-presets">
-    <span>常用</span>
-    {#each PRESETS as preset}
-      <button title={preset.pattern} onclick={() => applyPreset(preset)}>{preset.label}</button>
-    {/each}
-  </div>
-
   <div class="regex-actions">
     <button class="primary" class:active={session.actionId === 'test'} onclick={() => onChangeAction('test')}>测试匹配</button>
     <button class:active={session.actionId === 'replace'} onclick={() => onChangeAction('replace')}>替换</button>

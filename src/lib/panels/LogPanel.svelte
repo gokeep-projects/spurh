@@ -138,7 +138,7 @@
     <div class="log-status">
       {#if analyzing}<span class="spinner"></span>分析中…
       {:else if analysis}<span class="log-status-dot ok"></span>{total} 条已解析
-      {:else}<span class="log-status-dot"></span>就绪{/if}
+      {:else}<span class="log-status-dot"></span>等待日志{/if}
     </div>
   </header>
 
