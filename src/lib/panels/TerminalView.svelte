@@ -83,6 +83,7 @@
   async function connect(): Promise<void> {
     if (!term || connected || connecting || disposed) return;
     connecting = true;
+    onState(session.id, { status: 'connecting', message: '正在连接 ' + session.host + ':' + session.port + ' …' });
     channel = new Channel<SshEvent>();
     channel.onmessage = (event) => {
       if (event.kind === 'ready') {

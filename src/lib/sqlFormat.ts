@@ -128,6 +128,15 @@ export function formatSql(input: string): string {
       while (out.length > 0 && /\s$/.test(out[out.length - 1])) out.pop();
       out.push(',');
       pendingSpace = true;
+    } else if (ch === '(') {
+      push(ch); // 左括号：前留空格、后不留
+    } else if (ch === ')') {
+      while (out.length > 0 && /\s$/.test(out[out.length - 1])) out.pop();
+      out.push(')');
+      pendingSpace = true;
+    } else if ('=<>!+-*/%'.includes(ch)) {
+      push(ch);
+      pendingSpace = true; // 二元操作符两侧留空格
     } else {
       push(ch);
     }
