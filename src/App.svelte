@@ -1,20 +1,15 @@
 ﻿<script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
-  import { onMount } from 'svelte';
-  import { AI_PRESETS, createAiProfile, fetchAiModels, isAiConfigured, loadAiProfileStore, processWithAi, saveAiProfileStore, testAiConnection, type AiModel, type AiProfile } from './lib/ai';
+  import { onMount, type Component } from 'svelte';
+  import { AI_PRESETS, createAiProfile, deleteProfileSecret, fetchAiModels, flushLegacyAiSecrets, hydrateAiSecrets, isAiConfigured, loadAiProfileStore, processWithAi, saveAiProfileStore, saveProfileSecret, testAiConnection, type AiModel, type AiProfile } from './lib/ai';
   import { PROVIDER_NAMES, providerIcon } from './lib/providerIcons';
   import { BRAND_MARK, TOOL_ICONS, UI_ICONS, iconHtml } from './lib/icons';
   import { highlightCode } from './lib/highlight';
   import ResultView from './lib/components/ResultView.svelte';
   import CronPanel from './lib/panels/CronPanel.svelte';
   import CryptoPanel from './lib/panels/CryptoPanel.svelte';
-  import LogPanel from './lib/panels/LogPanel.svelte';
   import RegexPanel from './lib/panels/RegexPanel.svelte';
-  import SqlPanel from './lib/panels/SqlPanel.svelte';
-  import NetworkPanel from './lib/panels/NetworkPanel.svelte';
-  import ClipboardPanel from './lib/panels/ClipboardPanel.svelte';
-  import RemotePanel from './lib/panels/RemotePanel.svelte';
   import { runtime, type PluginResult } from './lib/plugins';
 
   type ToolSession = {
@@ -181,6 +176,38 @@
     && `${plugin.name} ${plugin.description}`.toLowerCase().includes(toolSearch.toLowerCase()),
   ));
   let aiConfig = $derived(aiStore.profiles.find((profile) => profile.id === aiStore.activeId));
+
+  /* ── 重型面板按需懒加载：首屏不打包 SQL/SSH/网络等大模块 ── */
+  type LazyPanelModule = { default: Component };
+  const PANEL_LOADERS: Record<string, () => Promise<LazyPanelModule>> = {
+    'spurh.network': () => import('./lib/panels/NetworkPanel.svelte') as Promise<LazyPanelModule>,
+    'spurh.log': () => import('./lib/panels/LogPanel.svelte') as Promise<LazyPanelModule>,
+    'spurh.clipboard': () => import('./lib/panels/ClipboardPanel.svelte') as Promise<LazyPanelModule>,
+    'spurh.remote': () => import('./lib/panels/RemotePanel.svelte') as Promise<LazyPanelModule>,
+    'spurh.sql': () => import('./lib/panels/SqlPanel.svelte') as Promise<LazyPanelModule>,
+  };
+  let lazyPanel = $state<Component | null>(null);
+  let lazyPanelLoading = $state(false);
+  const lazyPanelProps = $derived<Record<string, unknown>>(
+    activePluginId === 'spurh.clipboard'
+      ? { onChangeInput: fillFromClipboard }
+      : activePluginId === 'spurh.sql'
+        ? { aiConfig }
+        : {},
+  );
+
+  $effect(() => {
+    const loader = PANEL_LOADERS[activePluginId];
+    if (!loader) { lazyPanel = null; lazyPanelLoading = false; return; }
+    let cancelled = false;
+    lazyPanel = null;
+    lazyPanelLoading = true;
+    loader()
+      .then((module) => { if (!cancelled) lazyPanel = module.default; })
+      .catch(() => undefined)
+      .finally(() => { if (!cancelled) lazyPanelLoading = false; });
+    return () => { cancelled = true; };
+  });
   let lightMode = $derived(appSettings.theme === 'light'
     || (appSettings.theme === 'system' && !window.matchMedia('(prefers-color-scheme: dark)').matches));
   let anyAiProcessing = $derived(plugins.some((p) => sessions[p.id].aiProcessing));
@@ -204,8 +231,8 @@
     // 结果状态实时写入窗口标题（原生标题栏，任何渲染问题都无法遮挡）
     const result = currentSessionResult();
     const next = result
-      ? `Spurh · dev-20260806 · 结果: ${(result.summary || '有结果').slice(0, 24)} · ${result.output?.length ?? 0}字符`
-      : 'Spurh · dev-20260806 · 结果: 无';
+      ? `Spurh · ${__BUILD_DATE__} · 结果: ${(result.summary || '有结果').slice(0, 24)} · ${result.output?.length ?? 0}字符`
+      : `Spurh · ${__BUILD_DATE__} · 结果: 无`;
     if (document.title !== next) document.title = next;
   });
 
@@ -254,11 +281,18 @@
       }
     }).catch(() => undefined);
 
+    // AI 配置的 API Key 从系统钥匙串异步加载（旧明文数据会在 load 时进入迁移队列）
+    flushLegacyAiSecrets()
+      .then(() => hydrateAiSecrets(aiStore))
+      .then((store) => { aiStore = store; })
+      .catch(() => undefined);
+
     setTimeout(() => scheduleProcess('spurh.json', 200), 100);
     const systemTimer = setTimeout(() => {
       invoke<boolean>('get_autostart').then((enabled) => (autostartEnabled = enabled)).catch(() => undefined);
       invoke<boolean>('get_context_menu_enabled').then((enabled) => (contextMenuEnabled = enabled)).catch(() => undefined);
       invoke('set_tray_enabled', { enabled: appSettings.trayEnabled }).catch(() => undefined);
+      invoke('set_clipboard_watch', { enabled: appSettings.clipboardWatch }).catch(() => undefined);
     }, 800);
     // 剪贴板历史：初始快照 + 实时事件
     invoke<ClipItem[]>('clipboard_history').then((snapshot) => { clipItems = snapshot; }).catch(() => undefined);
@@ -288,7 +322,7 @@
     });
     window.addEventListener('paste', handleGlobalPaste);
     // 可见版本标识：窗口标题带构建日期，用于确认当前运行的是最新代码
-    document.title = 'Spurh · dev-20260806';
+    document.title = `Spurh · ${__BUILD_DATE__}`;
     const onFrontendError = (event: ErrorEvent | PromiseRejectionEvent): void => {
       const message = event instanceof PromiseRejectionEvent
         ? `unhandledrejection: ${event.reason instanceof Error ? event.reason.message : String(event.reason)}`
@@ -615,6 +649,7 @@
     }
     resetDeleteConfirm();
     const profiles = aiStore.profiles.filter((profile) => profile.id !== aiDraft.id);
+    deleteProfileSecret(aiDraft.id);
     const activeId = aiStore.activeId === aiDraft.id ? profiles[0]?.id ?? '' : aiStore.activeId;
     aiStore = { profiles, activeId }; saveAiProfileStore(aiStore);
     aiDraft = profiles.find((profile) => profile.id === activeId) ?? createAiProfile();
@@ -659,6 +694,13 @@
     finally { settingsBusy = ''; }
   }
 
+  async function changeClipboardWatch(enabled: boolean): Promise<void> {
+    settingsBusy = 'clipboard'; settingsError = '';
+    try { await invoke('set_clipboard_watch', { enabled }); saveAppSettings({ clipboardWatch: enabled }); }
+    catch (cause) { settingsError = cause instanceof Error ? cause.message : String(cause); }
+    finally { settingsBusy = ''; }
+  }
+
   async function loadRemoteModels(): Promise<void> {
     modelListLoading = true; aiTestStatus = 'idle'; aiTestMessage = '';
     try {
@@ -680,7 +722,9 @@
     const profile: AiProfile = { ...aiDraft, name: aiDraft.name.trim() || aiDraft.model.trim() || '未命名模型', endpoint: aiDraft.endpoint.trim().replace(/\/$/, ''), model: aiDraft.model.trim() };
     const exists = aiStore.profiles.some((item) => item.id === profile.id);
     const profiles = exists ? aiStore.profiles.map((item) => item.id === profile.id ? profile : item) : [...aiStore.profiles, profile];
-    aiStore = { profiles, activeId: profile.id }; saveAiProfileStore(aiStore); settingsNotice = ''; aiDraft = { ...profile };
+    aiStore = { profiles, activeId: profile.id };
+    saveProfileSecret(profile); // API Key 写入系统钥匙串，localStorage 只存非敏感字段
+    saveAiProfileStore(aiStore); settingsNotice = ''; aiDraft = { ...profile };
     aiTestMessage = '配置已保存'; aiTestStatus = 'success';
   }
 
@@ -1051,16 +1095,13 @@
         </div>
       </div>
 
-      {#if activePluginId === 'spurh.network'}
-        <NetworkPanel />
-      {:else if activePluginId === 'spurh.log'}
-        <LogPanel />
-      {:else if activePluginId === 'spurh.clipboard'}
-        <ClipboardPanel onChangeInput={fillFromClipboard} />
-      {:else if activePluginId === 'spurh.remote'}
-        <RemotePanel />
-      {:else if activePluginId === 'spurh.sql'}
-        <SqlPanel aiConfig={aiConfig} />
+      {#if activePluginId === 'spurh.network' || activePluginId === 'spurh.log' || activePluginId === 'spurh.clipboard' || activePluginId === 'spurh.remote' || activePluginId === 'spurh.sql'}
+        {#if lazyPanel}
+          {@const Panel = lazyPanel}
+          <Panel {...lazyPanelProps} />
+        {:else}
+          <div class="panel-loading"><span class="spinner"></span>正在加载工具…</div>
+        {/if}
       {:else}
         <div class="tool-controls">
         {#if activePluginId === 'spurh.cron'}
@@ -1259,6 +1300,7 @@
               <label class="setting-row"><div class="setting-copy"><b>开机启动</b></div><input type="checkbox" checked={autostartEnabled} disabled={settingsBusy === 'autostart'} onchange={(event) => changeAutostart(event.currentTarget.checked)} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>系统托盘</b></div><input type="checkbox" checked={appSettings.trayEnabled} disabled={settingsBusy === 'tray'} onchange={(event) => changeTray(event.currentTarget.checked)} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>系统右键菜单</b><small>在资源管理器中“用 Spurh 打开”</small></div><input type="checkbox" checked={contextMenuEnabled} disabled={settingsBusy === 'contextMenu'} onchange={(event) => changeContextMenu(event.currentTarget.checked)} /><i></i></label>
+              <label class="setting-row"><div class="setting-copy"><b>剪贴板历史</b><small>自动记录复制的文本（含密码等敏感内容，注意隐私）</small></div><input type="checkbox" checked={appSettings.clipboardWatch} disabled={settingsBusy === 'clipboard'} onchange={(event) => changeClipboardWatch(event.currentTarget.checked)} /><i></i></label>
               {#if settingsError}<div class="settings-error">{settingsError}</div>{/if}
             {:else if settingsTab === 'ai'}
               <div class="settings-section-title model-title"><div><h3>AI 模型</h3></div><button onclick={addAiProfile}><span>{@html UI_ICONS.plus}</span>添加</button></div>

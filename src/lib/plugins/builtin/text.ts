@@ -19,15 +19,21 @@ function wrapText(input: string, width: number): string {
 }
 
 function unescapeText(input: string): string {
-  return input
-    .replace(/\\u([0-9a-fA-F]{4})/g, (_, value: string) => String.fromCharCode(Number.parseInt(value, 16)))
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t')
-    .replace(/\\b/g, '\b')
-    .replace(/\\f/g, '\f')
-    .replace(/\\"/g, '"')
-    .replace(/\\\\/g, '\\');
+  // 单遍解析：从左到右匹配反斜杠转义。\\（字面反斜杠）与 \uXXXX 与其它转义
+  // 在同一遍完成，因此 \\n / \\uXXXX 会先匹配为「字面反斜杠 + n/XXXX」，
+  // 不会被误还原为换行或 Unicode 字符（修复 Windows 路径被破坏的问题）。
+  return input.replace(/\\(?:u([0-9a-fA-F]{4})|([\\nrtbf"'/]))/g, (_, unicode: string, simple: string) => {
+    if (unicode !== undefined) return String.fromCharCode(Number.parseInt(unicode, 16));
+    switch (simple) {
+      case '\\': return '\\';
+      case 'n': return '\n';
+      case 'r': return '\r';
+      case 't': return '\t';
+      case 'b': return '\b';
+      case 'f': return '\f';
+      default: return simple;
+    }
+  });
 }
 
 function splitWords(input: string): string[] {
@@ -81,6 +87,7 @@ export const textPlugin: SpurhPlugin = {
     return null;
   },
   execute(actionId, input, options = {}): PluginResult {
+    if (input.length > 10_000_000) throw new Error('输入过大（超过 1000 万字符），请分片处理');
     const content = input.replace(/^text:\s*/i, '');
     if (actionId === 'stats') {
       const stats = {

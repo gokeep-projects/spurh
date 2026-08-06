@@ -1,4 +1,5 @@
 // SQL 工具：MySQL / SQLite / PostgreSQL 查询与测试
+use postgres::fallible_iterator::FallibleIterator;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -18,6 +19,9 @@ pub struct SqlProfile {
     pub password: Option<String>,
     pub database: Option<String>,
     pub file: Option<String>,
+    /// 使用 TLS 加密连接（PostgreSQL: require；MySQL: 默认 CA 校验）
+    #[serde(default)]
+    pub ssl: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -44,9 +48,7 @@ fn first_keyword(sql: &str) -> String {
     for ch in sql.chars() {
         if ch.is_ascii_alphabetic() {
             keyword.push(ch.to_ascii_uppercase());
-        } else if !keyword.is_empty() {
-            break;
-        } else if !ch.is_whitespace() && ch != '(' && ch != ';' {
+        } else if !keyword.is_empty() || (!ch.is_whitespace() && ch != '(' && ch != ';') {
             break;
         }
     }
@@ -83,43 +85,38 @@ fn mysql_value_to_json(value: mysql::Value) -> Value {
 
 fn mysql_exec(profile: &SqlProfile, sql: &str, max_rows: usize) -> Result<SqlExecResult, String> {
     use mysql::prelude::*;
-    let opts = mysql::OptsBuilder::new()
-        .ip_or_hostname(Some(profile.host.trim()))
-        .tcp_port(profile.port.unwrap_or(3306))
-        .user(Some(profile.user.clone().unwrap_or_default()))
-        .pass(Some(profile.password.clone().unwrap_or_default()))
-        .db_name(profile.database.clone());
-    let mut conn = mysql::Conn::new(opts).map_err(|error| format!("连接 MySQL 失败：{error}"))?;
-    let started = Instant::now();
-    let query = is_query_sql(sql);
-    let mut result = conn
-        .query_iter(sql)
-        .map_err(|error| format!("SQL 执行失败：{error}"))?;
-    let columns = result
-        .columns()
-        .as_ref()
-        .iter()
-        .map(|column| column.name_str().to_string())
-        .collect::<Vec<_>>();
-    let mut rows = Vec::new();
-    let mut truncated = false;
-    for row in result.by_ref() {
-        let row = row.map_err(|error| format!("读取结果失败：{error}"))?;
-        rows.push(row.unwrap().into_iter().map(mysql_value_to_json).collect::<Vec<_>>());
-        if rows.len() >= max_rows {
-            truncated = true;
-            break;
+    with_mysql(profile, None, |conn| {
+        let started = Instant::now();
+        let query = is_query_sql(sql);
+        let mut result = conn
+            .query_iter(sql)
+            .map_err(|error| format!("SQL 执行失败：{error}"))?;
+        let columns = result
+            .columns()
+            .as_ref()
+            .iter()
+            .map(|column| column.name_str().to_string())
+            .collect::<Vec<_>>();
+        let mut rows = Vec::new();
+        let mut truncated = false;
+        for row in result.by_ref() {
+            let row = row.map_err(|error| format!("读取结果失败：{error}"))?;
+            rows.push(row.unwrap().into_iter().map(mysql_value_to_json).collect::<Vec<_>>());
+            if rows.len() >= max_rows {
+                truncated = true;
+                break;
+            }
         }
-    }
-    drop(result);
-    let affected = conn.affected_rows();
-    Ok(SqlExecResult {
-        columns,
-        rows,
-        affected,
-        elapsed_ms: started.elapsed().as_millis() as u64,
-        truncated,
-        is_query: query,
+        drop(result);
+        let affected = conn.affected_rows();
+        Ok(SqlExecResult {
+            columns,
+            rows,
+            affected,
+            elapsed_ms: started.elapsed().as_millis() as u64,
+            truncated,
+            is_query: query,
+        })
     })
 }
 
@@ -135,6 +132,16 @@ fn sqlite_value_to_json(value: rusqlite::types::Value) -> Value {
 
 fn sqlite_exec(profile: &SqlProfile, sql: &str, max_rows: usize) -> Result<SqlExecResult, String> {
     let conn = sqlite_take(profile)?;
+    sqlite_exec_on(conn, profile, sql, max_rows)
+}
+
+/// 在已取出的 SQLite 连接上执行；连接由调用方管理（取走后必须由本函数归还缓存）。
+fn sqlite_exec_on(
+    conn: rusqlite::Connection,
+    profile: &SqlProfile,
+    sql: &str,
+    max_rows: usize,
+) -> Result<SqlExecResult, String> {
     let started = Instant::now();
     if is_query_sql(sql) {
         let mut stmt = conn.prepare(sql).map_err(|error| format!("SQL 解析失败：{error}"))?;
@@ -166,15 +173,15 @@ fn sqlite_exec(profile: &SqlProfile, sql: &str, max_rows: usize) -> Result<SqlEx
             is_query: true,
         };
         sqlite_put(profile, conn);
-        return Ok(result);
+        Ok(result)
     } else {
-        let affected = conn
-            .execute(sql, [])
+        // execute_batch 支持多语句脚本（dump/迁移文件），affected 取累计变更行数
+        conn.execute_batch(sql)
             .map_err(|error| format!("SQL 执行失败：{error}"))?;
         let result = SqlExecResult {
             columns: Vec::new(),
             rows: Vec::new(),
-            affected: affected as u64,
+            affected: conn.total_changes(),
             elapsed_ms: started.elapsed().as_millis() as u64,
             truncated: false,
             is_query: false,
@@ -204,56 +211,55 @@ fn pg_cell(row: &postgres::Row, index: usize) -> Value {
 }
 
 fn pg_exec(profile: &SqlProfile, sql: &str, max_rows: usize) -> Result<SqlExecResult, String> {
-    let mut config = postgres::Config::new();
-    config.host(profile.host.trim());
-    config.port(profile.port.unwrap_or(5432));
-    config.user(profile.user.as_deref().unwrap_or_default());
-    config.password(profile.password.as_deref().unwrap_or_default());
-    if let Some(database) = profile.database.as_deref().filter(|name| !name.trim().is_empty()) {
-        config.dbname(database);
-    }
-    let mut client = config
-        .connect(postgres::NoTls)
-        .map_err(|error| format!("连接 PostgreSQL 失败：{error}"))?;
-    let started = Instant::now();
-    if is_query_sql(sql) {
-        let rows = client
-            .query(sql, &[])
-            .map_err(|error| format!("SQL 执行失败：{error}"))?;
-        let columns = rows
-            .first()
-            .map(|row| row.columns().iter().map(|column| column.name().to_string()).collect::<Vec<_>>())
-            .unwrap_or_default();
-        let mut out = Vec::new();
-        let mut truncated = false;
-        for row in rows {
-            out.push((0..columns.len()).map(|index| pg_cell(&row, index)).collect::<Vec<_>>());
-            if out.len() >= max_rows {
-                truncated = true;
-                break;
+    with_pg(profile, None, |client| {
+        let started = Instant::now();
+        if is_query_sql(sql) {
+            // query_raw 流式读取：达到 MAX_ROWS 即停止，避免大表全量载入内存
+            let mut rows_iter = client
+                .query_raw(sql, std::iter::empty::<&(dyn postgres::types::ToSql + Sync)>())
+                .map_err(|error| format!("SQL 执行失败：{error}"))?;
+            let mut out = Vec::new();
+            let mut truncated = false;
+            let mut columns: Vec<String> = Vec::new();
+            while let Some(row) = rows_iter
+                .next()
+                .map_err(|error| format!("读取结果失败：{error}"))?
+            {
+                if columns.is_empty() {
+                    columns = row
+                        .columns()
+                        .iter()
+                        .map(|column| column.name().to_string())
+                        .collect::<Vec<_>>();
+                }
+                out.push((0..columns.len()).map(|index| pg_cell(&row, index)).collect::<Vec<_>>());
+                if out.len() >= max_rows {
+                    truncated = true;
+                    break;
+                }
             }
+            Ok(SqlExecResult {
+                columns,
+                rows: out,
+                affected: 0,
+                elapsed_ms: started.elapsed().as_millis() as u64,
+                truncated,
+                is_query: true,
+            })
+        } else {
+            let affected = client
+                .execute(sql, &[])
+                .map_err(|error| format!("SQL 执行失败：{error}"))?;
+            Ok(SqlExecResult {
+                columns: Vec::new(),
+                rows: Vec::new(),
+                affected,
+                elapsed_ms: started.elapsed().as_millis() as u64,
+                truncated: false,
+                is_query: false,
+            })
         }
-        Ok(SqlExecResult {
-            columns,
-            rows: out,
-            affected: 0,
-            elapsed_ms: started.elapsed().as_millis() as u64,
-            truncated,
-            is_query: true,
-        })
-    } else {
-        let affected = client
-            .execute(sql, &[])
-            .map_err(|error| format!("SQL 执行失败：{error}"))?;
-        Ok(SqlExecResult {
-            columns: Vec::new(),
-            rows: Vec::new(),
-            affected: affected as u64,
-            elapsed_ms: started.elapsed().as_millis() as u64,
-            truncated: false,
-            is_query: false,
-        })
-    }
+    })
 }
 
 fn run_sql(profile: &SqlProfile, sql: &str) -> Result<SqlExecResult, String> {
@@ -270,13 +276,7 @@ fn run_test(profile: &SqlProfile) -> Result<SqlTestResult, String> {
     let version = match profile.kind.as_str() {
         "mysql" => {
             use mysql::prelude::*;
-            let opts = mysql::OptsBuilder::new()
-                .ip_or_hostname(Some(profile.host.trim()))
-                .tcp_port(profile.port.unwrap_or(3306))
-                .user(Some(profile.user.clone().unwrap_or_default()))
-                .pass(Some(profile.password.clone().unwrap_or_default()))
-                .db_name(profile.database.clone());
-            let mut conn = mysql::Conn::new(opts).map_err(|error| format!("连接 MySQL 失败：{error}"))?;
+            let mut conn = mysql_conn_with(profile, None, |opts| opts)?;
             let value: Option<String> = conn.query_first("SELECT VERSION()").map_err(|error| format!("查询版本失败：{error}"))?;
             value.unwrap_or_else(|| "未知".into())
         }
@@ -295,7 +295,7 @@ fn run_test(profile: &SqlProfile) -> Result<SqlTestResult, String> {
             if let Some(database) = profile.database.as_deref().filter(|name| !name.trim().is_empty()) {
                 config.dbname(database);
             }
-            let mut client = config.connect(postgres::NoTls).map_err(|error| format!("连接 PostgreSQL 失败：{error}"))?;
+            let mut client = pg_connect(&mut config, profile.ssl)?;
             let row = client.query_one("SELECT version()", &[]).map_err(|error| format!("查询版本失败：{error}"))?;
             row.try_get::<_, String>(0).unwrap_or_else(|_| "未知".into())
         }
@@ -322,6 +322,20 @@ pub async fn sql_execute(profile: SqlProfile, sql: String) -> Result<SqlExecResu
     let sql = sql.trim().to_string();
     if sql.is_empty() {
         return Err("SQL 不能为空".into());
+    }
+    // SQLite：通过 interrupt_handle 真正取消超时查询，避免后台任务堆积/连接错乱
+    if profile.kind == "sqlite" {
+        let conn = sqlite_take(&profile)?;
+        let interrupt = conn.get_interrupt_handle();
+        let task = tauri::async_runtime::spawn_blocking(move || sqlite_exec_on(conn, &profile, &sql, MAX_ROWS));
+        return match tokio::time::timeout(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS), task).await {
+            Ok(joined) => joined.map_err(|error| format!("数据库任务失败：{error}"))?,
+            Err(_) => {
+                // 真正中断底层 SQLite 查询：任务随即结束并把连接归还缓存
+                interrupt.interrupt();
+                Err(format!("SQL 执行超过 {QUERY_TIMEOUT_SECS} 秒，已中断查询"))
+            }
+        };
     }
     let task = tauri::async_runtime::spawn_blocking(move || run_sql(&profile, &sql));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS), task)
@@ -388,9 +402,12 @@ pub struct SqlColumnChange {
 }
 
 
-/* ── SQLite 连接缓存：保证 :memory: 与临时库跨命令持久 ── */
+/* ── 连接缓存：SQLite 保证 :memory:/临时库跨命令持久；MySQL/PostgreSQL 复用连接，
+   让「已连接」状态真实对应一个可复用连接（临时表/事务/会话变量可跨命令保持） ── */
 enum CachedSqlConn {
     Sqlite(rusqlite::Connection),
+    Mysql(mysql::Conn),
+    Pg(postgres::Client),
 }
 
 fn conn_cache() -> &'static Mutex<HashMap<String, CachedSqlConn>> {
@@ -398,29 +415,99 @@ fn conn_cache() -> &'static Mutex<HashMap<String, CachedSqlConn>> {
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn sqlite_cache_key(profile: &SqlProfile) -> String {
-    format!("{}|{}", profile.kind, profile.file.as_deref().unwrap_or(""))
+/// 连接缓存 key 必须包含「实际生效的数据库」：命令级 database 优先于 profile.database，
+/// 否则切换数据库时会错误复用上一个库的连接。
+fn sql_cache_key(profile: &SqlProfile, database: Option<&str>) -> String {
+    let database = database.or(profile.database.as_deref()).unwrap_or("");
+    match profile.kind.as_str() {
+        "sqlite" => format!("sqlite|{}", profile.file.as_deref().unwrap_or("")),
+        "mysql" => format!(
+            "mysql|{}|{}|{}|{}|{}",
+            profile.host.trim(),
+            profile.port.unwrap_or(3306),
+            profile.user.as_deref().unwrap_or(""),
+            database,
+            profile.ssl
+        ),
+        "postgres" => format!(
+            "postgres|{}|{}|{}|{}|{}",
+            profile.host.trim(),
+            profile.port.unwrap_or(5432),
+            profile.user.as_deref().unwrap_or(""),
+            database,
+            profile.ssl
+        ),
+        other => other.to_string(),
+    }
+}
+
+/// 从缓存取出连接（不存在或类型不符返回 None）。
+fn conn_take(profile: &SqlProfile, database: Option<&str>) -> Option<CachedSqlConn> {
+    let key = sql_cache_key(profile, database);
+    conn_cache().lock().ok()?.remove(&key)
+}
+
+/// 成功使用后归还连接；失败路径应直接 drop，避免复用坏连接。
+fn conn_put(profile: &SqlProfile, database: Option<&str>, conn: CachedSqlConn) {
+    if let Ok(mut cache) = conn_cache().lock() {
+        cache.insert(sql_cache_key(profile, database), conn);
+    }
 }
 
 fn sqlite_take(profile: &SqlProfile) -> Result<rusqlite::Connection, String> {
-    let key = sqlite_cache_key(profile);
-    let mut cache = conn_cache().lock().map_err(|_| "连接缓存不可用".to_string())?;
-    if let Some(conn) = cache.remove(&key) {
-        let CachedSqlConn::Sqlite(conn) = conn;
-        return Ok(conn);
+    match conn_take(profile, None) {
+        Some(CachedSqlConn::Sqlite(conn)) => Ok(conn),
+        _ => sqlite_conn(profile),
     }
-    sqlite_conn(profile)
 }
 
 fn sqlite_put(profile: &SqlProfile, conn: rusqlite::Connection) {
-    if let Ok(mut cache) = conn_cache().lock() {
-        cache.insert(sqlite_cache_key(profile), CachedSqlConn::Sqlite(conn));
+    conn_put(profile, None, CachedSqlConn::Sqlite(conn));
+}
+
+/// MySQL：优先复用缓存连接；成功归还，失败丢弃。
+fn with_mysql<T>(
+    profile: &SqlProfile,
+    database: Option<&str>,
+    f: impl FnOnce(&mut mysql::Conn) -> Result<T, String>,
+) -> Result<T, String> {
+    let mut conn = match conn_take(profile, database) {
+        Some(CachedSqlConn::Mysql(conn)) => conn,
+        _ => open_mysql(profile, database)?,
+    };
+    let result = f(&mut conn);
+    match result {
+        Ok(value) => {
+            conn_put(profile, database, CachedSqlConn::Mysql(conn));
+            Ok(value)
+        }
+        Err(error) => {
+            drop(conn);
+            Err(error)
+        }
     }
 }
 
-fn sqlite_drop(profile: &SqlProfile) {
-    if let Ok(mut cache) = conn_cache().lock() {
-        cache.remove(&sqlite_cache_key(profile));
+/// PostgreSQL：优先复用缓存连接；成功归还，失败丢弃。
+fn with_pg<T>(
+    profile: &SqlProfile,
+    database: Option<&str>,
+    f: impl FnOnce(&mut postgres::Client) -> Result<T, String>,
+) -> Result<T, String> {
+    let mut client = match conn_take(profile, database) {
+        Some(CachedSqlConn::Pg(client)) => client,
+        _ => pg_client(profile, database)?,
+    };
+    let result = f(&mut client);
+    match result {
+        Ok(value) => {
+            conn_put(profile, database, CachedSqlConn::Pg(client));
+            Ok(value)
+        }
+        Err(error) => {
+            drop(client);
+            Err(error)
+        }
     }
 }
 
@@ -431,17 +518,46 @@ fn quote_ident(kind: &str, name: &str) -> String {
     }
 }
 
-fn open_mysql(profile: &SqlProfile, database: Option<&str>) -> Result<mysql::Conn, String> {
-    let opts = mysql::OptsBuilder::new()
+fn mysql_conn_with(
+    profile: &SqlProfile,
+    database: Option<&str>,
+    extra: impl FnOnce(mysql::OptsBuilder) -> mysql::OptsBuilder,
+) -> Result<mysql::Conn, String> {
+    let mut opts = mysql::OptsBuilder::new()
         .ip_or_hostname(Some(profile.host.trim()))
         .tcp_port(profile.port.unwrap_or(3306))
         .user(Some(profile.user.clone().unwrap_or_default()))
         .pass(Some(profile.password.clone().unwrap_or_default()))
-        .db_name(database.or(profile.database.as_deref()).map(|name| name.to_string()))
-        .tcp_connect_timeout(Some(std::time::Duration::from_secs(10)))
-        .read_timeout(Some(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS)))
-        .write_timeout(Some(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS)));
+        .db_name(database.or(profile.database.as_deref()).map(|name| name.to_string()));
+    if profile.ssl {
+        opts = opts.ssl_opts(mysql::SslOpts::default());
+    }
+    let opts = extra(opts);
     mysql::Conn::new(opts).map_err(|error| format!("连接 MySQL 失败：{error}"))
+}
+
+fn pg_connect(config: &mut postgres::Config, ssl: bool) -> Result<postgres::Client, String> {
+    if ssl {
+        let connector = postgres_native_tls::MakeTlsConnector::new(
+            native_tls::TlsConnector::new().map_err(|error| format!("创建 TLS 连接器失败：{error}"))?,
+        );
+        config.ssl_mode(postgres::config::SslMode::Require);
+        config
+            .connect(connector)
+            .map_err(|error| format!("连接 PostgreSQL 失败：{error}"))
+    } else {
+        config
+            .connect(postgres::NoTls)
+            .map_err(|error| format!("连接 PostgreSQL 失败：{error}"))
+    }
+}
+
+fn open_mysql(profile: &SqlProfile, database: Option<&str>) -> Result<mysql::Conn, String> {
+    mysql_conn_with(profile, database, |opts| {
+        opts.tcp_connect_timeout(Some(std::time::Duration::from_secs(10)))
+            .read_timeout(Some(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS)))
+            .write_timeout(Some(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS)))
+    })
 }
 
 fn pg_client(profile: &SqlProfile, database: Option<&str>) -> Result<postgres::Client, String> {
@@ -453,7 +569,7 @@ fn pg_client(profile: &SqlProfile, database: Option<&str>) -> Result<postgres::C
     let name = database.or(profile.database.as_deref()).filter(|name| !name.trim().is_empty()).unwrap_or("postgres");
     config.dbname(name);
     config.connect_timeout(std::time::Duration::from_secs(10));
-    config.connect(postgres::NoTls).map_err(|error| format!("连接 PostgreSQL 失败：{error}"))
+    pg_connect(&mut config, profile.ssl)
 }
 
 fn sqlite_conn(profile: &SqlProfile) -> Result<rusqlite::Connection, String> {
@@ -465,16 +581,18 @@ fn run_databases(profile: &SqlProfile) -> Result<Vec<String>, String> {
     match profile.kind.as_str() {
         "mysql" => {
             use mysql::prelude::*;
-            let mut conn = open_mysql(profile, None)?;
-            let names: Vec<String> = conn.query("SHOW DATABASES").map_err(|error| format!("查询数据库列表失败：{error}"))?;
-            Ok(names)
+            with_mysql(profile, None, |conn| {
+                let names: Vec<String> = conn.query("SHOW DATABASES").map_err(|error| format!("查询数据库列表失败：{error}"))?;
+                Ok(names)
+            })
         }
         "postgres" => {
-            let mut client = pg_client(profile, None)?;
-            let rows = client
-                .query("SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname", &[])
-                .map_err(|error| format!("查询数据库列表失败：{error}"))?;
-            Ok(rows.iter().map(|row| row.get::<_, String>(0)).collect())
+            with_pg(profile, None, |client| {
+                let rows = client
+                    .query("SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname", &[])
+                    .map_err(|error| format!("查询数据库列表失败：{error}"))?;
+                Ok(rows.iter().map(|row| row.get::<_, String>(0)).collect())
+            })
         }
         "sqlite" => {
             let _ = sqlite_conn(profile)?;
@@ -491,24 +609,26 @@ fn run_tables(profile: &SqlProfile, database: String) -> Result<Vec<SqlTableInfo
     match profile.kind.as_str() {
         "mysql" => {
             use mysql::prelude::*;
-            let mut conn = open_mysql(profile, Some(&database))?;
-            let rows: Vec<(String, String)> = conn
-                .exec("SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = ? ORDER BY table_name", vec![database])
-                .map_err(|error| format!("查询表列表失败：{error}"))?;
-            Ok(rows.into_iter().map(|(name, kind)| SqlTableInfo { name, kind: if kind == "BASE TABLE" { "TABLE".into() } else { kind } }).collect())
+            with_mysql(profile, Some(&database.clone()), |conn| {
+                let rows: Vec<(String, String)> = conn
+                    .exec("SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = ? ORDER BY table_name", vec![database])
+                    .map_err(|error| format!("查询表列表失败：{error}"))?;
+                Ok(rows.into_iter().map(|(name, kind)| SqlTableInfo { name, kind: if kind == "BASE TABLE" { "TABLE".into() } else { kind } }).collect())
+            })
         }
         "postgres" => {
-            let mut client = pg_client(profile, Some(&database))?;
-            let rows = client
-                .query("SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name", &[])
-                .map_err(|error| format!("查询表列表失败：{error}"))?;
-            Ok(rows.iter().map(|row| SqlTableInfo {
-                name: row.get::<_, String>(0),
-                kind: {
-                    let kind: String = row.get(1);
-                    if kind == "BASE TABLE" { "TABLE".into() } else { kind }
-                },
-            }).collect())
+            with_pg(profile, Some(&database), |client| {
+                let rows = client
+                    .query("SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name", &[])
+                    .map_err(|error| format!("查询表列表失败：{error}"))?;
+                Ok(rows.iter().map(|row| SqlTableInfo {
+                    name: row.get::<_, String>(0),
+                    kind: {
+                        let kind: String = row.get(1);
+                        if kind == "BASE TABLE" { "TABLE".into() } else { kind }
+                    },
+                }).collect())
+            })
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
@@ -531,46 +651,51 @@ fn run_tables(profile: &SqlProfile, database: String) -> Result<Vec<SqlTableInfo
     }
 }
 
+/// MySQL information_schema.columns 单行：列名、类型、可空、键、默认值、额外、注释
+type MysqlColumnRow = (String, String, String, String, Option<String>, String, String);
+
 fn run_columns(profile: &SqlProfile, database: String, table: String) -> Result<Vec<SqlColumnInfo>, String> {
     let quoted = quote_ident(&profile.kind, &table);
     match profile.kind.as_str() {
         "mysql" => {
             use mysql::prelude::*;
-            let mut conn = open_mysql(profile, Some(&database))?;
-            let rows: Vec<(String, String, String, String, Option<String>, String, String)> = conn
-                .exec(
-                    "SELECT column_name, data_type, is_nullable, column_key, column_default, extra, column_comment FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position",
-                    vec![database, table],
-                )
-                .map_err(|error| format!("查询字段失败：{error}"))?;
-            Ok(rows.into_iter().map(|(name, data_type, nullable, key, default, extra, comment)| SqlColumnInfo {
-                name, data_type, nullable: nullable == "YES", key, default, extra, comment,
-            }).collect())
+            with_mysql(profile, Some(&database.clone()), |conn| {
+                let rows: Vec<MysqlColumnRow> = conn
+                    .exec(
+                        "SELECT column_name, data_type, is_nullable, column_key, column_default, extra, column_comment FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position",
+                        vec![database, table],
+                    )
+                    .map_err(|error| format!("查询字段失败：{error}"))?;
+                Ok(rows.into_iter().map(|(name, data_type, nullable, key, default, extra, comment)| SqlColumnInfo {
+                    name, data_type, nullable: nullable == "YES", key, default, extra, comment,
+                }).collect())
+            })
         }
         "postgres" => {
-            let mut client = pg_client(profile, Some(&database))?;
-            let rows = client
-                .query(
-                    "SELECT c.column_name, c.data_type, c.is_nullable, c.column_default, col_description(format('%I.%I', c.table_schema, c.table_name)::regclass, c.ordinal_position) FROM information_schema.columns c WHERE c.table_schema = 'public' AND c.table_name = $1 ORDER BY c.ordinal_position",
-                    &[&table],
-                )
-                .map_err(|error| format!("查询字段失败：{error}"))?;
-            let pk_rows = client
-                .query(
-                    "SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) WHERE i.indrelid = $1::regclass AND i.indisprimary",
-                    &[&format!("public.\"{}\"", table)],
-                )
-                .map_err(|error| format!("查询主键失败：{error}"))?;
-            let pk: Vec<String> = pk_rows.iter().map(|row| row.get::<_, String>(0)).collect();
-            Ok(rows.iter().map(|row| SqlColumnInfo {
-                name: row.get::<_, String>(0),
-                data_type: row.get::<_, String>(1),
-                nullable: row.get::<_, String>(2) == "YES",
-                key: if pk.contains(&row.get::<_, String>(0)) { "PRI".into() } else { String::new() },
-                default: row.get::<_, Option<String>>(3),
-                extra: String::new(),
-                comment: row.get::<_, Option<String>>(4).unwrap_or_default(),
-            }).collect())
+            with_pg(profile, Some(&database), |client| {
+                let rows = client
+                    .query(
+                        "SELECT c.column_name, c.data_type, c.is_nullable, c.column_default, col_description(format('%I.%I', c.table_schema, c.table_name)::regclass, c.ordinal_position) FROM information_schema.columns c WHERE c.table_schema = 'public' AND c.table_name = $1 ORDER BY c.ordinal_position",
+                        &[&table],
+                    )
+                    .map_err(|error| format!("查询字段失败：{error}"))?;
+                let pk_rows = client
+                    .query(
+                        "SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) WHERE i.indrelid = $1::regclass AND i.indisprimary",
+                        &[&format!("public.\"{}\"", table)],
+                    )
+                    .map_err(|error| format!("查询主键失败：{error}"))?;
+                let pk: Vec<String> = pk_rows.iter().map(|row| row.get::<_, String>(0)).collect();
+                Ok(rows.iter().map(|row| SqlColumnInfo {
+                    name: row.get::<_, String>(0),
+                    data_type: row.get::<_, String>(1),
+                    nullable: row.get::<_, String>(2) == "YES",
+                    key: if pk.contains(&row.get::<_, String>(0)) { "PRI".into() } else { String::new() },
+                    default: row.get::<_, Option<String>>(3),
+                    extra: String::new(),
+                    comment: row.get::<_, Option<String>>(4).unwrap_or_default(),
+                }).collect())
+            })
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
@@ -605,26 +730,28 @@ fn run_rows(profile: &SqlProfile, database: String, table: String, offset: u64, 
     let rows = match profile.kind.as_str() {
         "mysql" => {
             use mysql::prelude::*;
-            let mut conn = open_mysql(profile, Some(&database))?;
-            let total: u64 = conn.query_first(format!("SELECT COUNT(*) FROM {quoted}")).map_err(|error| format!("统计行数失败：{error}"))?.unwrap_or(0);
-            let mut result = conn
-                .exec_iter(format!("SELECT * FROM {quoted} LIMIT ? OFFSET ?"), (limit, offset))
-                .map_err(|error| format!("查询数据失败：{error}"))?;
-            let mut out = Vec::new();
-            for row in result.by_ref() {
-                let row = row.map_err(|error| format!("读取数据失败：{error}"))?;
-                out.push(row.unwrap().into_iter().map(mysql_value_to_json).collect::<Vec<_>>());
-            }
-            (out, total)
+            with_mysql(profile, Some(&database), |conn| {
+                let total: u64 = conn.query_first(format!("SELECT COUNT(*) FROM {quoted}")).map_err(|error| format!("统计行数失败：{error}"))?.unwrap_or(0);
+                let mut result = conn
+                    .exec_iter(format!("SELECT * FROM {quoted} LIMIT ? OFFSET ?"), (limit, offset))
+                    .map_err(|error| format!("查询数据失败：{error}"))?;
+                let mut out = Vec::new();
+                for row in result.by_ref() {
+                    let row = row.map_err(|error| format!("读取数据失败：{error}"))?;
+                    out.push(row.unwrap().into_iter().map(mysql_value_to_json).collect::<Vec<_>>());
+                }
+                Ok((out, total))
+            })
         }
         "postgres" => {
-            let mut client = pg_client(profile, Some(&database))?;
-            let total: i64 = client.query_one(&format!("SELECT COUNT(*) FROM {quoted}"), &[]).map_err(|error| format!("统计行数失败：{error}"))?.get(0);
-            let result = client
-                .query(&format!("SELECT * FROM {quoted} LIMIT $1 OFFSET $2"), &[&(limit as i64), &(offset as i64)])
-                .map_err(|error| format!("查询数据失败：{error}"))?;
-            let out = result.iter().map(|row| (0..columns.len()).map(|index| pg_cell(row, index)).collect::<Vec<_>>()).collect::<Vec<_>>();
-            (out, total as u64)
+            with_pg(profile, Some(&database), |client| {
+                let total: i64 = client.query_one(&format!("SELECT COUNT(*) FROM {quoted}"), &[]).map_err(|error| format!("统计行数失败：{error}"))?.get(0);
+                let result = client
+                    .query(&format!("SELECT * FROM {quoted} LIMIT $1 OFFSET $2"), &[&(limit as i64), &(offset as i64)])
+                    .map_err(|error| format!("查询数据失败：{error}"))?;
+                let out = result.iter().map(|row| (0..columns.len()).map(|index| pg_cell(row, index)).collect::<Vec<_>>()).collect::<Vec<_>>();
+                Ok((out, total as u64))
+            })
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
@@ -646,30 +773,31 @@ fn run_rows(profile: &SqlProfile, database: String, table: String, offset: u64, 
             }
             drop(stmt);
             sqlite_put(profile, conn);
-            (out, total as u64)
+            Ok((out, total as u64))
         }
         other => return Err(format!("不支持的数据库类型：{other}（支持 mysql / sqlite / postgres）")),
-    };
+    }?;
     Ok(SqlRowsResult { columns, rows: rows.0, total: rows.1, offset })
 }
 
 fn pg_type_map(profile: &SqlProfile, database: String, table: &str) -> Result<std::collections::HashMap<String, String>, String> {
-    let mut client = pg_client(profile, Some(&database))?;
-    let rows = client
-        .query(
-            "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1",
-            &[&table],
-        )
-        .map_err(|error| format!("查询字段类型失败：{error}"))?;
-    let mut map = std::collections::HashMap::new();
-    for row in rows {
-        let mut ty: String = row.get(1);
-        if ty == "ARRAY" || ty == "USER-DEFINED" {
-            ty = "text".into();
+    with_pg(profile, Some(&database), |client| {
+        let rows = client
+            .query(
+                "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1",
+                &[&table],
+            )
+            .map_err(|error| format!("查询字段类型失败：{error}"))?;
+        let mut map = std::collections::HashMap::new();
+        for row in rows {
+            let mut ty: String = row.get(1);
+            if ty == "ARRAY" || ty == "USER-DEFINED" {
+                ty = "text".into();
+            }
+            map.insert(row.get::<_, String>(0), ty);
         }
-        map.insert(row.get::<_, String>(0), ty);
-    }
-    Ok(map)
+        Ok(map)
+    })
 }
 
 fn pg_cast_type(map: &std::collections::HashMap<String, String>, column: &str) -> String {
@@ -687,36 +815,38 @@ fn run_update_row(profile: &SqlProfile, database: String, table: String, keys: V
     let result = match profile.kind.as_str() {
         "mysql" => {
             use mysql::prelude::*;
-            let mut conn = open_mysql(profile, Some(&database))?;
-            let set: Vec<String> = changes.iter().map(|c| format!("{} = ?", quote_ident("mysql", &c.column))).collect();
-            let where_clause: Vec<String> = keys.iter().map(|k| format!("{} = ?", quote_ident("mysql", &k.column))).collect();
-            let sql = format!("UPDATE {quoted} SET {} WHERE {}", set.join(", "), where_clause.join(" AND "));
-            let mut params: Vec<mysql::Value> = Vec::new();
-            for c in &changes {
-                params.push(match &c.value { Some(v) => mysql::Value::from(v.clone()), None => mysql::Value::NULL });
-            }
-            for k in &keys {
-                params.push(match &k.value { Some(v) => mysql::Value::from(v.clone()), None => mysql::Value::NULL });
-            }
-            conn.exec_drop(sql, params).map_err(|error| format!("更新数据失败：{error}"))?;
-            conn.affected_rows()
+            with_mysql(profile, Some(&database), |conn| {
+                let set: Vec<String> = changes.iter().map(|c| format!("{} = ?", quote_ident("mysql", &c.column))).collect();
+                let where_clause: Vec<String> = keys.iter().map(|k| format!("{} = ?", quote_ident("mysql", &k.column))).collect();
+                let sql = format!("UPDATE {quoted} SET {} WHERE {}", set.join(", "), where_clause.join(" AND "));
+                let mut params: Vec<mysql::Value> = Vec::new();
+                for c in &changes {
+                    params.push(match &c.value { Some(v) => mysql::Value::from(v.clone()), None => mysql::Value::NULL });
+                }
+                for k in &keys {
+                    params.push(match &k.value { Some(v) => mysql::Value::from(v.clone()), None => mysql::Value::NULL });
+                }
+                conn.exec_drop(sql, params).map_err(|error| format!("更新数据失败：{error}"))?;
+                Ok(conn.affected_rows())
+            })
         }
         "postgres" => {
             let types = pg_type_map(profile, database.clone(), &table)?;
-            let mut client = pg_client(profile, Some(&database))?;
-            let set: Vec<String> = changes.iter().enumerate()
-                .map(|(i, c)| format!("{} = ${}::{}", quote_ident("postgres", &c.column), i + 1, pg_cast_type(&types, &c.column)))
-                .collect();
-            let base = changes.len();
-            let where_clause: Vec<String> = keys.iter().enumerate()
-                .map(|(i, k)| format!("{} = ${}::{}", quote_ident("postgres", &k.column), base + i + 1, pg_cast_type(&types, &k.column)))
-                .collect();
-            let sql = format!("UPDATE {quoted} SET {} WHERE {}", set.join(", "), where_clause.join(" AND "));
-            let mut params: Vec<Option<String>> = changes.iter().map(|c| c.value.clone()).collect();
-            params.extend(keys.iter().map(|k| k.value.clone()));
-            let refs: Vec<&(dyn postgres::types::ToSql + Sync)> = params.iter().map(|p| p as &(dyn postgres::types::ToSql + Sync)).collect();
-            let affected = client.execute(&sql, &refs).map_err(|error| format!("更新数据失败：{error}"))?;
-            affected as u64
+            with_pg(profile, Some(&database), |client| {
+                let set: Vec<String> = changes.iter().enumerate()
+                    .map(|(i, c)| format!("{} = ${}::{}", quote_ident("postgres", &c.column), i + 1, pg_cast_type(&types, &c.column)))
+                    .collect();
+                let base = changes.len();
+                let where_clause: Vec<String> = keys.iter().enumerate()
+                    .map(|(i, k)| format!("{} = ${}::{}", quote_ident("postgres", &k.column), base + i + 1, pg_cast_type(&types, &k.column)))
+                    .collect();
+                let sql = format!("UPDATE {quoted} SET {} WHERE {}", set.join(", "), where_clause.join(" AND "));
+                let mut params: Vec<Option<String>> = changes.iter().map(|c| c.value.clone()).collect();
+                params.extend(keys.iter().map(|k| k.value.clone()));
+                let refs: Vec<&(dyn postgres::types::ToSql + Sync)> = params.iter().map(|p| p as &(dyn postgres::types::ToSql + Sync)).collect();
+                let affected = client.execute(&sql, &refs).map_err(|error| format!("更新数据失败：{error}"))?;
+                Ok(affected)
+            })
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
@@ -732,10 +862,10 @@ fn run_update_row(profile: &SqlProfile, database: String, table: String, keys: V
             }
             let affected = conn.execute(&sql, rusqlite::params_from_iter(params)).map_err(|error| format!("更新数据失败：{error}"))?;
             sqlite_put(profile, conn);
-            affected as u64
+            Ok(affected as u64)
         }
         other => return Err(format!("不支持的数据库类型：{other}（支持 mysql / sqlite / postgres）")),
-    };
+    }?;
     Ok(result)
 }
 
@@ -748,23 +878,25 @@ fn run_insert_row(profile: &SqlProfile, database: String, table: String, columns
     let result = match profile.kind.as_str() {
         "mysql" => {
             use mysql::prelude::*;
-            let mut conn = open_mysql(profile, Some(&database))?;
-            let placeholders = vec!["?".to_string(); values.len()].join(", ");
-            let sql = format!("INSERT INTO {quoted} ({}) VALUES ({placeholders})", cols.join(", "));
-            let params: Vec<mysql::Value> = values.iter().map(|v| match v { Some(s) => mysql::Value::from(s.clone()), None => mysql::Value::NULL }).collect();
-            conn.exec_drop(sql, params).map_err(|error| format!("插入数据失败：{error}"))?;
-            conn.affected_rows()
+            with_mysql(profile, Some(&database), |conn| {
+                let placeholders = vec!["?".to_string(); values.len()].join(", ");
+                let sql = format!("INSERT INTO {quoted} ({}) VALUES ({placeholders})", cols.join(", "));
+                let params: Vec<mysql::Value> = values.iter().map(|v| match v { Some(s) => mysql::Value::from(s.clone()), None => mysql::Value::NULL }).collect();
+                conn.exec_drop(sql, params).map_err(|error| format!("插入数据失败：{error}"))?;
+                Ok(conn.affected_rows())
+            })
         }
         "postgres" => {
             let types = pg_type_map(profile, database.clone(), &table)?;
-            let mut client = pg_client(profile, Some(&database))?;
-            let placeholders: Vec<String> = columns.iter().enumerate()
-                .map(|(i, c)| format!("${}::{}", i + 1, pg_cast_type(&types, c)))
-                .collect();
-            let sql = format!("INSERT INTO {quoted} ({}) VALUES ({})", cols.join(", "), placeholders.join(", "));
-            let refs: Vec<&(dyn postgres::types::ToSql + Sync)> = values.iter().map(|v| v as &(dyn postgres::types::ToSql + Sync)).collect();
-            let affected = client.execute(&sql, &refs).map_err(|error| format!("插入数据失败：{error}"))?;
-            affected as u64
+            with_pg(profile, Some(&database), |client| {
+                let placeholders: Vec<String> = columns.iter().enumerate()
+                    .map(|(i, c)| format!("${}::{}", i + 1, pg_cast_type(&types, c)))
+                    .collect();
+                let sql = format!("INSERT INTO {quoted} ({}) VALUES ({})", cols.join(", "), placeholders.join(", "));
+                let refs: Vec<&(dyn postgres::types::ToSql + Sync)> = values.iter().map(|v| v as &(dyn postgres::types::ToSql + Sync)).collect();
+                let affected = client.execute(&sql, &refs).map_err(|error| format!("插入数据失败：{error}"))?;
+                Ok(affected)
+            })
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
@@ -773,10 +905,10 @@ fn run_insert_row(profile: &SqlProfile, database: String, table: String, columns
             let params: Vec<rusqlite::types::Value> = values.iter().map(|v| match v { Some(s) => rusqlite::types::Value::Text(s.clone()), None => rusqlite::types::Value::Null }).collect();
             let affected = conn.execute(&sql, rusqlite::params_from_iter(params)).map_err(|error| format!("插入数据失败：{error}"))?;
             sqlite_put(profile, conn);
-            affected as u64
+            Ok(affected as u64)
         }
         other => return Err(format!("不支持的数据库类型：{other}（支持 mysql / sqlite / postgres）")),
-    };
+    }?;
     Ok(result)
 }
 
@@ -789,22 +921,24 @@ fn run_delete_rows(profile: &SqlProfile, database: String, table: String, key_co
     let result = match profile.kind.as_str() {
         "mysql" => {
             use mysql::prelude::*;
-            let mut conn = open_mysql(profile, Some(&database))?;
-            let placeholders = vec!["?".to_string(); key_values.len()].join(", ");
-            let sql = format!("DELETE FROM {quoted} WHERE {col} IN ({placeholders})");
-            let params: Vec<mysql::Value> = key_values.iter().map(|v| mysql::Value::from(v.clone())).collect();
-            conn.exec_drop(sql, params).map_err(|error| format!("删除数据失败：{error}"))?;
-            conn.affected_rows()
+            with_mysql(profile, Some(&database), |conn| {
+                let placeholders = vec!["?".to_string(); key_values.len()].join(", ");
+                let sql = format!("DELETE FROM {quoted} WHERE {col} IN ({placeholders})");
+                let params: Vec<mysql::Value> = key_values.iter().map(|v| mysql::Value::from(v.clone())).collect();
+                conn.exec_drop(sql, params).map_err(|error| format!("删除数据失败：{error}"))?;
+                Ok(conn.affected_rows())
+            })
         }
         "postgres" => {
             let types = pg_type_map(profile, database.clone(), &table)?;
-            let mut client = pg_client(profile, Some(&database))?;
-            let ty = pg_cast_type(&types, &key_column);
-            let placeholders: Vec<String> = (1..=key_values.len()).map(|i| format!("${i}::{ty}")).collect();
-            let sql = format!("DELETE FROM {quoted} WHERE {col} IN ({})", placeholders.join(", "));
-            let refs: Vec<&(dyn postgres::types::ToSql + Sync)> = key_values.iter().map(|v| v as &(dyn postgres::types::ToSql + Sync)).collect();
-            let affected = client.execute(&sql, &refs).map_err(|error| format!("删除数据失败：{error}"))?;
-            affected as u64
+            with_pg(profile, Some(&database), |client| {
+                let ty = pg_cast_type(&types, &key_column);
+                let placeholders: Vec<String> = (1..=key_values.len()).map(|i| format!("${i}::{ty}")).collect();
+                let sql = format!("DELETE FROM {quoted} WHERE {col} IN ({})", placeholders.join(", "));
+                let refs: Vec<&(dyn postgres::types::ToSql + Sync)> = key_values.iter().map(|v| v as &(dyn postgres::types::ToSql + Sync)).collect();
+                let affected = client.execute(&sql, &refs).map_err(|error| format!("删除数据失败：{error}"))?;
+                Ok(affected)
+            })
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
@@ -813,10 +947,10 @@ fn run_delete_rows(profile: &SqlProfile, database: String, table: String, key_co
             let params: Vec<rusqlite::types::Value> = key_values.iter().map(|v| rusqlite::types::Value::Text(v.clone())).collect();
             let affected = conn.execute(&sql, rusqlite::params_from_iter(params)).map_err(|error| format!("删除数据失败：{error}"))?;
             sqlite_put(profile, conn);
-            affected as u64
+            Ok(affected as u64)
         }
         other => return Err(format!("不支持的数据库类型：{other}（支持 mysql / sqlite / postgres）")),
-    };
+    }?;
     Ok(result)
 }
 
@@ -825,15 +959,16 @@ fn run_table_ddl(profile: &SqlProfile, database: String, table: String) -> Resul
     match profile.kind.as_str() {
         "mysql" => {
             use mysql::prelude::*;
-            let mut conn = open_mysql(profile, Some(&database))?;
-            let sql = format!("SHOW CREATE TABLE {quoted}");
-            let result = conn.query_first::<(String, String), _>(&sql);
-            if let Ok(Some((_, ddl))) = result {
-                return Ok(ddl);
-            }
-            let sql = format!("SHOW CREATE VIEW {quoted}");
-            let result = conn.query_first::<(String, String), _>(&sql).map_err(|error| format!("查询建表语句失败：{error}"))?;
-            Ok(result.map(|(_, ddl)| ddl).unwrap_or_default())
+            with_mysql(profile, Some(&database), |conn| {
+                let sql = format!("SHOW CREATE TABLE {quoted}");
+                let result = conn.query_first::<(String, String), _>(&sql);
+                if let Ok(Some((_, ddl))) = result {
+                    return Ok(ddl);
+                }
+                let sql = format!("SHOW CREATE VIEW {quoted}");
+                let result = conn.query_first::<(String, String), _>(&sql).map_err(|error| format!("查询建表语句失败：{error}"))?;
+                Ok(result.map(|(_, ddl)| ddl).unwrap_or_default())
+            })
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
@@ -921,21 +1056,28 @@ fn run_table_export(profile: &SqlProfile, database: String, table: String, with_
         match profile.kind.as_str() {
             "mysql" => {
                 use mysql::prelude::*;
-                let mut conn = open_mysql(profile, Some(&database))?;
-                let sql = format!("SELECT * FROM {quoted}");
-                let all: Vec<mysql::Row> = conn.query(sql).map_err(|error| format!("读取数据失败：{error}"))?;
-                let max_rows = 20_000;
-                for row in all.iter().take(max_rows) {
-                    let values: Vec<String> = (0..row.len())
-                        .map(|index| mysql_value_literal(row.as_ref(index).unwrap_or(&mysql::Value::NULL)))
-                        .collect();
-                    out.push_str(&format!("INSERT INTO {quoted} VALUES ({});\n", values.join(", ")));
-                    rows += 1;
-                }
-                truncated = all.len() > max_rows;
-                if truncated {
-                    out.push_str(&format!("-- 数据超过 {max_rows} 行，已截断（共 {} 行）\n", all.len()));
-                }
+                with_mysql(profile, Some(&database), |conn| {
+                    let sql = format!("SELECT * FROM {quoted}");
+                    // query_iter 流式读取：达到上限即停止，避免大表全量载入内存
+                    let mut result = conn.query_iter(sql).map_err(|error| format!("读取数据失败：{error}"))?;
+                    let max_rows = 20_000;
+                    for row in result.by_ref() {
+                        if rows >= max_rows {
+                            truncated = true;
+                            break;
+                        }
+                        let row = row.map_err(|error| format!("读取数据失败：{error}"))?;
+                        let values: Vec<String> = (0..row.len())
+                            .map(|index| mysql_value_literal(row.as_ref(index).unwrap_or(&mysql::Value::NULL)))
+                            .collect();
+                        out.push_str(&format!("INSERT INTO {quoted} VALUES ({});\n", values.join(", ")));
+                        rows += 1;
+                    }
+                    if truncated {
+                        out.push_str(&format!("-- 数据超过 {max_rows} 行，已截断\n"));
+                    }
+                    Ok(())
+                })?;
             }
             "sqlite" => {
                 let conn = sqlite_take(profile)?;
@@ -968,24 +1110,39 @@ fn run_table_export(profile: &SqlProfile, database: String, table: String, with_
                 sqlite_put(profile, conn);
             }
             "postgres" => {
-                let mut client = pg_client(profile, Some(&database))?;
-                let sql = format!("COPY {quoted} TO STDOUT");
-                let reader = client.copy_out(&sql).map_err(|error| format!("读取数据失败：{error}"))?;
-                let mut data = Vec::new();
-                let mut reader = reader;
-                use std::io::Read;
-                reader.read_to_end(&mut data).map_err(|error| format!("读取数据失败：{error}"))?;
-                let max_bytes = 16 * 1024 * 1024;
-                truncated = data.len() > max_bytes;
-                out.push_str(&format!("COPY {quoted} FROM stdin;\n"));
-                if truncated {
-                    out.push_str(&String::from_utf8_lossy(&data[..max_bytes]));
-                    out.push_str("\n-- 数据超过 16MB，已截断\n");
-                } else {
-                    out.push_str(&String::from_utf8_lossy(&data));
-                }
-                out.push_str("\\.\n");
-                rows = data.iter().filter(|byte| **byte == b'\n').count() as u64;
+                with_pg(profile, Some(&database), |client| {
+                    let sql = format!("COPY {quoted} TO STDOUT");
+                    let reader = client.copy_out(&sql).map_err(|error| format!("读取数据失败：{error}"))?;
+                    let mut data = Vec::new();
+                    let mut reader = reader;
+                    use std::io::Read;
+                    let max_bytes = 16 * 1024 * 1024;
+                    // 流式读取：超过 16MB 立即截断，避免大表把全部数据载入内存
+                    let mut chunk = [0u8; 65536];
+                    loop {
+                        match reader.read(&mut chunk) {
+                            Ok(0) => break,
+                            Ok(n) => {
+                                data.extend_from_slice(&chunk[..n]);
+                                if data.len() > max_bytes {
+                                    truncated = true;
+                                    break;
+                                }
+                            }
+                            Err(error) => return Err(format!("读取数据失败：{error}")),
+                        }
+                    }
+                    out.push_str(&format!("COPY {quoted} FROM stdin;\n"));
+                    if truncated {
+                        out.push_str(&String::from_utf8_lossy(&data[..max_bytes.min(data.len())]));
+                        out.push_str("\n-- 数据超过 16MB，已截断\n");
+                    } else {
+                        out.push_str(&String::from_utf8_lossy(&data));
+                    }
+                    out.push_str("\\.\n");
+                    rows = data.iter().filter(|byte| **byte == b'\n').count() as u64;
+                    Ok(())
+                })?;
             }
             other => return Err(format!("不支持的数据库类型：{other}（支持 mysql / sqlite / postgres）")),
         }
@@ -1301,7 +1458,10 @@ pub async fn sql_alter_table(profile: SqlProfile, database: String, table: Strin
 
 #[tauri::command]
 pub fn sql_disconnect(profile: SqlProfile) -> Result<(), String> {
-    sqlite_drop(&profile);
+    // 断开 = 关闭并移除该配置的缓存连接（SQLite/MySQL/PostgreSQL）
+    if let Ok(mut cache) = conn_cache().lock() {
+        cache.remove(&sql_cache_key(&profile, None));
+    }
     Ok(())
 }
 

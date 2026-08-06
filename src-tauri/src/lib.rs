@@ -12,6 +12,7 @@ use std::{
 use tauri::{Emitter, Manager};
 
 mod clipboard;
+mod secrets;
 mod net;
 mod sql;
 mod ssh;
@@ -192,19 +193,27 @@ fn process_sse_line(
     request_id: &str,
     line: &str,
     final_content: &mut String,
-) -> bool {
+) -> Result<bool, String> {
     let Some(data) = line.trim().strip_prefix("data:") else {
-        return false;
+        return Ok(false);
     };
     let data = data.trim();
     if data == "[DONE]" {
-        return true;
+        return Ok(true);
     }
     let Ok(value) = serde_json::from_str::<Value>(data) else {
-        return false;
+        return Ok(false);
     };
+    // 服务端错误事件（如 401/余额不足）：透出真实错误，避免前端误报“空结果”
+    if let Some(error) = value.get("error") {
+        let message = error
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("未知错误");
+        return Err(message.to_string());
+    }
     let Some(delta) = value.pointer("/choices/0/delta") else {
-        return false;
+        return Ok(false);
     };
     if let Some(reasoning) = delta
         .get("reasoning_content")
@@ -217,7 +226,7 @@ fn process_sse_line(
         final_content.push_str(content);
         emit_stream(app, request_id, "content", content);
     }
-    false
+    Ok(false)
 }
 
 #[tauri::command]
@@ -267,9 +276,13 @@ async fn ai_analyze_stream(
         while let Some(position) = buffer.find('\n') {
             let line = buffer[..position].trim_end_matches('\r').to_string();
             buffer.drain(..=position);
-            if process_sse_line(&app, &request_id, &line, &mut final_content) {
-                done = true;
-                break;
+            match process_sse_line(&app, &request_id, &line, &mut final_content) {
+                Ok(true) => {
+                    done = true;
+                    break;
+                }
+                Ok(false) => {}
+                Err(message) => return Err(format!("AI 服务返回错误：{message}")),
             }
         }
         if done {
@@ -277,7 +290,9 @@ async fn ai_analyze_stream(
         }
     }
     if !buffer.trim().is_empty() {
-        process_sse_line(&app, &request_id, &buffer, &mut final_content);
+        if let Err(message) = process_sse_line(&app, &request_id, &buffer, &mut final_content) {
+            return Err(format!("AI 服务返回错误：{message}"));
+        }
     }
     emit_stream(&app, &request_id, "done", "");
     if final_content.trim().is_empty() {
@@ -324,11 +339,11 @@ fn get_autostart() -> bool {
     #[cfg(target_os = "windows")]
     {
         const KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
-        return reg_command()
+        reg_command()
             .args(["query", KEY, "/v", "Spurh"])
             .output()
             .map(|output| output.status.success())
-            .unwrap_or(false);
+            .unwrap_or(false)
     }
     #[cfg(not(target_os = "windows"))]
     false
@@ -349,7 +364,7 @@ fn register_context_menu(app_path: &str) -> Result<(), String> {
             .status()
             .map_err(|e| format!("注册右键菜单失败：{e}"))?;
         reg_command()
-            .args(["add", key, "/v", "Icon", "/t", "REG_SZ", "/d", &app_path, "/f"])
+            .args(["add", key, "/v", "Icon", "/t", "REG_SZ", "/d", app_path, "/f"])
             .status()
             .map_err(|e| format!("注册右键图标失败：{e}"))?;
         reg_command()
@@ -408,8 +423,15 @@ fn get_context_menu_enabled() -> bool {
     false
 }
 
+/// 通过右键菜单打开文件时的最大体积（50MB），防止超大文件读满内存
+const MAX_OPEN_FILE_BYTES: u64 = 50 * 1024 * 1024;
+
 #[tauri::command]
 async fn open_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
+    let metadata = std::fs::metadata(&path).map_err(|e| format!("无法读取文件 {}：{e}", path))?;
+    if metadata.len() > MAX_OPEN_FILE_BYTES {
+        return Err(format!("文件过大（{} MB），超过 50MB 上限，请手动打开", metadata.len() / (1024 * 1024)));
+    }
     let content = std::fs::read_to_string(&path)
         .map_err(|e| format!("无法读取文件 {}：{e}", path))?;
     if let Some(window) = app.get_webview_window("main") {
@@ -502,57 +524,80 @@ async fn apply_hotkeys(
     dispatch: Option<String>,
     tools: Vec<String>,
 ) -> Result<Vec<HotkeyStatus>, String> {
-    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutEvent, ShortcutState};
 
     let global = app.global_shortcut();
     let mut results: Vec<HotkeyStatus> = Vec::new();
 
+    // 统一注册回调：非捕获闭包可重复使用；注册失败时恢复旧快捷键，避免静默丢失
+    let dispatch_handler = move |app: &tauri::AppHandle, _s: &Shortcut, event: ShortcutEvent| {
+        if event.state == ShortcutState::Pressed {
+            show_main_window(app);
+            emit_hotkey(app, "dispatch", None);
+        }
+    };
+    let tool_handler = |index: usize| {
+        move |app: &tauri::AppHandle, _s: &Shortcut, event: ShortcutEvent| {
+            if event.state == ShortcutState::Pressed {
+                emit_hotkey(app, "tool", Some(index));
+            }
+        }
+    };
+
     {
         let mut prev = state.dispatch.lock().unwrap();
+        let old_shortcut: Option<Shortcut> = prev.take().and_then(|old| old.parse().ok());
+        if let Some(old) = old_shortcut {
+            let _ = global.unregister(old);
+        }
         if let Some(raw) = dispatch {
             let trimmed = raw.trim().to_string();
             if trimmed.is_empty() || trimmed == "off" {
-                // 禁用：注销旧自定义键
-                if let Some(old) = prev.take() {
-                    if let Ok(old) = old.parse::<Shortcut>() {
-                        let _ = global.unregister(old);
-                    }
-                }
+                // 禁用：旧键已注销
+            } else if trimmed == "ctrl+shift+space" {
+                // 内置 toggle 由 setup 管理，不写入 registry
+                results.push(HotkeyStatus { key: trimmed.clone(), ok: true, error: None });
             } else {
-                // 无论注册是否成功，先注销旧自定义键（prev 只存自定义键，不会误伤内置 toggle）
-                if let Some(old) = prev.take() {
-                    if let Ok(old) = old.parse::<Shortcut>() {
-                        let _ = global.unregister(old);
+                match trimmed.parse::<Shortcut>() {
+                    Err(e) => {
+                        if let Some(old) = old_shortcut {
+                            if global.on_shortcut(old, dispatch_handler).is_ok() {
+                                *prev = Some(old.to_string());
+                            }
+                        }
+                        results.push(HotkeyStatus { key: trimmed.clone(), ok: false, error: Some(format!("无法解析：{e}")) });
                     }
-                }
-                if trimmed == "ctrl+shift+space" {
-                    // 内置 toggle 由 setup 管理，不写入 registry
-                    results.push(HotkeyStatus { key: trimmed.clone(), ok: true, error: None });
-                } else {
-                    match trimmed.parse::<Shortcut>() {
-                        Err(e) => results.push(HotkeyStatus { key: trimmed.clone(), ok: false, error: Some(format!("无法解析：{e}")) }),
-                        Ok(shortcut) => {
-                            // 拒绝无修饰键的组合（防御旧 localStorage 数据或直接调用）
-                            if shortcut.mods.is_empty() {
-                                results.push(HotkeyStatus { key: trimmed.clone(), ok: false, error: Some("缺少修饰键（Ctrl/Alt/Shift/Win）".into()) });
-                            } else {
-                                // 可能被其它已注册键占用（如工具键）：先注销再注册
-                                if global.is_registered(shortcut) {
-                                    let _ = global.unregister(shortcut);
+                    Ok(shortcut) => {
+                        if shortcut.mods.is_empty() {
+                            if let Some(old) = old_shortcut {
+                                if global.on_shortcut(old, dispatch_handler).is_ok() {
+                                    *prev = Some(old.to_string());
                                 }
-                                match global.on_shortcut(shortcut, move |app, _s, event| {
-                                    if event.state == ShortcutState::Pressed {
-                                        show_main_window(app);
-                                        emit_hotkey(app, "dispatch", None);
+                            }
+                            results.push(HotkeyStatus { key: trimmed.clone(), ok: false, error: Some("缺少修饰键（Ctrl/Alt/Shift/Win）".into()) });
+                        } else {
+                            // 可能被其它已注册键占用（如工具键）：先注销再注册
+                            if global.is_registered(shortcut) {
+                                let _ = global.unregister(shortcut);
+                            }
+                            match global.on_shortcut(shortcut, dispatch_handler) {
+                                Ok(_) => {
+                                    results.push(HotkeyStatus { key: trimmed.clone(), ok: true, error: None });
+                                    *prev = Some(trimmed.clone());
+                                    // 与工具键重叠时从 tools registry 剔除，避免后续全量注销误删刚注册的 dispatch 键
+                                    state.tools.lock().unwrap().retain(|t| t != &trimmed);
+                                }
+                                Err(e) => {
+                                    // 注册失败：恢复旧快捷键（若与新键不同）
+                                    let changed = old_shortcut.as_ref().map(|old| old != &shortcut).unwrap_or(true);
+                                    if changed {
+                                        if let Some(old) = old_shortcut {
+                                            if global.on_shortcut(old, dispatch_handler).is_ok() {
+                                                *prev = Some(old.to_string());
+                                            }
+                                        }
                                     }
-                                }) {
-                                    Ok(_) => {
-                                        results.push(HotkeyStatus { key: trimmed.clone(), ok: true, error: None });
-                                        *prev = Some(trimmed.clone());
-                                        // 与工具键重叠时从 tools registry 剔除，避免后续全量注销误删刚注册的 dispatch 键
-                                        state.tools.lock().unwrap().retain(|t| t != &trimmed);
-                                    }
-                                    Err(e) => results.push(HotkeyStatus { key: trimmed.clone(), ok: false, error: Some(format!("注册失败：{e}")) }),
+                                    results.push(HotkeyStatus { key: trimmed.clone(), ok: false, error: Some(format!("注册失败：{e}")) });
                                 }
                             }
                         }
@@ -564,7 +609,8 @@ async fn apply_hotkeys(
 
     {
         let mut prev = state.tools.lock().unwrap();
-        for old in prev.iter() {
+        let old_list: Vec<String> = prev.clone();
+        for old in old_list.iter() {
             if let Ok(shortcut) = old.parse::<Shortcut>() {
                 let _ = global.unregister(shortcut);
             }
@@ -575,14 +621,27 @@ async fn apply_hotkeys(
             if trimmed.is_empty() || trimmed == "off" {
                 continue;
             }
+            let old_raw = old_list.get(index).cloned().unwrap_or_default();
+            let old_shortcut: Option<Shortcut> = old_raw.parse().ok();
             let shortcut = match trimmed.parse::<Shortcut>() {
                 Ok(s) => s,
                 Err(e) => {
+                    // 新键解析失败：恢复该工具的旧键
+                    if let Some(old) = old_shortcut {
+                        if global.on_shortcut(old, tool_handler(index)).is_ok() {
+                            prev.push(old_raw);
+                        }
+                    }
                     results.push(HotkeyStatus { key: format!("工具{} {trimmed}", index + 1), ok: false, error: Some(format!("无法解析：{e}")) });
                     continue;
                 }
             };
             if shortcut.mods.is_empty() {
+                if let Some(old) = old_shortcut {
+                    if global.on_shortcut(old, tool_handler(index)).is_ok() {
+                        prev.push(old_raw);
+                    }
+                }
                 results.push(HotkeyStatus { key: format!("工具{} {trimmed}", index + 1), ok: false, error: Some("缺少修饰键（Ctrl/Alt/Shift/Win）".into()) });
                 continue;
             }
@@ -594,16 +653,23 @@ async fn apply_hotkeys(
                 });
                 continue; // reserved by the built-in window toggle or dispatch hotkey
             }
-            match global.on_shortcut(shortcut, move |app, _s, event| {
-                if event.state == ShortcutState::Pressed {
-                    emit_hotkey(app, "tool", Some(index));
-                }
-            }) {
+            match global.on_shortcut(shortcut, tool_handler(index)) {
                 Ok(_) => {
                     results.push(HotkeyStatus { key: format!("工具{} {trimmed}", index + 1), ok: true, error: None });
                     prev.push(trimmed);
                 }
-                Err(e) => results.push(HotkeyStatus { key: format!("工具{} {trimmed}", index + 1), ok: false, error: Some(format!("注册失败：{e}")) }),
+                Err(e) => {
+                    // 注册失败：恢复该工具的旧键（若与新键不同）
+                    let changed = old_shortcut.as_ref().map(|old| old != &shortcut).unwrap_or(true);
+                    if changed {
+                        if let Some(old) = old_shortcut {
+                            if global.on_shortcut(old, tool_handler(index)).is_ok() {
+                                prev.push(old_raw);
+                            }
+                        }
+                    }
+                    results.push(HotkeyStatus { key: format!("工具{} {trimmed}", index + 1), ok: false, error: Some(format!("注册失败：{e}")) });
+                }
             }
         }
     }
@@ -633,9 +699,9 @@ pub fn run(cli_args: Vec<String>) {
         .setup(move |app| {
             use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
-            // 剪贴板历史：独立线程轮询，文本变化时记录并推送事件。
+            // 剪贴板历史：独立线程轮询，文本变化时记录并推送事件（开关默认开启，前端设置同步）
             let history = app.state::<Arc<clipboard::ClipboardHistory>>().inner().clone();
-            clipboard::start_watcher(app.handle().clone(), history);
+            let watch = Arc::new(clipboard::ClipboardWatch(AtomicBool::new(true)));            app.manage(watch.clone());            clipboard::start_watcher(app.handle().clone(), history, watch);
 
             // Always available: show the window from anywhere.
             let toggle = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
@@ -682,7 +748,10 @@ pub fn run(cli_args: Vec<String>) {
             clipboard::read_clipboard,
             clipboard::clipboard_write_text,
             clipboard::clipboard_history,
-            clipboard::clipboard_clear_history,
+            clipboard::clipboard_clear_history,            clipboard::set_clipboard_watch,
+            secrets::secret_set,
+            secrets::secret_get,
+            secrets::secret_delete,
             sql::sql_test,
 sql::sql_disconnect,
             sql::sql_execute,

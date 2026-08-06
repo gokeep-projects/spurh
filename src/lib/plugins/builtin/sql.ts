@@ -10,6 +10,7 @@ export type SqlProfile = {
   password?: string;
   database?: string;
   file?: string;
+  ssl?: boolean;
 };
 
 export type SqlExecResult = {
@@ -37,6 +38,7 @@ export function profileFromOptions(options: Record<string, string>): SqlProfile 
     password: options.password || undefined,
     database: options.database || undefined,
     file: options.file || undefined,
+    ssl: options.ssl === '1' || options.ssl === 'true',
   };
 }
 
@@ -63,6 +65,7 @@ export const sqlPlugin: SpurhPlugin = {
     { id: 'user', label: '用户', type: 'text', defaultValue: 'root', placeholder: 'root', showWhen: { optionId: 'dbType', values: ['mysql', 'postgres'] } },
     { id: 'password', label: '密码', type: 'password', defaultValue: '', placeholder: '••••••••', showWhen: { optionId: 'dbType', values: ['mysql', 'postgres'] } },
     { id: 'database', label: '数据库', type: 'text', defaultValue: '', placeholder: '默认库（可留空）', showWhen: { optionId: 'dbType', values: ['mysql', 'postgres'] } },
+    { id: 'ssl', label: 'SSL 加密', type: 'select', defaultValue: '0', actions: ['run'], showWhen: { optionId: 'dbType', values: ['mysql', 'postgres'] }, choices: [{ value: '0', label: '关闭' }, { value: '1', label: '启用' }] },
     { id: 'file', label: '数据库文件', type: 'text', defaultValue: '', placeholder: 'C:\path\to\app.db 或 :memory:', showWhen: { optionId: 'dbType', values: ['sqlite'] } },
   ],
   detect(input) {

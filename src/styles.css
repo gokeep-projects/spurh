@@ -164,6 +164,7 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 8px; color: var(--muted); 
 .auto-state { display: flex; align-items: center; gap: 8px; padding: 7px 12px; color: var(--muted); font-size: 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); white-space: nowrap; }
 .auto-state.error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); }
 .auto-state.error i { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+.panel-loading { min-height: 120px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted-2); font-size: 13px; }
 .spinner { width: 10px; height: 10px; border: 1.5px solid var(--line-2); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 

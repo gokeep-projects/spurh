@@ -1,24 +1,54 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { UI_ICONS, TOOL_ICONS, iconHtml } from '../icons';
+  import { deleteSecret, getSecret, setSecret } from '../secrets';
+  import { base64ToBytes, decodeExecResult, escPath } from '../remoteExec';
   import TerminalView, { type RemoteSession } from './TerminalView.svelte';
 
   const STORAGE_KEY = 'spurh.remote.sessions.v1';
+
+  // 旧版 localStorage 中可能残留的明文密码/口令，等待初始化时迁移到系统钥匙串
+  let legacySecrets: Array<{ id: string; key: string; value: string }> = [];
 
   function loadSessions(): RemoteSession[] {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw) as RemoteSession[];
-      return parsed.filter((item) => item && typeof item.id === 'string' && typeof item.host === 'string');
+      return parsed
+        .filter((item) => item && typeof item.id === 'string' && typeof item.host === 'string')
+        .map((item) => {
+          if (item.password) legacySecrets.push({ id: item.id, key: 'password', value: item.password });
+          if (item.passphrase) legacySecrets.push({ id: item.id, key: 'passphrase', value: item.passphrase });
+          return { ...item, password: '', passphrase: '' };
+        });
     } catch {
       return [];
     }
   }
 
+  /** 密码/口令只存系统钥匙串：持久化时剥离，避免明文落盘。 */
   function saveSessions(list: RemoteSession[]): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    const stripped = list.map(({ password: _pw, passphrase: _pp, ...rest }) => rest);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
   }
+
+  /** 迁移旧明文到钥匙串，并从钥匙串加载当前会话的密码/口令到内存。 */
+  async function migrateAndHydrateSecrets(): Promise<void> {
+    for (const item of legacySecrets) {
+      try { await setSecret('ssh.' + item.id + '.' + item.key, item.value); } catch { /* 钥匙串不可用时忽略 */ }
+    }
+    legacySecrets = [];
+    const hydrated = await Promise.all(sessions.map(async (session) => ({
+      ...session,
+      password: (await getSecret('ssh.' + session.id + '.password')) ?? '',
+      passphrase: (await getSecret('ssh.' + session.id + '.passphrase')) ?? '',
+    })));
+    sessions = hydrated;
+  }
+
+  onMount(() => { migrateAndHydrateSecrets(); });
 
   function freshSession(): RemoteSession {
     return {
@@ -104,24 +134,6 @@
     sysLoading = false;
   }
 
-  /** 转义 shell 单引号，防止路径注入 */
-  function escPath(path: string): string {
-    return path.replace(/'/g, `'\\''`);
-  }
-
-  /** 解码 ssh_exec 返回：base64 主体 + 可选 __TRUNCATED__ / __STDERR__ 标记 */
-  function decodeExecResult(raw: string): { text: string; truncated: boolean; stderr: string } {
-    let truncated = raw.endsWith('__TRUNCATED__');
-    let body = truncated ? raw.slice(0, raw.length - 13) : raw;
-    let stderr = '';
-    const sep = body.indexOf('__STDERR__');
-    if (sep >= 0) {
-      stderr = atob(body.slice(sep + 10));
-      body = body.slice(0, sep);
-    }
-    return { text: atob(body), truncated, stderr };
-  }
-
   async function doUpload(): Promise<void> {
     if (!active || !uploadFile || !remotePath.trim()) return;
     transferBusy = true;
@@ -157,10 +169,11 @@
     transferBusy = true;
     transferStatus = '';
     try {
-      // 远端 base64 编码输出；ssh_exec 通道再 base64 一层，故需双层解码
+      // 远端 base64 编码输出（base64 命令在 GNU/BSD 下默认换行，atob 会忽略空白）；
+      // ssh_exec 通道再 base64 一层，decodeExecResult 已解出内层 base64，此处只需解码一次
       const encoded = await invoke<string>('ssh_exec', {
         sessionId: active.id,
-        command: `base64 -w0 '${escPath(remotePath.trim())}'`,
+        command: `base64 '${escPath(remotePath.trim())}'`,
         stdin: null,
       });
       const decoded = decodeExecResult(encoded);
@@ -169,10 +182,7 @@
         transferBusy = false;
         return;
       }
-      const remoteBase64 = atob(decoded.text);
-      const binary = atob(remoteBase64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const bytes = base64ToBytes(decoded.text);
       const blob = new Blob([bytes], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
@@ -207,6 +217,8 @@
     if (openTabs.includes(id)) {
       invoke('ssh_close', { sessionId: id }).catch(() => undefined);
     }
+    deleteSecret('ssh.' + id + '.password').catch(() => undefined);
+    deleteSecret('ssh.' + id + '.passphrase').catch(() => undefined);
     sessions = sessions.filter((item) => item.id !== id);
     openTabs = openTabs.filter((tabId) => tabId !== id);
     statusMap = { ...statusMap };
@@ -228,6 +240,8 @@
     const exists = sessions.some((item) => item.id === cleaned.id);
     sessions = exists ? sessions.map((item) => (item.id === cleaned.id ? cleaned : item)) : [...sessions, cleaned];
     saveSessions(sessions);
+    setSecret('ssh.' + cleaned.id + '.password', cleaned.password).catch(() => undefined);
+    setSecret('ssh.' + cleaned.id + '.passphrase', cleaned.passphrase).catch(() => undefined);
     activeId = cleaned.id;
     editing = false;
   }
@@ -331,7 +345,7 @@
       </div>
       {#if sysPanel}
         <div class="rt-modal-backdrop" role="presentation" onkeydown={(event) => { if (event.key === 'Escape') sysPanel = false; }}>
-          <div class="rt-modal">
+          <div class="rt-modal" role="dialog" aria-modal="true">
             <header><b>主机资源信息</b><button onclick={() => (sysPanel = false)} aria-label="关闭">×</button></header>
             <div class="rt-modal-body">
               {#if sysLoading}<div class="rt-modal-loading"><span class="spinner"></span>正在读取主机信息…</div>
@@ -343,7 +357,7 @@
       {/if}
       {#if filePanel}
         <div class="rt-modal-backdrop" role="presentation" onkeydown={(event) => { if (event.key === 'Escape') filePanel = false; }}>
-          <div class="rt-modal">
+          <div class="rt-modal" role="dialog" aria-modal="true">
             <header><b>文件传输</b><button onclick={() => (filePanel = false)} aria-label="关闭">×</button></header>
             <div class="rt-modal-body">
               <label class="rt-file-row"><span>远端路径</span><input type="text" value={remotePath} oninput={(e) => (remotePath = e.currentTarget.value)} placeholder="/root/logs/app.log" spellcheck="false" /></label>

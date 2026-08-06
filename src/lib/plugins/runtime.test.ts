@@ -278,6 +278,31 @@ describe('PluginRuntime', () => {
     await expect(runtime.execute('spurh.random', 'number', '', { min: '9', max: '5' })).rejects.toThrow('范围无效');
   });
 
+  it('random number 大范围（span > 2^32）能生成超过 32 位的值', async () => {
+    const r = await runtime.execute('spurh.random', 'number', '', { min: '0', max: '5000000000' });
+    const value = BigInt(r.output);
+    expect(value).toBeGreaterThanOrEqual(0n);
+    expect(value).toBeLessThanOrEqual(5000000000n);
+  });
+
+  it('text unescape 往返保持字面反斜杠（Windows 路径不再损坏）', async () => {
+    const samples = ['a\nb', 'C:\\temp\\new\\file', 'a\\b', 'a\\u4f60b', 'a\"b'];
+    for (const sample of samples) {
+      const escaped = (await runtime.execute('spurh.text', 'escape', sample)).output;
+      const restored = (await runtime.execute('spurh.text', 'unescape', escaped)).output;
+      expect(restored).toBe(sample);
+    }
+  });
+
+  it('text unescape 还原真实转义', async () => {
+    // 单个反斜杠 + n 是换行转义
+    const r = await runtime.execute('spurh.text', 'unescape', 'a\\nb');
+    expect(r.output).toBe('a\nb');
+    // 两个反斜杠 + n 是字面反斜杠 + 字母 n
+    const r2 = await runtime.execute('spurh.text', 'unescape', 'a\\\\nb');
+    expect(r2.output).toBe('a\\nb');
+  });
+
   it('random color and ulid', async () => {
     const color = await runtime.execute('spurh.random', 'color', '', {});
     expect(color.output).toMatch(/^#[0-9a-f]{6}$/i);

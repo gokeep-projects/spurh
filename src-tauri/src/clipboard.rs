@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, LazyLock, Mutex,
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -141,12 +141,19 @@ pub fn clipboard_clear_history(app: tauri::AppHandle) {
     emit_history(&app, &history);
 }
 
+/// 剪贴板监听开关：由前端设置项控制，默认开启（与历史版本行为一致）。
+pub struct ClipboardWatch(pub AtomicBool);
+
 /// 在独立线程中轮询剪贴板：文本变化时写入历史并推送事件。
-pub fn start_watcher(app: tauri::AppHandle, history: Arc<ClipboardHistory>) {
+/// 监听被关闭时线程休眠但不退出，重新开启后立即恢复记录。
+pub fn start_watcher(app: tauri::AppHandle, history: Arc<ClipboardHistory>, enabled: Arc<ClipboardWatch>) {
     std::thread::spawn(move || {
         let mut clip = arboard::Clipboard::new().ok();
         loop {
             std::thread::sleep(Duration::from_millis(WATCH_INTERVAL_MS));
+            if !enabled.0.load(Ordering::Relaxed) {
+                continue;
+            }
             if clip.is_none() {
                 clip = arboard::Clipboard::new().ok();
                 continue;
@@ -162,4 +169,9 @@ pub fn start_watcher(app: tauri::AppHandle, history: Arc<ClipboardHistory>) {
             }
         }
     });
+}
+
+#[tauri::command]
+pub fn set_clipboard_watch(state: tauri::State<'_, Arc<ClipboardWatch>>, enabled: bool) {
+    state.0.store(enabled, Ordering::Relaxed);
 }

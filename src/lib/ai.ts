@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { deleteSecret, getSecret, setSecret } from './secrets';
 
 export type AiConfig = {
   provider: string;
@@ -69,19 +70,35 @@ export function createAiProfile(provider = 'openai', name?: string): AiProfile {
   };
 }
 
+// 从旧版 localStorage 迁移时发现的明文密钥，等待应用初始化后写入系统钥匙串
+let pendingLegacySecrets: Array<{ profileId: string; apiKey: string }> = [];
+
+/**
+ * 读取配置。API Key 不再持久化到 localStorage：旧数据中的明文 key 会被剥离并
+ * 收集到 pendingLegacySecrets，由 flushLegacyAiSecrets() 迁移到系统钥匙串。
+ */
 export function loadAiProfileStore(): AiProfileStore {
   try {
     const stored = localStorage.getItem(STORE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored) as AiProfileStore;
-      const profiles = Array.isArray(parsed.profiles) ? parsed.profiles.map((profile) => ({ ...profile, ...migrateConfig(profile) })) : [];
+      const profiles = Array.isArray(parsed.profiles)
+        ? parsed.profiles.map((profile) => {
+            const merged = { ...profile, ...migrateConfig(profile) };
+            const apiKey = typeof merged.apiKey === 'string' && merged.apiKey ? merged.apiKey : '';
+            if (apiKey) pendingLegacySecrets.push({ profileId: merged.id, apiKey });
+            return { ...merged, apiKey: '' };
+          })
+        : [];
       return { profiles, activeId: profiles.some((profile) => profile.id === parsed.activeId) ? parsed.activeId : profiles[0]?.id ?? '' };
     }
     const legacy = localStorage.getItem(LEGACY_KEY);
     if (legacy) {
       const config = migrateConfig(JSON.parse(legacy) as AiConfig);
-      const profile: AiProfile = { id: profileId(), name: config.model || '默认模型', ...config };
-      const migrated = { profiles: [profile], activeId: profile.id };
+      const id = profileId();
+      if (config.apiKey) pendingLegacySecrets.push({ profileId: id, apiKey: config.apiKey });
+      const profile: AiProfile = { id, name: config.model || '默认模型', ...config, apiKey: '' };
+      const migrated = { profiles: [profile], activeId: id };
       localStorage.setItem(STORE_KEY, JSON.stringify(migrated));
       return migrated;
     }
@@ -91,8 +108,45 @@ export function loadAiProfileStore(): AiProfileStore {
   return { profiles: [], activeId: '' };
 }
 
+/** 把旧版 localStorage 里的明文 API Key 写入系统钥匙串（应用初始化时调用一次）。 */
+export async function flushLegacyAiSecrets(): Promise<void> {
+  const pending = pendingLegacySecrets;
+  pendingLegacySecrets = [];
+  for (const item of pending) {
+    try {
+      await setSecret('ai.' + item.profileId + '.apiKey', item.apiKey);
+    } catch {
+      // 钥匙串不可用时放弃迁移；旧明文已在 load 时剥离，不会再次落盘
+    }
+  }
+}
+
+/** 从系统钥匙串读取所有配置的 API Key，填充到内存中的 store。 */
+export async function hydrateAiSecrets(store: AiProfileStore): Promise<AiProfileStore> {
+  const profiles = await Promise.all(store.profiles.map(async (profile) => ({
+    ...profile,
+    apiKey: (await getSecret('ai.' + profile.id + '.apiKey')) ?? '',
+  })));
+  return { profiles, activeId: store.activeId };
+}
+
+/** 保存配置：只把非敏感字段写入 localStorage，API Key 单独写入系统钥匙串。 */
 export function saveAiProfileStore(store: AiProfileStore): void {
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  const stripped = {
+    ...store,
+    profiles: store.profiles.map(({ apiKey: _key, ...rest }) => rest),
+  };
+  localStorage.setItem(STORE_KEY, JSON.stringify(stripped));
+}
+
+/** 将某个配置的 API Key 写入系统钥匙串（空值表示删除）。 */
+export function saveProfileSecret(profile: AiProfile): void {
+  setSecret('ai.' + profile.id + '.apiKey', profile.apiKey).catch(() => undefined);
+}
+
+/** 删除某个配置的 API Key。 */
+export function deleteProfileSecret(profileId: string): void {
+  deleteSecret('ai.' + profileId + '.apiKey').catch(() => undefined);
 }
 
 export function isAiConfigured(config: AiConfig | undefined): boolean {

@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { TOOL_ICONS, UI_ICONS, iconHtml } from '../icons';
   import AiAssist from './AiAssist.svelte';
   import type { AiConfig } from '../ai';
+  import { deleteSecret, getSecret, setSecret } from '../secrets';
 
   let { aiConfig }: { aiConfig?: AiConfig | undefined } = $props();
 
@@ -17,6 +19,7 @@
     password: string;
     database: string;
     file: string;
+    ssl: boolean;
     createdAt: number;
   };
   type ColumnInfo = { name: string; dataType: string; nullable: boolean; key: string; default: string | null; extra: string; comment?: string };
@@ -29,23 +32,48 @@
   const PAGE_SIZE = 100;
   const KIND_LABEL: Record<ConnKind, string> = { mysql: 'MySQL', postgres: 'PostgreSQL', sqlite: 'SQLite' };
 
+  // 旧版 localStorage 中可能残留的明文密码，等待初始化时迁移到系统钥匙串
+  let legacyPasswords: Array<{ id: string; password: string }> = [];
+
   function loadConnections(): SavedConn[] {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw) as SavedConn[];
-      return parsed.filter((item) => item && typeof item.id === 'string' && typeof item.name === 'string');
+      return parsed
+        .filter((item) => item && typeof item.id === 'string' && typeof item.name === 'string')
+        .map((item) => {
+          if (item.password) legacyPasswords.push({ id: item.id, password: item.password });
+          return { ...item, password: '' };
+        });
     } catch {
       return [];
     }
   }
 
+  /** 密码只存系统钥匙串：持久化时剥离，避免明文落盘。 */
   function saveConnections(list: SavedConn[]): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    const stripped = list.map(({ password: _pw, ...rest }) => rest);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
   }
 
+  /** 迁移旧明文密码到钥匙串，并从钥匙串加载当前连接的密码到内存。 */
+  async function migrateAndHydrateSecrets(): Promise<void> {
+    for (const item of legacyPasswords) {
+      try { await setSecret('sql.' + item.id + '.password', item.password); } catch { /* 钥匙串不可用时忽略 */ }
+    }
+    legacyPasswords = [];
+    const hydrated = await Promise.all(connections.map(async (conn) => ({
+      ...conn,
+      password: (await getSecret('sql.' + conn.id + '.password')) ?? '',
+    })));
+    connections = hydrated;
+  }
+
+  onMount(() => { migrateAndHydrateSecrets(); });
+
   function freshConn(): SavedConn {
-    return { id: crypto.randomUUID(), name: '', kind: 'mysql', host: '127.0.0.1', port: 3306, user: 'root', password: '', database: '', file: '', createdAt: Date.now() };
+    return { id: crypto.randomUUID(), name: '', kind: 'mysql', host: '127.0.0.1', port: 3306, user: 'root', password: '', database: '', file: '', ssl: false, createdAt: Date.now() };
   }
 
   function profileOf(conn: SavedConn) {
@@ -57,6 +85,7 @@
       password: conn.password || undefined,
       database: conn.database || undefined,
       file: conn.file || undefined,
+      ssl: conn.ssl,
     };
   }
 
@@ -480,14 +509,25 @@
     }
     confirmDelete = false;
     if (deleteTimer) { clearTimeout(deleteTimer); deleteTimer = null; }
-    const keyCol = pkCols.length > 0 ? pkCols[0].name : meta!.columns[0].name;
+    // 无主键表按任意列定位可能一次删掉多行（NULL/重复值），直接禁止
+    if (pkCols.length === 0) {
+      rowError = '该表没有主键，无法安全删除行（可能误删多行）。请先在表设计中添加主键。';
+      return;
+    }
+    const keyCol = pkCols[0].name;
     const keyIndex = colIndex(keyCol);
-    const values = [...selectedRows].map((ri) => cellText(rows[ri]?.[keyIndex]) ?? '');
+    const values = [...selectedRows].map((ri) => cellText(rows[ri]?.[keyIndex]));
+    if (values.some((value) => value === null || value === undefined || value === '')) {
+      rowError = '所选行包含空的主键值，已取消删除以避免误删数据';
+      return;
+    }
     rowError = '';
     saveMessage = '';
     try {
-      await invoke('sql_delete_rows', { profile: profileOf(activeConn!), database: selectedDb, table: selectedTable, keyColumn: keyCol, keyValues: values });
-      saveMessage = '已删除 ' + values.length + ' 行';
+      const affected = await invoke<number>('sql_delete_rows', { profile: profileOf(activeConn!), database: selectedDb, table: selectedTable, keyColumn: keyCol, keyValues: values as string[] });
+      saveMessage = affected === values.length
+        ? '已删除 ' + affected + ' 行'
+        : `警告：请求删除 ${values.length} 行，实际影响 ${affected} 行`;
       await loadTableData();
     } catch (cause) {
       rowError = cause instanceof Error ? cause.message : String(cause);
@@ -507,8 +547,16 @@
     let updated = 0;
     let inserted = 0;
     try {
+      // 无主键表禁止更新已有行：全列 WHERE 对重复行会一次改多行，数据风险高
+      if (dirtyRows.size > 0 && pkCols.length === 0) {
+        throw new Error('该表没有主键，无法安全更新已有行；请先在表设计中添加主键');
+      }
       // 更新已修改行
       for (const ri of dirtyRows) {
+        const keys = keyRefs(ri);
+        if (keys.some((k) => k.value === null || k.value === undefined)) {
+          throw new Error('所选行包含空的主键值，已取消保存以避免误改数据');
+        }
         const changes: Array<{ column: string; value: string | null }> = [];
         for (let ci = 0; ci < meta!.columns.length; ci++) {
           if (isDirty(ri, ci)) changes.push({ column: meta!.columns[ci].name, value: draftKey(ri, ci) ?? null });
@@ -517,7 +565,7 @@
           profile: profileOf(activeConn),
           database: selectedDb,
           table: selectedTable,
-          keys: keyRefs(ri),
+          keys,
           changes,
         });
       }
@@ -796,6 +844,7 @@
     const exists = connections.some((item) => item.id === cleaned.id);
     connections = exists ? connections.map((item) => (item.id === cleaned.id ? cleaned : item)) : [...connections, cleaned];
     saveConnections(connections);
+    setSecret('sql.' + cleaned.id + '.password', cleaned.password).catch(() => undefined);
     activeId = cleaned.id;
     formOpen = false;
     // 保存后自动连接
@@ -814,6 +863,7 @@
     const target = connections.find((item) => item.id === id);
     if (!target) return;
     invoke('sql_disconnect', { profile: profileOf(target) }).catch(() => undefined);
+    deleteSecret('sql.' + id + '.password').catch(() => undefined);
     connections = connections.filter((item) => item.id !== id);
     saveConnections(connections);
     if (activeId === id) {
@@ -1220,7 +1270,7 @@
   {#if formOpen && formDraft}
     {@const d = formDraft}
     <div class="sql-modal-backdrop" role="presentation" onkeydown={(event) => { if (event.key === 'Escape') formOpen = false; }}>
-      <div class="sql-modal">
+      <div class="sql-modal" role="dialog" aria-modal="true">
         <header>
           <div><b>{editingConn ? '编辑连接' : '新建连接'}</b><small>连接信息仅保存在本机</small></div>
           <button class="sql-btn ghost" onclick={() => (formOpen = false)} aria-label="关闭">×</button>
@@ -1245,6 +1295,7 @@
               </span>
             </label>
             <label class="full"><span>默认数据库（可选）</span><input bind:value={d.database} placeholder="留空则在连接后选择" spellcheck="false" /></label>
+            <label class="full ssl-row"><span>SSL 加密连接</span><input type="checkbox" bind:checked={d.ssl} /><i>连接远程数据库时建议开启，避免密码明文传输</i></label>
           {:else}
             <label class="full"><span>数据库文件</span><input bind:value={d.file} placeholder="C:\path\to\app.db 或 :memory:" spellcheck="false" /></label>
           {/if}
@@ -1263,6 +1314,9 @@
 </div>
 
 <style>
+  .ssl-row { display: flex; align-items: center; gap: 8px; }
+  .ssl-row input[type="checkbox"] { width: auto; }
+  .ssl-row i { font-style: normal; color: var(--muted-2); font-size: 12px; }
   .sql-panel { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); zoom: calc(var(--app-font-size, 14px) / 14); }
 
   /* ── 顶栏 ── */

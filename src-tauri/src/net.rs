@@ -1,6 +1,7 @@
 // 网络小工具：端口探测 / DNS 查询 / TCP/UDP 发送 / 路由追踪
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -62,11 +63,12 @@ pub async fn net_tcp_send(
                     .await
                     .map_err(|error| format!("发送失败：{error}"))?;
             }
-            // 读取响应（最多 64KB，空闲 800ms 即认为结束）
+            // 读取响应（最多 64KB，空闲 800ms 或总超时即结束；总超时防止慢速服务器无限拖长）
+            let deadline = tokio::time::Instant::now() + timeout;
             let mut buf: Vec<u8> = Vec::with_capacity(1024);
             let mut chunk = [0u8; 2048];
             loop {
-                match tokio::time::timeout(Duration::from_millis(800), stream.read(&mut chunk)).await {
+                match tokio::time::timeout_at(deadline, stream.read(&mut chunk)).await {
                     Ok(Ok(0)) => break,
                     Ok(Ok(n)) => {
                         buf.extend_from_slice(&chunk[..n]);
@@ -204,10 +206,14 @@ pub async fn net_port_scan(host: String, ports: String, timeout_ms: Option<u64>)
         return Err("端口数量过多（最多 4096 个）".into());
     }
 
+    // 并发上限：避免 4096 个端口同时建连耗尽本地 socket
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(256));
     let mut tasks = tokio::task::JoinSet::new();
     for port in targets {
         let host = host.clone();
+        let permit = semaphore.clone();
         tasks.spawn(async move {
+            let _guard = permit.acquire_owned().await.expect("信号量关闭");
             let started = Instant::now();
             let open = tokio::time::timeout(timeout, tokio::net::TcpStream::connect((host.as_str(), port)))
                 .await

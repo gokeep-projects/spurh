@@ -191,6 +191,8 @@ export const jsonPlugin: SpurhPlugin = {
     }
   },
   execute(actionId, input, options = {}): PluginResult {
+    // 超大输入会让格式化/解析在主线程长时间阻塞，先做上限保护
+    if (input.length > 3_000_000) throw new Error('输入过大（超过 300 万字符），请分片处理');
     if (actionId === 'xml-format' || actionId === 'xml-minify') {
       const output = actionId === 'xml-format' ? formatXml(input) : minifyXml(input);
       return {

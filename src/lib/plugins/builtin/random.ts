@@ -83,12 +83,18 @@ export const randomPlugin: SpurhPlugin = {
         const min = Number.parseInt(options.min || '0', 10);
         const max = Number.parseInt(options.max || '100', 10);
         if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) throw new Error('数字范围无效，请确认最小值 ≤ 最大值');
-        const span = BigInt(max) - BigInt(min) + 1n;
-        if (span > 1n << 53n) throw new Error('数字范围过大');
-        // 均匀采样，避免取模偏差
-        const limit = Math.floor(Number(span));
-        const bytes = crypto.getRandomValues(new Uint32Array(1));
-        return String(min + (bytes[0] % limit));
+        // 拒绝采样：基于 64 位随机数，对任意 span 均匀无偏差（也避免 span > 2^32 时只产生小值）
+        const span = BigInt(max) - BigInt(min) + BigInt(1);
+        if (span > BigInt(1) << BigInt(53)) throw new Error('数字范围过大');
+        const max64 = BigInt(1) << BigInt(64);
+        const limit = (max64 / span) * span;
+        const buffer = new BigUint64Array(1);
+        let value: bigint;
+        do {
+          crypto.getRandomValues(buffer);
+          value = buffer[0];
+        } while (value >= limit);
+        return String(BigInt(min) + (value % span));
       }
       return secureString(length, actionId === 'password' ? PASSWORD : ALPHANUMERIC);
     });

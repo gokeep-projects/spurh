@@ -42,6 +42,9 @@ export const regexPlugin: SpurhPlugin = {
     const flags = options.flags || literal?.flags || 'g';
     const text = literal ? literal.text : input;
     if (!pattern) throw new Error('请先输入正则表达式');
+    // 灾难性回溯会卡死主线程且无法被 Promise 超时打断，限制输入/表达式大小
+    if (text.length > 1_000_000) throw new Error('输入文本过大（超过 100 万字符），请缩小范围后重试');
+    if (pattern.length > 2_000) throw new Error('正则表达式过长（超过 2000 字符）');
     try {
       const normalizedFlags = flags.includes('g') ? flags : `${flags}g`;
       const regex = new RegExp(pattern, normalizedFlags);
