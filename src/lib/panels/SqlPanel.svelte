@@ -212,6 +212,15 @@
   let sqlHistory = $state<string[]>(loadSqlHistory());
   let sqlHistoryOpen = $state(false);
   let sqlEditorEl = $state<HTMLTextAreaElement | undefined>();
+  let historyIndex = $state(-1);
+  let sqlHelpOpen = $state(false);
+
+  /** Ctrl+↑/↓ 在历史查询中前后切换（历史按最新在前存储） */
+  function recallHistory(dir: 1 | -1): void {
+    if (sqlHistory.length === 0) return;
+    historyIndex = Math.max(-1, Math.min(sqlHistory.length - 1, historyIndex + dir));
+    sqlText = historyIndex >= 0 ? sqlHistory[historyIndex] : '';
+  }
   // 查询结果客户端分页（后端最多返回 500 行）
   const RESULT_PAGE_SIZE = 100;
   let resultPage = $state(0);
@@ -652,6 +661,31 @@
     setTimeout(() => { if (copiedKey === key) copiedKey = ''; }, 1100);
   }
 
+  /* ── 单元格右键菜单 ── */
+  let cellMenu = $state<{ x: number; y: number; ri: number; ci: number } | null>(null);
+
+  function openCellMenu(event: MouseEvent, ri: number, ci: number): void {
+    event.preventDefault();
+    cellMenu = { x: event.clientX, y: event.clientY, ri, ci };
+  }
+
+  function copyCellValue(): void {
+    if (!cellMenu || !meta) return;
+    const row = rows[cellMenu.ri];
+    const value = row?.[cellMenu.ci] ?? null;
+    navigator.clipboard.writeText(value === null ? 'NULL' : String(value)).catch(() => undefined);
+    cellMenu = null;
+  }
+
+  function copyRowJson(): void {
+    if (!cellMenu || !meta) return;
+    const row = rows[cellMenu.ri];
+    const record: Record<string, unknown> = {};
+    meta.columns.forEach((col, index) => { record[col.name] = row?.[index] ?? null; });
+    navigator.clipboard.writeText(JSON.stringify(record, null, 2)).catch(() => undefined);
+    cellMenu = null;
+  }
+
   /* ── CSV 导出 ── */
   function toCsv(columns: string[], dataRows: Array<Array<string | number | boolean | null>>): string {
     const escape = (value: unknown): string => {
@@ -705,6 +739,14 @@
     } else if (event.key === 'F5') {
       event.preventDefault();
       runSql();
+    } else if (event.ctrlKey && !event.shiftKey && event.key === 'ArrowUp') {
+      event.preventDefault();
+      recallHistory(1);
+    } else if (event.ctrlKey && !event.shiftKey && event.key === 'ArrowDown') {
+      event.preventDefault();
+      recallHistory(-1);
+    } else if (event.key === 'Escape' && sqlHelpOpen) {
+      sqlHelpOpen = false;
     }
   }
 
@@ -1106,6 +1148,15 @@
       {#if exportNote}
         <div class="sql-export-note" class:err={exportNote.startsWith('导出失败')}>{exportNote}<button onclick={() => (exportNote = '')}>×</button></div>
       {/if}
+      {#if cellMenu}
+        <button type="button" class="sql-ctx-backdrop" aria-label="关闭菜单" tabindex="-1" oncontextmenu={(event) => event.preventDefault()} onclick={() => (cellMenu = null)}></button>
+        <div class="sql-cell-menu" style={`left:${Math.min(cellMenu.x, window.innerWidth - 190)}px;top:${Math.min(cellMenu.y, window.innerHeight - 140)}px`}>
+          <b>单元格操作</b>
+          <button onclick={copyCellValue}>复制单元格</button>
+          <button onclick={copyRowJson}>复制整行 JSON</button>
+          <button onclick={() => (cellMenu = null)}>取消</button>
+        </div>
+      {/if}
     </aside>
 
     <main class="sql-main">
@@ -1219,7 +1270,7 @@
                                 <button class="cell-null" title="设为 NULL" onclick={setNull}>NULL</button>
                               </span>
                             {:else}
-                              <button class="cell-view" onclick={() => startNewEdit(ni, ci)} title="点击编辑">
+                              <button class="cell-view" onclick={() => startNewEdit(ni, ci)} oncontextmenu={(e) => openCellMenu(e, ni, ci)} title="点击编辑 · 右键复制">
                                 {#if nval === null}<em class="null-tag">NULL</em>{:else}{nval}{/if}
                               </button>
                             {/if}
@@ -1244,7 +1295,7 @@
                                 <button class="cell-null" title="设为 NULL" onclick={setNull}>NULL</button>
                               </span>
                             {:else if !isFiltered}
-                              <button class="cell-view" onclick={() => startEdit(ri, ci)} title="点击编辑">
+                              <button class="cell-view" onclick={() => startEdit(ri, ci)} oncontextmenu={(e) => openCellMenu(e, ri, ci)} title="点击编辑 · 右键复制">
                                 {#if cur === null}<em class="null-tag">NULL</em>{:else}{cur}{/if}
                               </button>
                             {:else}
@@ -1294,6 +1345,19 @@
               <kbd>Ctrl ↵</kbd>
               <span class="sql-editor-note">有选中文本时只执行选中部分 · 最多 500 行</span>
               <div class="flex-spacer"></div>
+              <div class="sql-help-wrap">
+                <button class="sql-btn ghost" onclick={() => (sqlHelpOpen = !sqlHelpOpen)} title="快捷键帮助">?</button>
+                {#if sqlHelpOpen}
+                  <div class="sql-help">
+                    <b>快捷键</b>
+                    <span><kbd>Ctrl ↵</kbd> / <kbd>F5</kbd> 运行（有选中只执行选中）</span>
+                    <span><kbd>Ctrl ↑</kbd> / <kbd>Ctrl ↓</kbd> 切换历史查询</span>
+                    <span><kbd>Ctrl F</kbd> 聚焦当前页筛选</span>
+                    <span><kbd>Ctrl S</kbd> 保存数据/表结构</span>
+                    <span><kbd>右键</kbd> 单元格复制</span>
+                  </div>
+                {/if}
+              </div>
               <div class="sql-history-wrap">
                 <button class="sql-btn ghost" onclick={() => (sqlHistoryOpen = !sqlHistoryOpen)} title="最近执行的查询">{sqlHistoryOpen ? '收起历史' : '历史'}（{sqlHistory.length}）</button>
                 {#if sqlHistoryOpen}
@@ -1580,6 +1644,10 @@
   .sql-ctx > button:disabled { opacity: .45; cursor: default; }
   .sql-ctx > small { padding: 5px 8px 2px; color: var(--accent); font-size: 9.5px; }
   .sql-ctx > small.err { color: var(--danger); }
+  .sql-cell-menu { position: fixed; z-index: 41; width: 190px; display: flex; flex-direction: column; gap: 2px; padding: 6px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel-2); box-shadow: 0 16px 48px rgba(0, 0, 0, .5); animation: fade-in .1s ease-out; }
+  .sql-cell-menu b { padding: 4px 8px 7px; color: var(--muted); font-size: 10px; font-weight: 600; border-bottom: 1px solid var(--line); }
+  .sql-cell-menu button { height: 28px; padding: 0 9px; cursor: pointer; text-align: left; color: var(--text); font-size: 11px; border: 0; border-radius: 7px; background: transparent; transition: background .12s ease; }
+  .sql-cell-menu button:hover { background: var(--hover); }
   .sql-export-note { position: fixed; z-index: 42; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 14px; color: var(--accent); font-size: 11px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 36px rgba(0, 0, 0, .45); animation: fade-in .15s ease-out; }
   .sql-export-note.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
   .sql-export-note button { width: 20px; height: 20px; cursor: pointer; color: var(--muted); font-size: 13px; border: 0; border-radius: 5px; background: transparent; }
@@ -1699,6 +1767,11 @@
   .sql-history button span { flex: 0 0 auto; color: var(--muted-2); font: 500 9.6px 'Cascadia Code', monospace; }
   .sql-history button code { min-width: 0; overflow: hidden; color: var(--muted); font: 400 10.6px/1.5 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .sql-history-empty { padding: 14px; color: var(--muted-2); font-size: 10.9px; text-align: center; }
+  .sql-help-wrap { position: relative; }
+  .sql-help { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 300px; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+  .sql-help b { display: block; margin-bottom: 6px; color: var(--muted); font-size: 10px; letter-spacing: .5px; }
+  .sql-help span { display: flex; align-items: center; gap: 6px; padding: 3px 0; color: var(--text); font-size: 10.8px; }
+  .sql-help kbd { margin: 0; }
 
   .sql-ddl { flex: 0 0 auto; margin: 9px 12px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); overflow: hidden; }
   .sql-ddl summary { padding: 8px 12px; cursor: pointer; color: var(--muted); font-size: 11.5px; user-select: none; }

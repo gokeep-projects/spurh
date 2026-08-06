@@ -175,13 +175,15 @@ fn sqlite_exec_on(
         sqlite_put(profile, conn);
         Ok(result)
     } else {
-        // execute_batch 支持多语句脚本（dump/迁移文件），affected 取累计变更行数
+        // execute_batch 支持多语句脚本（dump/迁移文件）；
+        // affected 取「本次调用」的变更行数差值（total_changes 是连接累计值）
+        let before = conn.total_changes();
         conn.execute_batch(sql)
             .map_err(|error| format!("SQL 执行失败：{error}"))?;
         let result = SqlExecResult {
             columns: Vec::new(),
             rows: Vec::new(),
-            affected: conn.total_changes(),
+            affected: conn.total_changes() - before,
             elapsed_ms: started.elapsed().as_millis() as u64,
             truncated: false,
             is_query: false,
