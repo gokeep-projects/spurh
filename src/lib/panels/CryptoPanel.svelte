@@ -89,7 +89,7 @@
 
 <style>
   .crypto-panel { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
-  .crypto-groups { display: flex; gap: 12px; flex-wrap: wrap; }
+  .crypto-groups { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
   .crypto-group { display: flex; gap: 3px; align-items: center; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
   .crypto-grp-label { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 700; margin: 0 4px; white-space: nowrap; }
   /* svelte-ignore css_unused_selector */
