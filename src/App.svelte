@@ -1557,6 +1557,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
             <button class:active={settingsTab === 'about'} onclick={() => (settingsTab = 'about')}><span>{@html UI_ICONS.info}</span><div><b>关于</b><small>版本信息</small></div></button>
           </nav>
           <section class="settings-content">
+            {#if settingsNotice}<div class="settings-notice"><span>{@html UI_ICONS.info}</span>{settingsNotice}</div>{/if}
             {#if settingsTab === 'general'}
               <div class="settings-section-title"><h3>通用</h3></div>
               <button class="visibility-entry" onclick={() => (settingsTab = 'tools')}>
@@ -1608,7 +1609,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
             {/if}
             {#if settingsTab === 'ai'}
               <div class="settings-section-title model-title"><div><h3>AI 模型</h3></div><button onclick={addAiProfile}><span>{@html UI_ICONS.plus}</span>添加</button></div>
-              {#if settingsNotice}<div class="settings-notice"><span>{@html UI_ICONS.info}</span>{settingsNotice}</div>{/if}
               <div class="profile-list">
                 {#each aiStore.profiles as profile}
                   <button class:active={aiDraft.id === profile.id} onclick={() => editAiProfile(profile.id)}>
@@ -1682,8 +1682,25 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               <div class="shortcuts-note">快捷键在系统全局生效，即使 Spurh 在后台也能唤起。Ctrl+Shift+Space 固定用于显示窗口，不可修改。</div>
             {/if}
             {#if settingsTab === 'about'}
-              <div class="about-hero"><span class="brand-mark large">{@html BRAND_MARK}</span><div><h3>Spurh</h3><p>AI Native Developer Toolbox</p></div><b>v0.1.0</b></div>
-              <div class="about-grid"><article><small>作者</small><b>xuning</b></article><article><small>版本</small><b>0.1.0</b></article><article><small>技术栈</small><b>Svelte 5 · Tauri 2</b></article><article><small>许可</small><b>MIT</b></article></div>
+              <div class="about-stage">
+                <div class="about-aurora" aria-hidden="true"></div>
+                <div class="about-orb about-orb-a" aria-hidden="true"></div>
+                <div class="about-orb about-orb-b" aria-hidden="true"></div>
+                <div class="about-particles" aria-hidden="true"><i style="--px:12%;--pd:.0s;--ps:9px"></i><i style="--px:26%;--pd:1.3s;--ps:5px"></i><i style="--px:42%;--pd:.6s;--ps:7px"></i><i style="--px:58%;--pd:2s;--ps:6px"></i><i style="--px:72%;--pd:.9s;--ps:8px"></i><i style="--px:86%;--pd:1.7s;--ps:5px"></i><i style="--px:34%;--pd:2.6s;--ps:4px"></i><i style="--px:64%;--pd:3.1s;--ps:6px"></i><i style="--px:18%;--pd:3.8s;--ps:5px"></i><i style="--px:80%;--pd:2.3s;--ps:7px"></i></div>
+                <div class="about-hero">
+                  <span class="brand-mark large about-logo">{@html BRAND_MARK}</span>
+                  <div><h3>Spurh</h3><p>AI Native Developer Toolbox</p></div>
+                  <div class="about-version"><b>v0.1.0</b><small>latest</small></div>
+                </div>
+                <div class="about-chips"><span>Svelte 5</span><span>Tauri 2</span><span>Rust</span><span>TypeScript</span><span>AI Native</span><span>本地优先</span></div>
+                <div class="about-grid"><article><small>作者</small><b>xuning</b></article><article><small>版本</small><b>0.1.0</b></article><article><small>内置工具</small><b>14 个面板</b></article><article><small>许可</small><b>MIT</b></article></div>
+                <div class="about-note"><b>本地优先 · AI 增强</b><p>所有工具在本地运行，数据不出设备；AI 能力按需接入，帮助生成、解释、修复与提炼，让重复工作一步完成。</p></div>
+                <div class="about-actions">
+                  <a href="https://github.com/gokeep-projects/spurh" target="_blank" rel="noreferrer">{@html UI_ICONS.shield}<span>GitHub 仓库</span></a>
+                  <button onclick={() => (settingsNotice = `已是最新版本 v0.1.0`)}>{@html UI_ICONS.refresh}<span>检查更新</span></button>
+                </div>
+                <footer class="about-foot">© 2026 Spurh · Made with ❤ by xuning</footer>
+              </div>
             {/if}
           </section>
         </div>
