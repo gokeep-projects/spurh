@@ -1,9 +1,10 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { Channel } from '@tauri-apps/api/core';
   import { safeInvoke } from '../env';
   import { TOOL_ICONS, UI_ICONS, iconHtml } from '../icons';
 
   type PortResult = { port: number; open: boolean; elapsedMs: number };
-  type DnsRecord = { name: string; ttl: number; data: string };
   type Tab = 'port' | 'dns' | 'tcp' | 'trace' | 'ref';
   let tab = $state<Tab>('port');
 
@@ -25,139 +26,175 @@
   let portDone = $state(0);
   let scanCanceled = $state(false);
   const openPorts = $derived(portResults.filter((item) => item.open));
-
-  /** 与后端一致的端口列表解析：逗号分隔 + start-end 范围 */
-  function parsePorts(input: string): number[] {
+  const now = (): string => new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  function parsePorts(text: string): number[] {
     const ports = new Set<number>();
-    for (const part of input.split(',')) {
+    for (const part of text.split(',')) {
       const p = part.trim();
       if (!p) continue;
-      const range = p.match(/^(\d{1,5})-(\d{1,5})$/);
-      if (range) {
-        const a = Number(range[1]);
-        const b = Number(range[2]);
-        if (a >= 1 && b >= a && b <= 65535 && b - a <= 4000) {
+      if (p.includes('-')) {
+        const [a, b] = p.split('-').map((v) => Number(v.trim()));
+        if (Number.isInteger(a) && Number.isInteger(b) && a >= 1 && b <= 65535 && a <= b) {
           for (let v = a; v <= b; v++) ports.add(v);
         }
-      } else if (/^\d{1,5}$/.test(p)) {
+      } else {
         const v = Number(p);
         if (v >= 1 && v <= 65535) ports.add(v);
       }
     }
     return [...ports].sort((a, b) => a - b);
   }
-
   let portLog = $state<{ ts: string; text: string; ok: boolean }[]>([]);
-
-  function now(): string {
-    const d = new Date();
-    const p = (n: number) => String(n).padStart(2, '0');
-    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-  }
-
-  function useCommonPorts(ports: string): void {
-    portRange = ports;
-  }
-
+  function useCommonPorts(ports: string): void { portRange = ports; }
   async function scanPorts(): Promise<void> {
     if (!portHost.trim()) { portError = '请输入主机地址'; return; }
     const targets = parsePorts(portRange);
     if (targets.length === 0) { portError = '端口列表无效，例如 80,443,8000-8100'; return; }
-    portScanning = true;
-    scanCanceled = false;
-    portError = '';
-    portResults = [];
-    portElapsed = 0;
-    portTotal = targets.length;
-    portDone = 0;
+    portScanning = true; scanCanceled = false; portError = '';
+    portResults = []; portElapsed = 0; portTotal = targets.length; portDone = 0;
     portLog = [{ ts: now(), text: `开始扫描 ${portHost.trim()} 的 ${targets.length} 个端口…`, ok: true }];
     const started = performance.now();
-    const batchSize = 32;
     try {
-      for (let offset = 0; offset < targets.length; offset += batchSize) {
+      const chunk = 64;
+      for (let idx = 0; idx < targets.length; idx += chunk) {
         if (scanCanceled) { portLog = [...portLog, { ts: now(), text: '已手动停止扫描', ok: false }]; break; }
-        const batch = targets.slice(offset, offset + batchSize).join(',');
-        const batchResults = await safeInvoke<PortResult[]>('net_port_scan', { host: portHost.trim(), ports: batch });
-        portResults = [...portResults, ...batchResults].sort((a, b) => a.port - b.port);
-        portDone = Math.min(targets.length, offset + batchSize);
-        const open = batchResults.filter((item) => item.open);
-        portLog = [...portLog, {
-          ts: now(),
-          text: `批次完成: ${batchResults.length} 个端口, 开放 ${open.length} 个${open.length ? ` [${open.map((item) => item.port).join(', ')}]` : ''}（${portDone}/${portTotal}）`,
-          ok: true,
-        }];
+        const batch = targets.slice(idx, idx + chunk);
+        const batchResults = await safeInvoke<PortResult[]>('net_port_scan', { host: portHost.trim(), ports: batch.join(','), timeoutMs: 600 });
+        portResults = [...portResults, ...batchResults];
+        portDone = Math.min(portTotal, portDone + batch.length);
+        portLog = [...portLog, { ts: now(), text: `已探测 ${portDone}/${portTotal}，发现 ${portResults.filter((r) => r.open).length} 个开放端口`, ok: true }];
       }
     } catch (cause) {
-      if (!scanCanceled) {
-        const message = cause instanceof Error ? cause.message : String(cause);
-        portError = message;
-        portLog = [...portLog, { ts: now(), text: message, ok: false }];
-      }
+      portError = cause instanceof Error ? cause.message : String(cause);
     }
     portElapsed = Math.round(performance.now() - started);
     portScanning = false;
-    if (!scanCanceled) portLog = [...portLog, { ts: now(), text: `扫描完成: ${openPorts.length}/${portResults.length} 开放 · 耗时 ${portElapsed} ms`, ok: true }];
   }
 
   /* ── DNS 查询 ── */
   const DNS_TYPES = ['A', 'AAAA', 'CNAME', 'MX', 'NS', 'TXT', 'SOA', 'PTR', 'SRV'];
   let dnsHost = $state('');
   let dnsType = $state('A');
-  let dnsRecords = $state<DnsRecord[]>([]);
+  let dnsRecords = $state<{ name: string; ttl: number; data: string }[]>([]);
   let dnsLoading = $state(false);
   let dnsError = $state('');
-
   async function lookupDns(): Promise<void> {
     if (!dnsHost.trim()) { dnsError = '请输入域名'; return; }
-    dnsLoading = true;
-    dnsError = '';
-    dnsRecords = [];
+    dnsLoading = true; dnsError = ''; dnsRecords = [];
     try {
-      dnsRecords = await safeInvoke<DnsRecord[]>('net_dns_lookup', { host: dnsHost.trim(), recordType: dnsType });
+      dnsRecords = await safeInvoke('net_dns_lookup', { host: dnsHost.trim(), recordType: dnsType });
     } catch (cause) {
       dnsError = cause instanceof Error ? cause.message : String(cause);
     }
     dnsLoading = false;
   }
 
-  /* ── TCP / UDP 数据发送 ── */
-  type SendLog = { ts: string; ok: boolean; text: string };
-  type SendResult = { ok: boolean; message: string; response: string; elapsedMs: number };
+  /* ── TCP / UDP 交互会话 ── */
+  type SessionEvent = { kind: string; data: string; hex: string; bytes: number };
+  type ChatLog = { ts: string; dir: 'in' | 'out' | 'sys'; text: string; hex: string };
   let tcpHost = $state('127.0.0.1');
   let tcpPort = $state('80');
   let tcpProtocol = $state('tcp');
-  let tcpData = $state('');
-  let tcpSending = $state(false);
-  let tcpLogs = $state<SendLog[]>([]);
-  let tcpResult = $state<SendResult | null>(null);
+  let tcpConnected = $state(false);
+  let tcpConnecting = $state(false);
+  let tcpSessionId = $state<number | null>(null);
+  let tcpChannel: Channel<SessionEvent> | undefined;
+  let tcpLogs = $state<ChatLog[]>([]);
+  let tcpSendText = $state('');
+  let tcpHexMode = $state(false);
+  let tcpError = $state('');
+  let tcpBytesIn = $state(0);
+  let tcpBytesOut = $state(0);
 
-  async function sendData(): Promise<void> {
-    if (!tcpHost.trim()) { tcpLogs = [...tcpLogs, { ts: now(), ok: false, text: '请先填写主机地址' }]; return; }
+  function tcpLog(dir: 'in' | 'out' | 'sys', text: string, hex = ''): void {
+    tcpLogs = [...tcpLogs, { ts: now(), dir, text, hex }];
+  }
+  async function openSession(): Promise<void> {
     const port = Number(tcpPort);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) { tcpLogs = [...tcpLogs, { ts: now(), ok: false, text: '端口无效' }]; return; }
-    tcpSending = true;
-    tcpLogs = [...tcpLogs, { ts: now(), ok: true, text: `[${tcpProtocol.toUpperCase()}] 连接 ${tcpHost}:${port} 并发送 ${tcpData.length} 字节…` }];
+    if (!Number.isInteger(port) || port < 1 || port > 65535) { tcpError = '端口无效'; return; }
+    if (!tcpHost.trim()) { tcpError = '请输入主机地址'; return; }
+    tcpConnecting = true; tcpError = ''; tcpLogs = []; tcpBytesIn = 0; tcpBytesOut = 0;
     try {
-      const result = await safeInvoke<SendResult>('net_tcp_send', { host: tcpHost.trim(), port, protocol: tcpProtocol, data: tcpData });
-      tcpResult = result;
-      tcpLogs = [...tcpLogs, { ts: now(), ok: result.ok, text: `${result.message}（${result.elapsedMs} ms）` }];
-      if (result.response.trim()) tcpLogs = [...tcpLogs, { ts: now(), ok: true, text: `响应: ${result.response.slice(0, 500)}${result.response.length > 500 ? '…' : ''}` }];
+      const channel = new Channel<SessionEvent>();
+      tcpChannel = channel;
+      channel.onmessage = (event) => {
+        if (event.kind === 'data') {
+          tcpBytesIn += event.bytes;
+          tcpLog('in', event.data.length > 0 ? event.data : `[二进制 ${event.bytes} 字节]`, event.hex);
+        } else if (event.kind === 'closed') {
+          tcpConnected = false; tcpSessionId = null;
+          tcpLog('sys', '连接已关闭');
+        } else if (event.kind === 'error') {
+          tcpConnected = false; tcpSessionId = null;
+          tcpError = event.data;
+          tcpLog('sys', event.data);
+        }
+      };
+      const id = await safeInvoke<number>('net_session_open', {
+        host: tcpHost.trim(), port, protocol: tcpProtocol, timeoutMs: 4000, out: channel,
+      });
+      tcpSessionId = id;
+      tcpConnected = true;
+      tcpLog('sys', `已连接 ${tcpProtocol.toUpperCase()} ${tcpHost.trim()}:${port}`);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : String(cause);
-      tcpResult = { ok: false, message, response: '', elapsedMs: 0 };
-      tcpLogs = [...tcpLogs, { ts: now(), ok: false, text: message }];
+      tcpError = cause instanceof Error ? cause.message : String(cause);
+      tcpConnected = false; tcpSessionId = null;
     }
-    tcpSending = false;
+    tcpConnecting = false;
+  }
+  async function closeSession(): Promise<void> {
+    if (tcpSessionId !== null) {
+      try { await safeInvoke('net_session_close', { sessionId: tcpSessionId }); } catch { /* 忽略 */ }
+      tcpSessionId = null;
+    }
+    tcpConnected = false;
+    tcpLog('sys', '已断开连接');
+  }
+  async function sendData(): Promise<void> {
+    if (tcpSessionId === null) { tcpError = '请先建立连接'; return; }
+    const text = tcpSendText;
+    if (!text) return;
+    let payload = text;
+    if (tcpHexMode) {
+      const clean = text.replace(/[^0-9a-fA-F]/g, '');
+      if (clean.length % 2 !== 0) { tcpError = 'HEX 数据必须为偶数位'; return; }
+      const bytes: number[] = [];
+      for (let idx = 0; idx < clean.length; idx += 2) bytes.push(parseInt(clean.slice(idx, idx + 2), 16));
+      payload = String.fromCharCode(...bytes);
+    }
+    try {
+      const sent = await safeInvoke<number>('net_session_send', { sessionId: tcpSessionId, data: payload });
+      tcpBytesOut += sent;
+      tcpLog('out', tcpHexMode ? `[HEX ${sent} 字节]` : text);
+      tcpSendText = '';
+    } catch (cause) {
+      tcpError = cause instanceof Error ? cause.message : String(cause);
+      tcpLog('sys', cause instanceof Error ? cause.message : String(cause));
+    }
   }
 
-  /* ── 链路追踪（路由追踪） ── */
+  /* ── 链路追踪（实时逐跳） ── */
   type TraceHop = { hop: number; ip: string; ms: number[] };
-  const TRACE_W = 880;
-  const TRACE_HOP = 96;
-  const TRACE_SPINE = TRACE_W / 2;
-  const TRACE_NODE_X = [170, TRACE_W - 170];
+  type LocalInfo = { hostname: string; ips: string[]; gateways: string[] };
+  const TRACE_W = 900;
+  const TRACE_HOP = 88;
+  const TRACE_SPINE = 330;
+  const TRACE_NODE_X = [170, 460, 610, 750];
+  let traceHost = $state('www.baidu.com');
+  let tracing = $state(false);
+  let traceHops = $state<TraceHop[]>([]);
+  let traceError = $state('');
+  let localInfo = $state<LocalInfo | null>(null);
+  let traceElapsed = $state(0);
+  let traceChanged = $state<Set<number>>(new Set());
+  let prevTraceIps = $state<string[]>([]);
+
+  onMount(() => {
+    safeInvoke<LocalInfo>('net_local_info').then((info) => { localInfo = info; }).catch(() => undefined);
+  });
+
   function traceY(index: number): number { return (index + 1) * TRACE_HOP; }
-  function traceNodeX(index: number): number { return TRACE_NODE_X[index % 2]; }
+  function traceNodeX(index: number): number { return TRACE_NODE_X[index % TRACE_NODE_X.length]; }
   function hopStatus(ms: number[]): 'ok' | 'warn' | 'slow' | 'timeout' {
     const vals = ms.filter((m) => m > 0);
     if (vals.length === 0) return 'timeout';
@@ -170,33 +207,45 @@
     const vals = ms.filter((m) => m > 0);
     return vals.length ? `${Math.min(...vals)}ms` : '超时';
   }
-
-  let traceHost = $state('www.baidu.com');
-  let tracing = $state(false);
-  let traceHops = $state<TraceHop[]>([]);
-  let traceError = $state('');
+  function hopStats(ms: number[]): { avg: number; loss: number } {
+    const vals = ms.filter((m) => m > 0);
+    if (vals.length === 0) return { avg: 0, loss: 100 };
+    return { avg: Math.round(vals.reduce((a, b) => a + b, 0) / vals.length), loss: Math.round((1 - vals.length / ms.length) * 100) };
+  }
   async function runTrace(): Promise<void> {
     if (!traceHost.trim()) { traceError = '请输入目标主机'; return; }
-    tracing = true;
-    traceError = '';
-    traceHops = [];
+    tracing = true; traceError = ''; traceHops = [];
+    const started = performance.now();
+    const channel = new Channel<TraceHop>();
+    channel.onmessage = (hop) => {
+      traceHops = [...traceHops, hop];
+    };
     try {
-      traceHops = await safeInvoke<TraceHop[]>('net_traceroute', { host: traceHost.trim() });
+      const all = await safeInvoke<TraceHop[]>('net_traceroute_stream', { host: traceHost.trim(), channel });
+      const changed = new Set<number>();
+      all.forEach((hop, index) => {
+        const prev = prevTraceIps[index];
+        if (prev && prev !== hop.ip) changed.add(index);
+      });
+      traceChanged = changed;
+      prevTraceIps = all.map((hop) => hop.ip);
     } catch (cause) {
       traceError = cause instanceof Error ? cause.message : String(cause);
     }
+    traceElapsed = Math.round(performance.now() - started);
     tracing = false;
   }
 
-  /* ── 速查表 ── */
-  const STATUS_GROUPS: Array<{ name: string; tone: string; items: Array<[string, string]> }> = [
+  /* ── HTTP / MIME 速查表 ── */
+const STATUS_GROUPS: Array<{ name: string; tone: string; items: Array<[string, string]> }> = [
     { name: '1xx · 信息响应', tone: 'info', items: [['100', 'Continue 继续'], ['101', 'Switching Protocols 切换协议'], ['102', 'Processing 处理中'], ['103', 'Early Hints 早期提示']] },
     { name: '2xx · 成功', tone: 'ok', items: [['200', 'OK'], ['201', 'Created 已创建'], ['202', 'Accepted 已接受'], ['203', 'Non-Authoritative Info'], ['204', 'No Content 无内容'], ['205', 'Reset Content'], ['206', 'Partial Content 部分内容'], ['207', 'Multi-Status'], ['208', 'Already Reported']] },
     { name: '3xx · 重定向', tone: 'redirect', items: [['300', 'Multiple Choices'], ['301', 'Moved Permanently 永久移动'], ['302', 'Found 临时移动'], ['303', 'See Other'], ['304', 'Not Modified 未修改'], ['307', 'Temporary Redirect'], ['308', 'Permanent Redirect']] },
     { name: '4xx · 客户端错误', tone: 'warn', items: [['400', 'Bad Request 请求错误'], ['401', 'Unauthorized 未认证'], ['403', 'Forbidden 禁止访问'], ['404', 'Not Found 未找到'], ['405', 'Method Not Allowed'], ['406', 'Not Acceptable'], ['408', 'Request Timeout'], ['409', 'Conflict 冲突'], ['410', 'Gone'], ['413', 'Payload Too Large'], ['415', 'Unsupported Media Type'], ['418', "I'm a teapot 我是茶壶"], ['422', 'Unprocessable Entity'], ['425', 'Too Early'], ['429', 'Too Many Requests 请求过多'], ['431', 'Request Header Fields Too Large'], ['451', 'Unavailable For Legal Reasons']] },
     { name: '5xx · 服务端错误', tone: 'error', items: [['500', 'Internal Server Error 内部错误'], ['501', 'Not Implemented'], ['502', 'Bad Gateway 网关错误'], ['503', 'Service Unavailable'], ['504', 'Gateway Timeout 网关超时'], ['505', 'HTTP Version Not Supported'], ['507', 'Insufficient Storage'], ['508', 'Loop Detected'], ['511', 'Network Authentication Required']] },
   ];
-  const MIME_TYPES: Array<[string, string]> = [
+  
+const MIME_TYPES: Array<[string, string]> = [
     ['text/html', 'HTML 文档'], ['text/plain', '纯文本'], ['text/css', '样式表'], ['text/csv', 'CSV 表格'],
     ['application/json', 'JSON 数据'], ['application/xml', 'XML 数据'], ['application/javascript', 'JavaScript'],
     ['application/pdf', 'PDF 文档'], ['application/zip', 'ZIP 压缩包'], ['application/gzip', 'GZIP 压缩包'],
@@ -211,29 +260,31 @@
     ['application/x-sql', 'SQL 文件'], ['application/wasm', 'WebAssembly'], ['application/x-sh', 'Shell 脚本'],
     ['application/yaml', 'YAML'], ['application/toml', 'TOML'], ['application/ld+json', 'JSON-LD'],
   ];
-  let refSearch = $state('');
-  const query = $derived(refSearch.trim().toLowerCase());
-  const filteredStatusGroups = $derived(query
-    ? STATUS_GROUPS.map((group) => ({ ...group, items: group.items.filter(([code, label]) => (code + ' ' + label).toLowerCase().includes(query)) })).filter((group) => group.items.length > 0)
-    : STATUS_GROUPS);
-  const filteredMimes = $derived(query ? MIME_TYPES.filter(([mime, label]) => (mime + ' ' + label).toLowerCase().includes(query)) : MIME_TYPES);
 
+  let refSearch = $state('');
+  const filteredMimes = $derived(MIME_TYPES.filter(([mime, desc]) => (mime + desc).toLowerCase().includes(refSearch.toLowerCase())));
+  const filteredStatusGroups = $derived(STATUS_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter(([code, desc]) => (code + desc).toLowerCase().includes(refSearch.toLowerCase())),
+  })).filter((g) => g.items.length > 0));
   let copiedKey = $state('');
-  async function copyText(value: string, key: string): Promise<void> {
-    try { await navigator.clipboard.writeText(value); } catch { return; }
-    copiedKey = key;
-    setTimeout(() => { if (copiedKey === key) copiedKey = ''; }, 1100);
+  async function copyText(text: string, key: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+      copiedKey = key;
+      setTimeout(() => { if (copiedKey === key) copiedKey = ''; }, 1200);
+    } catch { /* ?? */ }
   }
 </script>
 
 <div class="network-panel">
   <div class="net-head">
-    <div class="net-modes" role="tablist">
+    <div class="net-modes">
       <button class:active={tab === 'port'} role="tab" aria-selected={tab === 'port'} onclick={() => (tab = 'port')}><span>{@html iconHtml(TOOL_ICONS['spurh.network'])}</span>端口扫描</button>
-      <button class:active={tab === 'dns'} role="tab" aria-selected={tab === 'dns'} onclick={() => (tab = 'dns')}><span>{@html UI_ICONS.search}</span>DNS 查询</button>
+      <button class:active={tab === 'dns'} role="tab" aria-selected={tab === 'dns'} onclick={() => (tab = 'dns')}><span>◈</span>DNS</button>
       <button class:active={tab === 'tcp'} role="tab" aria-selected={tab === 'tcp'} onclick={() => (tab = 'tcp')}><span>⇄</span>TCP / UDP</button>
       <button class:active={tab === 'trace'} role="tab" aria-selected={tab === 'trace'} onclick={() => (tab = 'trace')}><span>◎</span>链路追踪</button>
-      <button class:active={tab === 'ref'} role="tab" aria-selected={tab === 'ref'} onclick={() => (tab = 'ref')}><span>{@html UI_ICONS.shield}</span>HTTP / MIME 速查</button>
+      <button class:active={tab === 'ref'} role="tab" aria-selected={tab === 'ref'} onclick={() => (tab = 'ref')}><span>{@html UI_ICONS.shield}</span>速查表</button>
     </div>
 
     <div class="net-tools">
@@ -277,16 +328,24 @@
             <option value="udp">UDP</option>
           </select>
         </label>
-        <button class="net-run" class:busy={tcpSending} disabled={tcpSending} onclick={sendData} title="发送数据并读取响应">
-          <span class="net-dot"></span>{tcpSending ? '发送中…' : '发送'}
-        </button>
+        {#if tcpConnected}
+          <button class="net-run ghost" onclick={closeSession} title="断开连接">断开</button>
+          <span class="net-link-on"><i></i>已连接</span>
+        {:else}
+          <button class="net-run" class:busy={tcpConnecting} disabled={tcpConnecting} onclick={openSession} title="建立连接">
+            <span class="net-dot"></span>{tcpConnecting ? '连接中…' : '连接'}
+          </button>
+        {/if}
+        {#if tcpLogs.length > 0}
+          <span class="net-summary">↓ {tcpBytesIn}B · ↑ {tcpBytesOut}B</span>
+        {/if}
       {:else if tab === 'trace'}
         <label class="net-field grow"><span>目标</span><input value={traceHost} oninput={(e) => (traceHost = e.currentTarget.value)} placeholder="www.baidu.com" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && runTrace()} /></label>
-        <button class="net-run" class:busy={tracing} disabled={tracing} onclick={runTrace} title="追踪到目标主机的路由">
-          <span class="net-dot"></span>{tracing ? '追踪中…' : '追踪'}
+        <button class="net-run" class:busy={tracing} disabled={tracing} onclick={runTrace} title="实时追踪到目标主机的路由">
+          <span class="net-dot"></span>{tracing ? '追踪中…' : '开始追踪'}
         </button>
-        {#if traceHops.length > 0}<span class="net-summary">{traceHops.length} 跳</span>{/if}
-            {:else}
+        {#if traceHops.length > 0}<span class="net-summary">{traceHops.length} 跳 · {traceElapsed} ms</span>{/if}
+      {:else}
         <label class="net-field grow"><span>搜索</span><input value={refSearch} oninput={(e) => (refSearch = e.currentTarget.value)} placeholder="状态码 / MIME / 关键字…" spellcheck="false" /></label>
         <span class="net-summary">{filteredMimes.length} MIME · {filteredStatusGroups.reduce((acc, g) => acc + g.items.length, 0)} 状态码</span>
       {/if}
@@ -300,7 +359,7 @@
         <div class="net-result-title"><span>运行日志</span><small>每次扫描的实时记录</small></div>
         <div class="send-log">
           {#each portLog as log}
-            <div class="send-log-line" class:bad={!log.ok}><i>{log.ts}</i><b>{log.ok ? '✓' : '✗'}</b><span>{log.text}</span></div>
+            <div class="send-log-line" class:bad={!log.ok}><i>{log.ts}</i><b>{log.ok ? '✓' : '✕'}</b><span>{log.text}</span></div>
           {/each}
         </div>
       {/if}
@@ -311,10 +370,11 @@
         </div>
         <div class="net-results">
           {#each portResults as item}
-            <button class="port-chip" class:open={item.open} onclick={() => copyText(String(item.port), 'p' + item.port)} title={item.open ? '端口开放 — 点击复制' : '端口关闭 — 点击复制'}>
+            <button class="port-chip" class:open={item.open} onclick={() => copyText(String(item.port), 'p' + item.port)} title={item.open ? `端口开放 · ${item.elapsedMs}ms · 点击复制` : '端口关闭 · 点击复制'}>
               <b>{item.port}</b>
               <small>{item.open ? 'OPEN' : 'CLOSED'}</small>
-              {#if copiedKey === 'p' + item.port}<i>已复制</i>{/if}
+              {#if item.open}<i></i>{/if}
+              {#if copiedKey === 'p' + item.port}<em>已复制</em>{/if}
             </button>
           {/each}
         </div>
@@ -352,110 +412,148 @@
         </div>
       {/if}
     {:else if tab === 'tcp'}
+      {#if tcpError}<div class="net-error"><i></i>{tcpError}</div>{/if}
       {#if tcpLogs.length > 0}
-        <div class="net-result-title"><span>运行日志</span><small>每次发送的完整记录</small></div>
-        <div class="send-log">
-          {#each tcpLogs as log, i}
-            <div class="send-log-line" class:bad={!log.ok}><i>{log.ts}</i><b>{log.ok ? '✓' : '✗'}</b><span>{log.text}</span></div>
+        <div class="chat-head">
+          <div class="chat-status" class:on={tcpConnected}>
+            <i></i><span>{tcpConnected ? `${tcpProtocol.toUpperCase()} 会话已建立` : '未连接'}</span>
+          </div>
+          <label class="chat-hex-toggle"><input type="checkbox" checked={tcpHexMode} onchange={(e) => (tcpHexMode = e.currentTarget.checked)} />HEX 模式</label>
+          <span class="chat-bytes">↓ {tcpBytesIn} B · ↑ {tcpBytesOut} B</span>
+        </div>
+        <div class="chat-log">
+          {#each tcpLogs as log}
+            <div class="chat-line" class:in={log.dir === 'in'} class:out={log.dir === 'out'} class:sys={log.dir === 'sys'}>
+              <i>{log.ts}</i>
+              <b>{log.dir === 'in' ? '◀ 接收' : log.dir === 'out' ? '发送 ▶' : '◆'}</b>
+              <span title={log.hex}>{log.text}</span>
+            </div>
           {/each}
         </div>
-      {/if}
-      {#if tcpResult}
-        <div class="net-result-title"><span>响应</span><small>{tcpResult.message}</small></div>
-        <div class="send-body">
-          <label class="net-field grow"><span>发送数据</span><textarea class="send-data" value={tcpData} oninput={(e) => (tcpData = e.currentTarget.value)} placeholder="要发送的内容（留空则只连接/发送探测包）" spellcheck="false"></textarea></label>
-          {#if tcpResult.response}
-            <pre class="send-response">{tcpResult.response}</pre>
-          {:else if !tcpResult.ok}
-            <div class="net-error"><i></i>{tcpResult.message}</div>
-          {:else}
-            <div class="net-empty"><b>无响应内容</b><small>服务端未返回数据</small></div>
-          {/if}
+        <div class="chat-send">
+          <input value={tcpSendText} oninput={(e) => (tcpSendText = e.currentTarget.value)} placeholder={tcpHexMode ? 'HEX 数据，如 48 65 6C 6C 6F' : '输入要发送的内容，回车发送'} spellcheck="false" onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); sendData(); } }} disabled={!tcpConnected} />
+          <button onclick={sendData} disabled={!tcpConnected || !tcpSendText}>发送</button>
         </div>
-      {:else if tcpLogs.length === 0}
+      {:else}
         <div class="net-empty">
           <span class="net-empty-tile">⇄</span>
-          <b>TCP / UDP 数据发送</b>
-          <small>填写主机、端口与协议，发送数据并查看响应与日志</small>
+          <b>TCP / UDP 交互式会话</b>
+          <small>建立连接后可多次收发，支持文本与 HEX 模式，实时查看收发日志</small>
         </div>
       {/if}
-        {:else if tab === 'trace'}
+    {:else if tab === 'trace'}
       {#if traceError}<div class="net-error"><i></i>{traceError}</div>{/if}
-      {#if tracing}
-        <div class="trace-loading">
-          <div class="loading-track"><span></span></div>
-          <p>正在追踪到 {traceHost} 的路由…</p>
-        </div>
-      {:else if traceHops.length > 0}
+      {#if tracing || traceHops.length > 0 || localInfo}
         <div class="net-result-title">
-          <span>到 {traceHost} 的链路追踪</span>
-          <small>共 {traceHops.length} 跳 · 绿=低延迟 黄=中 橙=高 红=超时</small>
+          <span>{tracing ? `正在实时追踪 ${traceHost}…` : `到 ${traceHost} 的链路拓扑`}</span>
+          <small>{tracing ? '逐跳实时渲染中' : `${traceHops.length} 跳 · ${traceElapsed} ms · 绿=低延迟 黄=中 红=高 灰=超时`}</small>
         </div>
         <div class="topo-wrap">
-          <svg class="trace-topo" viewBox="0 0 {TRACE_W} {traceHops.length * TRACE_HOP + 50}" role="img" aria-label="链路拓扑图">
-            <path class="topo-spine" d="M {TRACE_SPINE} 30 V {traceHops.length * TRACE_HOP + 20}" />
+          <svg class="trace-topo" viewBox="0 0 {TRACE_W} {Math.max(130, traceHops.length * TRACE_HOP + 130)}" role="img" aria-label="链路拓扑图">
+            <defs>
+              <linearGradient id="topo-spine-g" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#3ecf8e" stop-opacity=".75"/><stop offset="1" stop-color="#2f9de4" stop-opacity=".2"/>
+              </linearGradient>
+              <filter id="topo-blur"><feGaussianBlur stdDeviation="4"/></filter>
+            </defs>
+
+            {#if traceHops.length > 0}
+              <path class="topo-spine" d="M {TRACE_SPINE} 96 V {traceHops.length * TRACE_HOP + 92}" />
+            {/if}
+
+            <!-- 本机节点 -->
+            <g class="topo-local" transform="translate({TRACE_SPINE} 46)">
+              <circle class="local-ring" r="30" />
+              <circle class="local-core" r="20" />
+              <text class="topo-num" y="5" text-anchor="middle">本机</text>
+            </g>
+            <text class="topo-ip local-ip" x={TRACE_SPINE} y="12" text-anchor="middle">{localInfo ? `${localInfo.hostname} · ${localInfo.ips[0] || ''}` : '本机'}</text>
+            {#if localInfo && localInfo.gateways.length > 0}
+              <text class="topo-gw" x={TRACE_SPINE} y="86" text-anchor="middle">网关 {localInfo.gateways[0]}</text>
+            {/if}
+
             {#each traceHops as hop, index}
               {@const y = traceY(index)}
               {@const x = traceNodeX(index)}
-              {@const prevY = index === 0 ? 30 : traceY(index - 1)}
+              {@const prevY = index === 0 ? 96 : traceY(index - 1)}
+              {@const stats = hopStats(hop.ms)}
               <line class="topo-edge" x1={TRACE_SPINE} y1={prevY} x2={TRACE_SPINE} y2={y} />
               <line class="topo-branch" x1={TRACE_SPINE} y1={y} x2={x} y2={y} />
-              <circle class="topo-packet" r="3.5" style={`offset-path: path('M ${TRACE_SPINE} ${prevY} L ${TRACE_SPINE} ${y}'); animation-delay: ${index * 0.22}s;`} />
-              <g class="topo-node {hopStatus(hop.ms)}" transform={`translate(${x} ${y})`}>
-                <circle r="19" />
+              <circle class="topo-packet" r="3.5" style={`offset-path: path('M ${TRACE_SPINE} ${prevY} L ${TRACE_SPINE} ${y}'); animation-delay: ${index * 0.18}s;`} />
+              <g class="topo-node {hopStatus(hop.ms)}" transform={`translate(${x} ${y})`} style={`animation-delay: ${index * 0.12}s`}>
+                <circle class="node-halo" r="24" />
+                <circle r="16" />
                 <text class="topo-num" y="4.5" text-anchor="middle">{hop.hop}</text>
                 <title>{hop.ip || '超时'}{hop.ms.some((m) => m > 0) ? ' · ' + hop.ms.filter((m) => m > 0).join(' / ') + ' ms' : ' · 超时'}</title>
               </g>
-              <text class="topo-ip" x={x} y={y - 28} text-anchor="middle">{hop.ip || '超时'}</text>
-              <text class="topo-ms" x={x} y={y + 36} text-anchor="middle">{hopLabel(hop.ms)}</text>
+              {#if traceChanged.has(index)}
+                <g class="topo-change" transform={`translate(${x + 24} ${y - 24})`}>
+                  <circle r="9" /><text y="3.5" text-anchor="middle" font-size="9">Δ</text>
+                </g>
+              {/if}
+              <text class="topo-ip" x={x} y={y - 26} text-anchor="middle">{hop.ip || '超时'}</text>
+              <text class="topo-ms" x={x} y={y + 34} text-anchor="middle">{hopLabel(hop.ms)}</text>
+              <g class="topo-bars" transform={`translate(${x - 15} ${y + 42})`}>
+                {#each hop.ms as m, mi}
+                  <rect x={mi * 11} y={m > 0 ? 10 - Math.min(m, 60) / 6 : 9} width="7" height={m > 0 ? Math.max(2, Math.min(m, 60) / 6) : 2} rx="1.5" class:bar-timeout={m === 0} style={`animation-delay: ${index * 0.12 + mi * 0.06}s`} />
+                {/each}
+              </g>
+              <text class="topo-loss" x={x} y={y + 60} text-anchor="middle">{stats.loss > 0 ? `丢包 ${stats.loss}%` : '丢包 0%'}</text>
             {/each}
+
+            <!-- 目标节点 -->
+            {#if traceHops.length > 0}
+              {@const lastY = traceHops.length * TRACE_HOP + 92}
+              <g class="topo-target" transform={`translate(${TRACE_SPINE} ${lastY})`}>
+                <circle class="target-halo" r="24" />
+                <circle r="17" />
+                <text class="topo-num" y="4.5" text-anchor="middle">⌖</text>
+              </g>
+              <text class="topo-ip" x={TRACE_SPINE} y={lastY + 36} text-anchor="middle">{traceHost}</text>
+            {/if}
           </svg>
         </div>
         <div class="topo-legend">
-          <span class="lg ok">低延迟 ≤ 80ms</span>
+          <span class="lg ok">低延迟 ≤80ms</span>
           <span class="lg warn">中 80–200ms</span>
-          <span class="lg slow">高 &gt; 200ms</span>
+          <span class="lg slow">高 &gt;200ms</span>
           <span class="lg timeout">超时</span>
+          <span class="lg change">Δ 路由变化</span>
         </div>
-      {:else if !traceError}
+      {:else}
         <div class="net-empty">
-          <span class="net-empty-tile">◉</span>
-          <b>链路追踪</b>
-          <small>追踪本机到目标主机的每一跳（tracert）<br />实时拓扑图：每跳 IP 与延迟，超时节点自动标记</small>
+          <span class="net-empty-tile">{@html iconHtml(TOOL_ICONS['spurh.network'])}</span>
+          <b>输入目标主机开始实时链路追踪</b>
+          <small>从当前主机出发，逐跳实时渲染路由拓扑</small>
         </div>
       {/if}
     {:else}
-      <div class="ref-layout">
-        <section class="ref-col">
-          <header><span>HTTP 状态码</span><small>{filteredStatusGroups.reduce((acc, g) => acc + g.items.length, 0)} 条</small></header>
-          <div class="ref-scroll">
-            {#each filteredStatusGroups as group}
-              <div class="status-group">
-                <b class="tone-{group.tone}">{group.name}</b>
-                {#each group.items as [code, label]}
-                  <button class="status-row" onclick={() => copyText(code + ' ' + label, 's' + code)} title="点击复制">
-                    <span class="code tone-{group.tone}">{code}</span><span class="label">{label}</span>
-                    {#if copiedKey === 's' + code}<i>已复制</i>{/if}
-                  </button>
-                {/each}
-              </div>
-            {/each}
-            {#if filteredStatusGroups.length === 0}<div class="ref-none">无匹配的状态码</div>{/if}
-          </div>
-        </section>
-        <section class="ref-col">
-          <header><span>MIME 类型</span><small>{filteredMimes.length} 条</small></header>
-          <div class="ref-scroll">
-            {#each filteredMimes as [mime, label]}
-              <button class="mime-row" onclick={() => copyText(mime, 'm' + mime)} title="点击复制">
-                <code>{mime}</code><span>{label}</span>
-                {#if copiedKey === 'm' + mime}<i>已复制</i>{/if}
+      {#if refSearch || filteredStatusGroups.length > 0 || filteredMimes.length > 0}
+        {#each filteredStatusGroups as group}
+          <div class="net-result-title"><span>{group.name}</span></div>
+          <div class="status-grid">
+            {#each group.items as [code, desc]}
+              <button class={`status-chip tone-${group.tone}`} onclick={() => copyText(code, 's' + code)} title="点击复制">
+                <b>{code}</b><small>{desc}</small>
               </button>
             {/each}
-            {#if filteredMimes.length === 0}<div class="ref-none">无匹配的 MIME 类型</div>{/if}
           </div>
-        </section>
-      </div>
+        {/each}
+        <div class="net-result-title"><span>MIME 类型</span></div>
+        <div class="mime-grid">
+          {#each filteredMimes as [mime, desc]}
+            <button class="mime-chip" onclick={() => copyText(mime, 'm' + mime)} title="点击复制">
+              <b>{mime}</b><small>{desc}</small>
+            </button>
+          {/each}
+        </div>
+      {:else}
+        <div class="net-empty">
+          <span class="net-empty-tile">{@html UI_ICONS.search}</span>
+          <b>没有匹配结果</b>
+          <small>试试其他关键字</small>
+        </div>
+      {/if}
     {/if}
   </div>
 </div>
@@ -468,118 +566,150 @@
   .net-modes button span { display: inline-flex; }
   :global(.net-modes button span svg) { width: 13px; height: 13px; }
   .net-modes button:hover:not(.active) { color: var(--text); background: var(--hover); }
-  .net-modes button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
-  .net-tools { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-  .net-field { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10.5px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
-  .net-field:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .net-field > span { flex: 0 0 auto; color: var(--muted-2); font-size: 10.5px; white-space: nowrap; }
-  .net-field input { min-width: 0; width: 130px; height: 100%; padding: 0; color: var(--text); font: 500 11px 'Cascadia Code', monospace; border: 0; outline: 0; background: transparent; }
-  .net-field.grow { flex: 1; min-width: 200px; }
-  .net-field.grow input { width: 100%; flex: 1; }
-  .net-select select { height: 100%; padding: 0 16px 0 2px; cursor: pointer; color: var(--text); font: 600 11px 'Cascadia Code', monospace; border: 0; outline: 0; background: transparent; }
-  .net-run { height: 28px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: 11.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
-  .net-run:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 7px 18px color-mix(in srgb, var(--accent) 30%, transparent); }
-  .net-run:disabled { cursor: default; opacity: .45; }
-  .net-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
-  .net-run.busy .net-dot { animation: net-pulse 1s ease-in-out infinite; }
-  @keyframes net-pulse { 50% { opacity: .3; } }
-  .net-summary { color: var(--muted); font: 500 10.5px 'Cascadia Code', monospace; white-space: nowrap; }
-  .net-run.ghost { color: var(--danger); background: transparent; border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line)); box-shadow: none; }
-  .net-common-ports { display: flex; gap: 4px; flex-wrap: wrap; }
-  .net-common-ports button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 10.5px; border: 1px solid var(--line); border-radius: 11px; background: transparent; white-space: nowrap; transition: all .15s ease; }
-  .net-common-ports button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
-  .net-common-ports button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
-  .send-log { display: flex; flex-direction: column; gap: 3px; max-height: 170px; overflow-y: auto; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-  .send-log-line { display: flex; align-items: baseline; gap: 8px; font: 450 11px/1.5 'Cascadia Code', monospace; }
-  .send-log-line i { flex: 0 0 auto; color: var(--muted-2); font-style: normal; }
-  .send-log-line b { flex: 0 0 auto; color: var(--accent); }
-  .send-log-line.bad b { color: var(--danger); }
-  .send-log-line span { min-width: 0; color: var(--text); word-break: break-all; }
-  .send-log-line.bad span { color: var(--danger); }
-  .send-body { display: flex; flex-direction: column; gap: 8px; }
-  .send-body textarea.send-data { width: 100%; height: 88px; padding: 10px 12px; resize: vertical; color: var(--text); font: 450 12px/1.5 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 10.5px; outline: 0; background: var(--panel); }
-  .send-body textarea.send-data:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .send-response { margin: 0; padding: 10px 12px; overflow: auto; color: var(--text); font: 450 12px/1.6 'Cascadia Code', monospace; white-space: pre-wrap; word-break: break-all; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
-  .trace-loading { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 44px 20px; color: var(--muted); }
-  .trace-loading p { margin: 0; font-size: 11px; }
-  .topo-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
-  .trace-topo { display: block; width: 100%; min-width: 620px; }
-  .topo-spine { fill: none; stroke: var(--line-2); stroke-width: 2; stroke-dasharray: 5 5; }
-  .topo-edge, .topo-branch { stroke: var(--line-2); stroke-width: 1.5; }
-  .topo-packet { fill: var(--accent); opacity: .85; animation: topo-flow 1.1s linear infinite; }
-  @keyframes topo-flow { 0% { offset-distance: 0%; opacity: 0; } 12% { opacity: .9; } 88% { opacity: .9; } 100% { offset-distance: 100%; opacity: 0; } }
-  .topo-node circle { fill: color-mix(in srgb, var(--line) 55%, var(--panel)); stroke: var(--muted-2); stroke-width: 1.5; }
-  .topo-num { fill: var(--text); font: 700 10.5px 'Cascadia Code', monospace; }
-  .topo-node.ok circle { fill: color-mix(in srgb, #2fb344 16%, var(--panel)); stroke: #2fb344; }
-  .topo-node.ok .topo-num { fill: #2fb344; }
-  .topo-node.warn circle { fill: color-mix(in srgb, #e0a800 16%, var(--panel)); stroke: #e0a800; }
-  .topo-node.warn .topo-num { fill: #e0a800; }
-  .topo-node.slow circle { fill: color-mix(in srgb, #fd7e14 16%, var(--panel)); stroke: #fd7e14; }
-  .topo-node.slow .topo-num { fill: #fd7e14; }
-  .topo-node.timeout circle { fill: color-mix(in srgb, var(--danger) 14%, var(--panel)); stroke: var(--danger); stroke-dasharray: 4 3; }
-  .topo-node.timeout .topo-num { fill: var(--danger); }
-  .topo-ip { fill: var(--text); font: 500 10.5px 'Cascadia Code', monospace; }
-  .topo-ms { fill: var(--muted); font: 500 9.5px 'Cascadia Code', monospace; }
-  .net-body { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px; overflow: auto; }
-  .net-error { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--danger); font-size: 11.5px; border: 1px solid color-mix(in srgb, var(--danger) 26%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
-  .net-error i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }
-  .net-result-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .net-modes button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 12px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .net-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .net-field { display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); transition: border-color var(--transition), box-shadow var(--transition); }
+  .net-field:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .net-field span { color: var(--muted-2); font-size: 10px; white-space: nowrap; }
+  .net-field input { min-width: 0; height: 100%; padding: 0; color: var(--text); font-size: 12px; border: 0; outline: 0; background: transparent; }
+  .net-field.grow { flex: 1; min-width: 120px; }
+  .net-select select { height: 100%; color: var(--text); font-size: 12px; border: 0; outline: 0; background: transparent; cursor: pointer; }
+  .net-run { height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 13px; cursor: pointer; color: #fff; font-size: 11.5px; font-weight: 600; border: 0; border-radius: 8px; background: var(--btn-gradient); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 28%, transparent); transition: filter var(--transition), transform var(--transition); }
+  .net-run:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+  .net-run:disabled { opacity: .55; cursor: default; }
+  .net-run.ghost { color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); box-shadow: none; }
+  .net-run.ghost:hover:not(:disabled) { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+  .net-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; animation: net-pulse 1.2s ease-in-out infinite; }
+  .net-run.busy .net-dot { animation: net-spin .8s linear infinite; }
+  @keyframes net-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+  @keyframes net-spin { to { transform: rotate(360deg); } }
+  .net-summary { color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+  .net-common-ports { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+  .net-common-ports button { height: 24px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); transition: all .15s ease; }
+  .net-common-ports button:hover { color: var(--text); border-color: var(--line-2); }
+  .net-common-ports button.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
+  .net-body { flex: 1; min-height: 0; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .net-error { display: flex; align-items: center; gap: 8px; padding: 9px 12px; color: var(--danger); font-size: 11.5px; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--line)); border-radius: 9px; background: color-mix(in srgb, var(--danger) 8%, transparent); }
+  .net-error i { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  .net-result-title { display: flex; align-items: baseline; gap: 8px; }
   .net-result-title span { font-size: 12.5px; font-weight: 700; }
-  .net-result-title small { color: var(--muted-2); font-size: 10.5px; }
-  .net-results { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
-  .port-chip { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 66px; padding: 10.5px 12px; cursor: pointer; color: var(--muted); border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); transition: border-color .15s ease, transform .12s ease, box-shadow .15s ease; }
-  .port-chip:hover { transform: translateY(-1px); border-color: var(--line-2); box-shadow: 0 5px 14px rgba(0, 0, 0, .10); }
-  .port-chip b { color: var(--text); font: 650 13px 'Cascadia Code', monospace; }
-  .port-chip small { font: 600 8px 'Cascadia Code', monospace; letter-spacing: .6px; }
-  .port-chip.open { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
-  .port-chip.open b { color: var(--accent); }
-  .port-chip.open small { color: var(--accent); }
-  .port-chip i { position: absolute; top: -8px; right: -6px; padding: 2px 6px; color: #fff; font-size: 8px; font-style: normal; border-radius: 4px; background: var(--btn-gradient); box-shadow: 0 3px 8px color-mix(in srgb, var(--accent) 30%, transparent); }
-  .dns-card { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-  .dns-table { width: 100%; border-collapse: collapse; font: 450 11px/1.5 'Cascadia Code', monospace; }
-  .dns-table th { position: sticky; top: 0; z-index: 1; padding: 10.5px 12px; text-align: left; color: var(--accent); font-size: 11px; font-weight: 650; border-bottom: 1px solid var(--line); background: var(--panel-2); }
-  .dns-table td { padding: 8px 12px; border-bottom: 1px solid var(--line); }
-  .dns-table td:nth-child(2) { color: var(--muted); white-space: nowrap; }
-  .dns-table td:nth-child(3) { max-width: 460px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dns-table tr:last-child td { border-bottom: 0; }
-  .dns-table tbody tr:hover td { background: var(--hover); }
-  .dns-table .dns-copy { width: 1%; text-align: right; }
-  .dns-table button { height: 22px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 10.5px; border: 1px solid var(--line); border-radius: 5px; background: transparent; transition: all .15s ease; }
-  .dns-table button:hover { color: var(--text); border-color: var(--line-2); }
-  .net-empty { min-height: 220px; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--muted); text-align: center; border: 1px dashed var(--line-2); border-radius: 12px; background: color-mix(in srgb, var(--panel) 60%, transparent); }
-  .net-empty-tile { width: 44px; height: 44px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 12px; background: var(--accent-soft); }
-  :global(.net-empty-tile svg) { width: 22px; height: 22px; }
-  .topo-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-  .topo-legend .lg { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10.5px; }
-  .topo-legend .lg::before { content: ''; width: 8px; height: 8px; border-radius: 50%; }
-  .topo-legend .lg.ok::before { background: #2fb344; }
-  .topo-legend .lg.warn::before { background: #e0a800; }
-  .topo-legend .lg.slow::before { background: #fd7e14; }
-  .topo-legend .lg.timeout::before { background: var(--danger); }
-  .net-empty b { color: var(--text); font-size: 12.5px; }
+  .net-result-title small { color: var(--muted-2); font-size: 10px; }
+  .net-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 220px; color: var(--muted); text-align: center; }
+  .net-empty-tile { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 15px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0,0,0,.25); }
+  :global(.net-empty-tile svg) { width: 26px; height: 26px; }
+  .net-empty b { color: var(--text); font-size: 13px; }
   .net-empty small { font-size: 11px; }
-  .ref-layout { min-height: 0; flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .ref-col { min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
-  .ref-col > header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10.5px 13px; border-bottom: 1px solid var(--line); background: var(--panel-2); }
-  .ref-col > header span { font-size: 12.5px; font-weight: 700; }
-  .ref-col > header small { color: var(--muted); font: 500 10.5px 'Cascadia Code', monospace; }
-  .ref-scroll { min-height: 0; flex: 1; overflow: auto; }
-  .status-group > b { position: sticky; top: 0; z-index: 1; display: block; padding: 6px 13px; font-size: 10.5px; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--panel-2); }
-  .status-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 13px; cursor: pointer; text-align: left; color: var(--muted); font-size: 10px; border: 0; background: transparent; }
-  .status-row:hover { background: var(--hover); }
-  .status-row .code { min-width: 36px; font: 650 10px 'Cascadia Code', monospace; }
-  .status-row .label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .status-row i { color: var(--accent); font-size: 10.5px; font-style: normal; white-space: nowrap; }
-  .tone-info { color: var(--blue); }
-  .tone-ok { color: var(--accent); }
-  .tone-redirect { color: var(--warn); }
-  .tone-warn { color: var(--warn); }
-  .tone-error { color: var(--danger); }
-  .mime-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 13px; cursor: pointer; text-align: left; border: 0; background: transparent; }
-  .mime-row:hover { background: var(--hover); }
-  .mime-row code { color: var(--text); font: 500 11.5px 'Cascadia Code', monospace; }
-  .mime-row span { min-width: 0; flex: 1; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-  .mime-row i { color: var(--accent); font-size: 10.5px; font-style: normal; white-space: nowrap; }
-  .ref-none { padding: 26px 13px; color: var(--muted-2); font-size: 10px; text-align: center; }
-  @media (max-width: 980px) { .ref-layout { grid-template-columns: 1fr; } }
+  .send-log { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
+  .send-log-line { display: flex; align-items: center; gap: 8px; padding: 4px 9px; font-size: 10.5px; border-radius: 6px; background: var(--panel); }
+  .send-log-line i { color: var(--muted-2); font-style: normal; }
+  .send-log-line b { color: #3ecf8e; }
+  .send-log-line.bad b { color: var(--danger); }
+  .send-log-line span { color: var(--muted); }
+  .net-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+  .port-chip { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 9px 11px; cursor: pointer; color: var(--muted); text-align: left; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); transition: all .16s ease; }
+  .port-chip:hover { transform: translateY(-2px); border-color: var(--line-2); box-shadow: 0 8px 20px rgba(0,0,0,.22); }
+  .port-chip b { color: var(--text); font-size: 14px; font-family: 'Cascadia Code', Consolas, monospace; }
+  .port-chip small { font-size: 9px; letter-spacing: .6px; }
+  .port-chip.open { border-color: color-mix(in srgb, #3ecf8e 45%, var(--line)); background: linear-gradient(160deg, rgba(62,207,142,.09), var(--panel) 60%); }
+  .port-chip.open b { color: #3ecf8e; }
+  .port-chip.open small { color: #3ecf8e; }
+  .port-chip.open i { position: absolute; top: 8px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: #3ecf8e; box-shadow: 0 0 8px #3ecf8e; }
+  .port-chip em { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 11px; font-style: normal; border-radius: 10px; background: rgba(16,20,28,.82); backdrop-filter: blur(3px); }
+  .dns-card { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  .dns-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .dns-table th { position: sticky; top: 0; padding: 8px 12px; color: var(--muted-2); font-size: 10px; text-align: left; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+  .dns-table td { padding: 7px 12px; color: var(--text); border-bottom: 1px solid var(--line); }
+  .dns-table tr:last-child td { border-bottom: 0; }
+  .dns-table tr:hover td { background: var(--hover); }
+  .dns-copy button { height: 24px; padding: 0 9px; cursor: pointer; color: var(--accent); font-size: 10px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 6px; background: var(--accent-soft); }
+  /* TCP/UDP 会话 */
+  .net-link-on { display: inline-flex; align-items: center; gap: 6px; color: #3ecf8e; font-size: 11px; }
+  .net-link-on i { width: 8px; height: 8px; border-radius: 50%; background: #3ecf8e; box-shadow: 0 0 10px #3ecf8e; animation: net-pulse 1.4s ease-in-out infinite; }
+  .chat-head { display: flex; align-items: center; gap: 12px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
+  .chat-status { display: inline-flex; align-items: center; gap: 7px; color: var(--muted-2); font-size: 11px; }
+  .chat-status i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted-2); }
+  .chat-status.on { color: #3ecf8e; }
+  .chat-status.on i { background: #3ecf8e; box-shadow: 0 0 10px #3ecf8e; animation: net-pulse 1.4s ease-in-out infinite; }
+  .chat-hex-toggle { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 10.5px; cursor: pointer; }
+  .chat-hex-toggle input { accent-color: var(--accent); }
+  .chat-bytes { margin-left: auto; color: var(--muted-2); font-size: 10px; font-family: 'Cascadia Code', Consolas, monospace; }
+  .chat-log { display: flex; flex-direction: column; gap: 3px; min-height: 140px; max-height: 46vh; overflow: auto; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #0b0e14; }
+  .chat-line { display: flex; align-items: flex-start; gap: 8px; padding: 5px 8px; font-size: 11px; border-radius: 6px; }
+  .chat-line i { flex: 0 0 auto; color: var(--muted-2); font-size: 9.5px; font-style: normal; font-family: 'Cascadia Code', Consolas, monospace; }
+  .chat-line b { flex: 0 0 auto; font-size: 9.5px; font-weight: 600; }
+  .chat-line span { word-break: break-all; white-space: pre-wrap; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11px; }
+  .chat-line.in { background: rgba(47,157,228,.07); }
+  .chat-line.in b { color: #4cc2ff; }
+  .chat-line.out { background: rgba(62,207,142,.07); }
+  .chat-line.out b { color: #3ecf8e; }
+  .chat-line.sys { opacity: .7; }
+  .chat-line.sys b { color: var(--muted); }
+  .chat-send { display: flex; gap: 8px; }
+  .chat-send input { flex: 1; height: 34px; padding: 0 12px; color: var(--text); font-size: 12px; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--panel); transition: border-color var(--transition), box-shadow var(--transition); }
+  .chat-send input:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .chat-send input:disabled { opacity: .5; }
+  .chat-send button { height: 34px; padding: 0 16px; cursor: pointer; color: #fff; font-size: 11.5px; font-weight: 600; border: 0; border-radius: 8px; background: var(--btn-gradient); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 28%, transparent); }
+  .chat-send button:disabled { opacity: .45; cursor: default; }
+  /* 链路拓扑 */
+  .topo-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: radial-gradient(ellipse 70% 45% at 50% 0%, rgba(47,157,228,.08), transparent 65%), #0b0e14; }
+  .trace-topo { display: block; min-width: 100%; }
+  .topo-spine { fill: none; stroke: url(#topo-spine-g); stroke-width: 2.5; stroke-dasharray: 7 6; animation: topo-dash 1.2s linear infinite; }
+  @keyframes topo-dash { to { stroke-dashoffset: -26; } }
+  .topo-edge { stroke: rgba(94,190,255,.16); stroke-width: 1.5; }
+  .topo-branch { stroke: rgba(94,190,255,.22); stroke-width: 1.5; stroke-dasharray: 3 4; animation: topo-dash 2s linear infinite; }
+  .topo-packet { fill: #4cc2ff; filter: url(#topo-blur); animation: topo-flow 1.3s ease-out infinite; }
+  @keyframes topo-flow { 0% { offset-distance: 0%; opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+  .topo-local .local-ring { fill: rgba(62,207,142,.1); stroke: rgba(62,207,142,.8); stroke-width: 1.5; animation: local-ring 2.4s ease-out infinite; transform-origin: center; }
+  @keyframes local-ring { 0% { transform: scale(.75); opacity: .9; } 100% { transform: scale(1.35); opacity: 0; } }
+  .topo-local .local-core { fill: url(#topo-spine-g); filter: drop-shadow(0 0 10px rgba(62,207,142,.65)); }
+  .topo-local text { fill: #fff; font-size: 11px; font-weight: 700; }
+  .topo-ip { fill: var(--text); font-size: 10.5px; font-family: 'Cascadia Code', Consolas, monospace; }
+  .topo-ip.local-ip { font-size: 12px; font-weight: 700; fill: #3ecf8e; }
+  .topo-gw { fill: var(--muted-2); font-size: 9.5px; font-family: 'Cascadia Code', Consolas, monospace; }
+  .topo-node { opacity: 0; animation: node-in .4s cubic-bezier(.34,1.56,.64,1) forwards; transform-origin: center; }
+  @keyframes node-in { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
+  .topo-node circle { stroke-width: 2; }
+  .topo-node .node-halo { fill: none; opacity: .35; }
+  .topo-node.ok circle:not(.node-halo) { fill: rgba(62,207,142,.16); stroke: #3ecf8e; filter: drop-shadow(0 0 8px rgba(62,207,142,.55)); }
+  .topo-node.ok .node-halo { stroke: #3ecf8e; }
+  .topo-node.warn circle:not(.node-halo) { fill: rgba(232,180,90,.16); stroke: #e8b45a; filter: drop-shadow(0 0 8px rgba(232,180,90,.5)); }
+  .topo-node.warn .node-halo { stroke: #e8b45a; }
+  .topo-node.slow circle:not(.node-halo) { fill: rgba(242,109,120,.16); stroke: #f26d78; filter: drop-shadow(0 0 8px rgba(242,109,120,.5)); }
+  .topo-node.slow .node-halo { stroke: #f26d78; }
+  .topo-node.timeout circle:not(.node-halo) { fill: rgba(138,148,166,.12); stroke: #5b6475; }
+  .topo-node.timeout .node-halo { stroke: #5b6475; }
+  .topo-num { fill: var(--text); font-size: 11px; font-weight: 700; }
+  .topo-ms { fill: var(--muted); font-size: 10px; font-family: 'Cascadia Code', Consolas, monospace; }
+  .topo-loss { fill: var(--muted-2); font-size: 9px; font-family: 'Cascadia Code', Consolas, monospace; }
+  .topo-bars rect { fill: #4cc2ff; opacity: 0; animation: bar-in .4s ease forwards; }
+  .topo-bars rect.bar-timeout { fill: #5b6475; }
+  @keyframes bar-in { from { opacity: 0; transform: scaleY(0); transform-origin: bottom; } to { opacity: .9; transform: scaleY(1); transform-origin: bottom; } }
+  .topo-change circle { fill: #e8b45a; filter: drop-shadow(0 0 6px rgba(232,180,90,.8)); }
+  .topo-change text { fill: #0b0e14; font-weight: 800; }
+  .topo-target circle { stroke-width: 2; stroke-dasharray: 5 4; }
+  .topo-target circle:not(.target-halo) { fill: rgba(47,157,228,.15); stroke: #2f9de4; filter: drop-shadow(0 0 10px rgba(47,157,228,.55)); }
+  .topo-target .target-halo { fill: none; stroke: #2f9de4; opacity: .3; }
+  .topo-target text { fill: #fff; font-size: 14px; }
+  .topo-legend { display: flex; gap: 14px; flex-wrap: wrap; }
+  .topo-legend .lg { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 10px; }
+  .topo-legend .lg::before { content: ''; width: 8px; height: 8px; border-radius: 50%; }
+  .lg.ok::before { background: #3ecf8e; box-shadow: 0 0 6px #3ecf8e; }
+  .lg.warn::before { background: #e8b45a; box-shadow: 0 0 6px #e8b45a; }
+  .lg.slow::before { background: #f26d78; box-shadow: 0 0 6px #f26d78; }
+  .lg.timeout::before { background: #5b6475; }
+  .lg.change::before { background: #e8b45a; border-radius: 2px; transform: rotate(45deg); }
+  .status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 7px; }
+  .status-chip { display: flex; align-items: center; gap: 8px; padding: 8px 11px; cursor: pointer; color: var(--muted); text-align: left; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); transition: all .15s ease; }
+  .status-chip:hover { transform: translateY(-1px); border-color: var(--line-2); }
+  .status-chip b { font-size: 13px; font-family: 'Cascadia Code', Consolas, monospace; }
+  .status-chip small { font-size: 10px; }
+  :global(.status-chip.tone-ok b) { color: #3ecf8e; }
+  :global(.status-chip.tone-info b) { color: #4cc2ff; }
+  :global(.status-chip.tone-redirect b) { color: #e8b45a; }
+  :global(.status-chip.tone-error b) { color: #f26d78; }
+  .mime-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 7px; }
+  .mime-chip { display: flex; flex-direction: column; gap: 2px; padding: 8px 11px; cursor: pointer; color: var(--muted); text-align: left; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); transition: all .15s ease; }
+  .mime-chip:hover { transform: translateY(-1px); border-color: var(--line-2); }
+  .mime-chip b { color: var(--text); font-size: 11.5px; font-family: 'Cascadia Code', Consolas, monospace; }
+  .mime-chip small { font-size: 10px; }
 </style>

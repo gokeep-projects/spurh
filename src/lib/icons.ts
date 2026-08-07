@@ -4,11 +4,17 @@ const S = (inner: string, filled = false) =>
 
 // ── 品牌 Logo ──────────────────────────────────────────────
 export const BRAND_MARK = `<svg viewBox="0 0 24 24" aria-hidden="true">
-  <defs><linearGradient id="spurh-g" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="#3ecf8e"/><stop offset="1" stop-color="#2f9de4"/>
-  </linearGradient></defs>
-  <rect x="1.6" y="1.6" width="20.8" height="20.8" rx="6.2" fill="url(#spurh-g)"/>
-  <path d="M13.4 5.4 7.4 13.1h4.1l-1 5.5 6-7.7h-4.1z" fill="#fff"/>
+  <defs>
+    <linearGradient id="spurh-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101728"/><stop offset="1" stop-color="#0b0e14"/>
+    </linearGradient>
+    <linearGradient id="spurh-bolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3ecf8e"/><stop offset="1" stop-color="#2f9de4"/>
+    </linearGradient>
+  </defs>
+  <rect x="1.4" y="1.4" width="21.2" height="21.2" rx="5.8" fill="url(#spurh-bg)" stroke="rgba(94,190,255,.55)" stroke-width="1"/>
+  <path d="M13.4 5.4 7.4 13.1h4.1l-1 5.5 6-7.7h-4.1z" fill="url(#spurh-bolt)" opacity=".95"/>
+  <path d="M13.4 5.4 7.4 13.1h4.1l-1 5.5 6-7.7h-4.1z" fill="none" stroke="rgba(255,255,255,.75)" stroke-width=".7" stroke-linejoin="round"/>
 </svg>`;
 
 // ── 工具图标（按插件 id） ──────────────────────────────────

@@ -486,22 +486,64 @@
       return;
     }
 
-    if (event.key === 'Enter' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        if (event.key === 'Enter' && !event.ctrlKey && !event.altKey && !event.metaKey) {
       event.preventDefault();
       const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-      const lineText = value.slice(lineStart, start);
-      const indentMatch = lineText.match(/^[\t ]*/);
-      const indent = indentMatch ? indentMatch[0] : '';
-      // 行尾是开放括号 / 冒号时追加一级缩进（JSON、对象字面量场景）
-      const extra = /[{[(]$/.test(lineText.trimEnd()) ? '  ' : '';
+      const lineEndIdx = value.indexOf('\n', end);
+      const lineEndPos = lineEndIdx < 0 ? value.length : lineEndIdx;
+      const cursorPart = value.slice(lineStart, start);
+      const fullLine = value.slice(lineStart, lineEndPos);
+      // ???????????????????
+      const indentSource = cursorPart.length === 0 ? fullLine : cursorPart;
+      const indentMatch = indentSource.match(/^[\t ]*/);
+      let indent = indentMatch ? indentMatch[0] : '';
+      // ??????/????????????????????
+      const openQuote = (cursorPart.match(/"/g) || []).length % 2 === 1;
+      let extra = (!openQuote && /[{[(,:]$/.test(cursorPart.trimEnd())) ? '  ' : '';
+      // ???????????????????????
+      const nextLineStart = value.indexOf('\n', end);
+      if (nextLineStart >= 0) {
+        const nextLineEnd = value.indexOf('\n', nextLineStart + 1);
+        const nextLine = value.slice(nextLineStart + 1, nextLineEnd < 0 ? value.length : nextLineEnd);
+        const nextIndent = (nextLine.match(/^[\t ]*/) || [''])[0];
+        if (/^[}\])]/.test(nextLine.trim()) && indent.length > nextIndent.length) {
+          indent = nextIndent;
+          extra = '';
+        }
+      }
       const insert = '\n' + indent + extra;
       changeInput(value.slice(0, start) + insert + value.slice(end));
       requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + insert.length; });
       return;
     }
 
-    // 括号 / 引号自动闭合
-    const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'", '`': '`' };
+    // ??????????????????????????????
+    const CLOSERS: Record<string, string> = { '}': '{', ']': '[', ')': '(' };
+    if (event.key.length === 1 && CLOSERS[event.key]) {
+      const cLineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const before = value.slice(cLineStart, start);
+      if (/^[\t ]*$/.test(before)) {
+        let depth = 0;
+        for (let i = start - 1; i >= 0; i--) {
+          const ch = value[i];
+          if (ch === event.key) depth++;
+          else if (ch === CLOSERS[event.key]) {
+            if (depth === 0) {
+              const openLineStart = value.lastIndexOf('\n', i - 1) + 1;
+              const openIndent = (value.slice(openLineStart, i).match(/^[\t ]*/) || [''])[0];
+              if (before.length > openIndent.length) {
+                event.preventDefault();
+                changeInput(value.slice(0, cLineStart) + openIndent + value.slice(start));
+                requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = cLineStart + openIndent.length; });
+                return;
+              }
+            } else depth--;
+          }
+        }
+      }
+    }
+
+const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'", '`': '`' };
     if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
       const openChar = PAIRS[event.key];
       if (openChar) {
@@ -1175,12 +1217,11 @@
 
 <div class:light={lightMode} class="app" style={`--app-font-size: ${appSettings.fontSize}px; --app-font-family: ${FONT_STACKS[appSettings.fontFamily] ?? FONT_STACKS['系统默认']}`}>
   <header class="app-bar">
-    <button class="brand" onclick={() => (sidebarOpen = !sidebarOpen)} aria-label="侧栏">
-      <span class="brand-mark">{@html BRAND_MARK}</span><b>Spurh</b>
+    <button class="brand" onclick={() => (sidebarOpen = !sidebarOpen)} aria-label="Spurh" title="Spurh ??????">
+      <span class="brand-mark">{@html BRAND_MARK}</span>
     </button>
     <div class="dispatcher">
-      <span class="dispatcher-spark">{@html UI_ICONS.sparkle}</span>
-      <input bind:this={dispatcherElement} bind:value={dispatcherInput} oninput={(event) => handleDispatcherInput(event.currentTarget.value)} onpaste={handleDispatcherPaste} onkeydown={handleDispatcherKeys} onfocus={() => (dispatcherOpen = true)} onblur={() => (dispatcherOpen = false)} placeholder="粘贴或输入内容，自动识别工具…" />
+<input bind:this={dispatcherElement} bind:value={dispatcherInput} oninput={(event) => handleDispatcherInput(event.currentTarget.value)} onpaste={handleDispatcherPaste} onkeydown={handleDispatcherKeys} onfocus={() => (dispatcherOpen = true)} onblur={() => (dispatcherOpen = false)} placeholder="粘贴或输入内容，自动识别工具…" />
       {#if dispatcherOpen && dispatcherInput && (dispatch.selected || matchedPlugins.length > 0)}
         <div class="dispatch-matches">
           {#each [dispatch.selected!, ...matchedPlugins].filter(Boolean).slice(0, 6) as match, i}

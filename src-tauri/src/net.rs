@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,7 +22,7 @@ pub struct TcpSendResult {
     pub elapsed_ms: u64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TraceHop {
     pub hop: u32,
@@ -433,9 +433,304 @@ pub async fn net_ip_geo(target: String) -> Result<GeoInfo, String> {
     Ok(info)
 }
 
+// ?????????????? ?????????? / IPv4 / ????? ??????????????
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalNetInfo {
+    pub hostname: String,
+    pub ips: Vec<String>,
+    pub gateways: Vec<String>,
+}
+
+fn is_private_ish(ip: &str) -> bool {
+    let Ok(addr) = ip.parse::<std::net::Ipv4Addr>() else { return true };
+    addr.is_loopback() || addr.is_link_local() || addr.is_unspecified()
+}
+
+#[tauri::command]
+pub async fn net_local_info() -> Result<LocalNetInfo, String> {
+    let hostname = std::env::var("COMPUTERNAME")
+        .or_else(|_| std::env::var("HOSTNAME"))
+        .unwrap_or_else(|_| "??".to_string());
+    let mut ips: Vec<String> = Vec::new();
+    if let Ok(output) = tokio::process::Command::new("ipconfig").output().await {
+        let text = String::from_utf8_lossy(&output.stdout).to_string();
+        for line in text.lines() {
+            if !line.contains("IPv4") || !line.contains(':') {
+                continue;
+            }
+            let value = line.split(':').next_back().unwrap_or("").trim();
+            if value.is_empty() || is_private_ish(value) {
+                continue;
+            }
+            if !ips.contains(&value.to_string()) {
+                ips.push(value.to_string());
+            }
+        }
+    }
+    // ??????????????
+    if ips.is_empty() {
+        ips.push("127.0.0.1".to_string());
+    }
+    let mut gateways: Vec<String> = Vec::new();
+    if let Ok(output) = tokio::process::Command::new("route")
+        .args(["print", "-4"])
+        .output()
+        .await
+    {
+        let text = String::from_utf8_lossy(&output.stdout).to_string();
+        for line in text.lines() {
+            let fields: Vec<&str> = line.split_whitespace().collect();
+            if fields.len() >= 3 && fields[0] == "0.0.0.0" && fields[1] == "0.0.0.0" {
+                if fields[2].parse::<std::net::Ipv4Addr>().is_ok() && !gateways.contains(&fields[2].to_string()) {
+                    gateways.push(fields[2].to_string());
+                }
+            }
+        }
+    }
+    Ok(LocalNetInfo { hostname, ips, gateways })
+}
+
+// ?????????????? ?????????????? ??????????????
+#[tauri::command]
+pub async fn net_traceroute_stream(
+    host: String,
+    channel: tauri::ipc::Channel<TraceHop>,
+) -> Result<Vec<TraceHop>, String> {
+    let host = host.trim().to_string();
+    if host.is_empty() {
+        return Err("???????".into());
+    }
+    if host.starts_with('-') {
+        return Err("?????? - ??".into());
+    }
+    let mut child = tokio::process::Command::new("tracert")
+        .args(["-d", "-h", "20", "-w", "500", &host])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|error| format!("???? tracert?{error}"))?;
+    let stdout = child.stdout.take().ok_or("???? tracert ??")?;
+    let mut reader = tokio::io::BufReader::new(stdout).lines();
+    let mut hops: Vec<TraceHop> = Vec::new();
+    while let Ok(Some(line)) = reader.next_line().await {
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        if fields.len() < 2 {
+            continue;
+        }
+        let Ok(hop) = fields[0].parse::<u32>() else { continue };
+        let mut ms: Vec<u32> = Vec::new();
+        let mut ip = String::new();
+        let mut seen_time = false;
+        for field in &fields[1..] {
+            if *field == "*" {
+                ms.push(0);
+                seen_time = true;
+            } else if let Some(value) = field.strip_suffix("ms") {
+                if let Ok(v) = value.trim().parse::<u32>() {
+                    ms.push(v);
+                    seen_time = true;
+                }
+            } else if seen_time && ip.is_empty() && field.contains('.') {
+                ip = field.to_string();
+            }
+        }
+        if seen_time || !ip.is_empty() {
+            let item = TraceHop { hop, ip, ms };
+            if channel.send(item.clone()).is_err() {
+                break; // ?????
+            }
+            hops.push(item);
+        }
+    }
+    let _ = child.kill().await;
+    let _ = child.wait().await;
+    if hops.is_empty() {
+        return Err("tracert ??????????????????".into());
+    }
+    Ok(hops)
+}
+
+// ?????????????? TCP / UDP ???? ??????????????
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetSessionEvent {
+    pub kind: String, // "data" | "closed" | "error"
+    pub data: String, // UTF-8 ?????????????
+    pub hex: String,
+    pub bytes: usize,
+}
+
+type SessionWriter = tokio::sync::mpsc::Sender<Vec<u8>>;
+
+struct NetSession {
+    tx: SessionWriter,
+}
+
+static SESSIONS: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<u64, NetSession>>> =
+    std::sync::OnceLock::new();
+static NEXT_SESSION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+fn sessions() -> &'static std::sync::Mutex<std::collections::HashMap<u64, NetSession>> {
+    SESSIONS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+}
+
+fn emit_session(
+    out: &tauri::ipc::Channel<NetSessionEvent>,
+    kind: &str,
+    data: &[u8],
+) -> bool {
+    let hex: String = data.iter().map(|b| format!("{:02x}", b)).collect();
+    out.send(NetSessionEvent {
+        kind: kind.to_string(),
+        data: String::from_utf8_lossy(data).to_string(),
+        hex,
+        bytes: data.len(),
+    })
+    .is_ok()
+}
+
+/// ?? TCP/UDP ?????????? channel ?????????????
+#[tauri::command]
+pub async fn net_session_open(
+    host: String,
+    port: u16,
+    protocol: String,
+    timeout_ms: Option<u64>,
+    out: tauri::ipc::Channel<NetSessionEvent>,
+) -> Result<u64, String> {
+    let host = host.trim().to_string();
+    if host.is_empty() {
+        return Err("???????".into());
+    }
+    if port == 0 {
+        return Err("????".into());
+    }
+    let timeout = Duration::from_millis(timeout_ms.unwrap_or(4000).clamp(500, 15_000));
+    let session_id = NEXT_SESSION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Vec<u8>>(64);
+
+    match protocol.as_str() {
+        "tcp" => {
+            let stream = tokio::time::timeout(timeout, tokio::net::TcpStream::connect((host.as_str(), port)))
+                .await
+                .map_err(|_| format!("?????{} ms?", timeout.as_millis()))?
+                .map_err(|error| format!("?????{error}"))?;
+            let (mut rd, mut wr) = stream.into_split();
+            tokio::spawn(async move {
+                let mut buf = [0u8; 8192];
+                loop {
+                    tokio::select! {
+                        n = rd.read(&mut buf) => {
+                            match n {
+                                Ok(0) => {
+                                    let _ = emit_session(&out, "closed", b"");
+                                    break;
+                                }
+                                Ok(n) => {
+                                    if !emit_session(&out, "data", &buf[..n]) {
+                                        break;
+                                    }
+                                }
+                                Err(error) => {
+                                    let _ = emit_session(&out, "error", format!("?????{error}").as_bytes());
+                                    break;
+                                }
+                            }
+                        }
+                        pkt = rx.recv() => {
+                            match pkt {
+                                Some(pkt) => {
+                                    if let Err(error) = wr.write_all(&pkt).await {
+                                        let _ = emit_session(&out, "error", format!("?????{error}").as_bytes());
+                                        break;
+                                    }
+                                }
+                                None => break, // ?????
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        "udp" => {
+            let socket = tokio::net::UdpSocket::bind("0.0.0.0:0")
+                .await
+                .map_err(|error| format!("?? UDP ??????{error}"))?;
+            socket
+                .connect((host.as_str(), port))
+                .await
+                .map_err(|error| format!("?????{error}"))?;
+            let socket = std::sync::Arc::new(socket);
+            let send_socket = socket.clone();
+            tokio::spawn(async move {
+                let mut buf = [0u8; 8192];
+                loop {
+                    tokio::select! {
+                        n = socket.recv(&mut buf) => {
+                            match n {
+                                Ok(0) => break,
+                                Ok(n) => {
+                                    if !emit_session(&out, "data", &buf[..n]) {
+                                        break;
+                                    }
+                                }
+                                Err(error) => {
+                                    let _ = emit_session(&out, "error", format!("?????{error}").as_bytes());
+                                    break;
+                                }
+                            }
+                        }
+                        pkt = rx.recv() => {
+                            match pkt {
+                                Some(pkt) => {
+                                    if let Err(error) = send_socket.send(&pkt).await {
+                                        let _ = emit_session(&out, "error", format!("?????{error}").as_bytes());
+                                        break;
+                                    }
+                                }
+                                None => break, // ?????
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        _ => return Err("????? tcp / udp".into()),
+    }
+
+    sessions().lock().unwrap().insert(session_id, NetSession { tx });
+    Ok(session_id)
+}
+
+/// ???????????
+#[tauri::command]
+pub async fn net_session_send(session_id: u64, data: String) -> Result<usize, String> {
+    let tx = sessions()
+        .lock()
+        .unwrap()
+        .get(&session_id)
+        .map(|session| session.tx.clone())
+        .ok_or("?????????")?;
+    let bytes = data.into_bytes();
+    let len = bytes.len();
+    tx.send(bytes).await.map_err(|_| "?????".to_string())?;
+    Ok(len)
+}
+
+/// ????
+#[tauri::command]
+pub async fn net_session_close(session_id: u64) -> Result<(), String> {
+    let removed = sessions().lock().unwrap().remove(&session_id);
+    if let Some(session) = removed {
+        drop(session.tx); // ?????????????
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::geo_api_url;
+    use super::{geo_api_url, net_local_info};
 
     #[test]
     fn geo_url_keeps_scheme_ip_and_fields() {
@@ -446,6 +741,14 @@ mod tests {
         assert!(url.contains("query"));
         let http = geo_api_url("1.1.1.1", "http");
         assert!(http.starts_with("http://ip-api.com/json/1.1.1.1?"));
+    }
+
+    #[tokio::test]
+    async fn local_info_collects_hostname_and_ips() {
+        let info = net_local_info().await.expect("net_local_info ???");
+        assert!(!info.hostname.is_empty(), "???????");
+        assert!(!info.ips.is_empty(), "?????? IP");
+        assert!(info.ips.iter().any(|ip| ip.parse::<std::net::Ipv4Addr>().is_ok()), "IP ???? IPv4");
     }
 
     #[test]

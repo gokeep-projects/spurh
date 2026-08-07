@@ -46,12 +46,16 @@ button { color: inherit; }
   display: grid;
   grid-template-rows: 64px minmax(0, 1fr);
   color: var(--text);
-  background: var(--bg);
+  background:
+    radial-gradient(1100px 540px at 12% -10%, rgba(62, 207, 142, .09), transparent 62%),
+    radial-gradient(1000px 520px at 90% -12%, rgba(47, 157, 228, .12), transparent 60%),
+    radial-gradient(900px 640px at 50% 116%, rgba(109, 141, 255, .08), transparent 65%),
+    var(--bg);
 }
 
 .app.light {
   --bg: #f4f6f9;
-  --sidebar: #eef0f4;
+  --sidebar: rgba(238, 240, 244, .72);
   --panel: #ffffff;
   --panel-2: #ffffff;
   --hover: #e9edf3;
@@ -67,6 +71,10 @@ button { color: inherit; }
   --danger: #d43d55;
   --warn: #a06c10;
   --warn-soft: rgba(160, 108, 16, .1);
+  background:
+    radial-gradient(1100px 540px at 12% -10%, rgba(62, 207, 142, .07), transparent 62%),
+    radial-gradient(1000px 520px at 90% -12%, rgba(47, 157, 228, .08), transparent 60%),
+    var(--bg);
 }
 
 /* ── 顶栏 ── */
@@ -78,7 +86,11 @@ button { color: inherit; }
   align-items: center;
   gap: 14px;
   padding: 0 16px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  background: color-mix(in srgb, var(--sidebar) 74%, transparent);
+  backdrop-filter: blur(16px) saturate(1.45);
+  -webkit-backdrop-filter: blur(16px) saturate(1.45);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 8px 30px rgba(0, 0, 0, .18);
   background: var(--sidebar);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -88,22 +100,22 @@ button { color: inherit; }
 .app-bar .app-actions { flex: 0 0 auto; }
 
 .brand { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 8px; cursor: pointer; border: 0; border-radius: 10.5px; background: transparent; transition: background var(--transition); }
-.brand:hover { background: var(--hover); }
-.brand-mark { position: relative; width: 26px; height: 27px; display: grid; place-items: center; }
+.brand:hover { background: color-mix(in srgb, var(--accent) 8%, var(--hover)); box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 12%, transparent); }
+.brand-mark { position: relative; width: 26px; height: 27px; display: grid; place-items: center; filter: drop-shadow(0 0 7px rgba(62, 207, 142, .55)) drop-shadow(0 0 14px rgba(47, 157, 228, .3)); }
 .brand-mark svg { width: 23px; height: 23px; }
 .brand b { font-size: 16.5px; font-weight: 700; letter-spacing: -.4px; }
 
 .dispatcher { position: relative; height: 40px; display: flex; align-items: center; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel); box-shadow: 0 4px 20px rgba(0, 0, 0, .18); transition: border-color var(--transition), box-shadow var(--transition); }
-.dispatcher:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); box-shadow: 0 0 0 3px var(--accent-soft), 0 6px 24px rgba(0, 0, 0, .2); }
+.dispatcher:focus-within { border-color: color-mix(in srgb, var(--accent) 65%, var(--line-2)); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 22px color-mix(in srgb, var(--accent) 18%, transparent), 0 6px 24px rgba(0, 0, 0, .2); }
 .dispatcher-spark { margin: 0 11px 0 13px; color: var(--accent); font-size: 11px; display: inline-flex; }
 .dispatcher-spark svg { width: 14px; height: 14px; }
 .dispatcher input { min-width: 0; flex: 1; height: 100%; padding: 0; color: var(--text); font-size: 13.5px; border: 0; outline: 0; background: transparent; }
 .dispatcher input::placeholder { color: var(--muted-2); }
 kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 8px; color: var(--muted); font: 500 10.5px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); }
 .tool-kbd { margin: 0 0 0 auto; padding: 2px 5px; color: var(--muted-2); font: 500 7px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 4px; background: transparent; flex-shrink: 0; }
-.dispatch-matches { position: absolute; z-index: 1000; left: 0; right: 0; top: 47px; display: flex; flex-direction: column; gap: 2px; padding: 5px; border: 1px solid var(--line-2); border-radius: 11px; background: var(--panel-2); box-shadow: 0 18px 50px rgba(0, 0, 0, .4); max-height: min(320px, calc(100vh - 150px)); overflow-y: auto; animation: fade-in .12s ease-out; }
+.dispatch-matches { position: absolute; z-index: 1000; left: 0; right: 0; top: 47px; display: flex; flex-direction: column; gap: 2px; padding: 5px; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line-2)); border-radius: 12px; background: color-mix(in srgb, var(--panel-2) 86%, transparent); backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4); box-shadow: 0 24px 60px rgba(0, 0, 0, .5), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent), 0 0 44px color-mix(in srgb, var(--accent) 12%, transparent); max-height: min(340px, calc(100vh - 150px)); overflow-y: auto; animation: fade-in .12s ease-out; }
 .dispatch-matches button { height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 11px; cursor: pointer; text-align: left; color: var(--text); border: 1px solid transparent; border-radius: 8px; background: transparent; font-size: 12.5px; transition: background var(--transition), border-color var(--transition); }
-.dispatch-matches button:hover, .dispatch-matches button.active { border-color: var(--line); background: var(--hover); }
+.dispatch-matches button:hover, .dispatch-matches button.active { border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); background: linear-gradient(90deg, var(--accent-soft), transparent 75%), var(--hover); box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 10%, transparent); }
 .dispatch-matches button > span, .dispatch-matches .match-icon { width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); font: 600 8px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
 .dispatch-matches .match-icon svg { width: 15px; height: 15px; }
 .dispatch-matches button b { flex: 1; min-width: 0; overflow: hidden; font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
@@ -118,7 +130,7 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 8px; color: var(--muted); 
 .app-actions .settings-button { width: auto; height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 14px; cursor: pointer; color: var(--text); font-size: 12px; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); white-space: nowrap; flex-shrink: 0; transition: all var(--transition); }
 .app-actions .settings-button span { color: var(--accent); font-size: 14px; display: inline-flex; }
 .app-actions .settings-button span svg { width: 15px; height: 15px; }
-.app-actions .settings-button:hover { border-color: var(--line-2); background: var(--panel-2); }
+.app-actions .settings-button:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--panel-2); box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 14%, transparent); }
 .ai-status { display: flex; align-items: center; gap: 6px; padding: 5px 10px; color: var(--muted); font-size: 11.5px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); white-space: nowrap; }
 .ai-status .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 .ai-status.processing .status-dot { background: var(--blue); animation: soft-pulse .8s ease-in-out infinite; }
@@ -127,7 +139,7 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 8px; color: var(--muted); 
 /* ── 侧栏 ── */
 .app-body { min-height: 0; display: grid; grid-template-columns: 248px minmax(0, 1fr); transition: grid-template-columns .22s var(--transition); }
 .app-body.sidebar-hidden { grid-template-columns: 0 minmax(0, 1fr); }
-.sidebar { min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--line); background: var(--sidebar); }
+.sidebar { min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid color-mix(in srgb, var(--line) 80%, transparent); background: color-mix(in srgb, var(--sidebar) 78%, transparent); backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3); }
 .side-heading { height: 40px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
 .side-heading small { color: var(--muted-2); font: 600 10px 'Cascadia Code', monospace; letter-spacing: 2px; }
 .tool-search { height: 36px; flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin: 0 11px 10px; padding: 0 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); transition: border-color var(--transition), box-shadow var(--transition); }
@@ -146,8 +158,10 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 8px; color: var(--muted); 
 .tool-list::-webkit-scrollbar-thumb:hover { background: var(--muted-2); }
 .tool-list button { position: relative; width: 100%; min-height: 58px; display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: pointer; text-align: left; border: 1px solid transparent; border-radius: 10px; background: transparent; transition: background var(--transition), border-color var(--transition), transform var(--transition); }
 .tool-list button:hover { background: var(--hover); }
-.tool-list button.active { border-color: var(--line); background: linear-gradient(90deg, var(--accent-soft), transparent 70%), var(--panel-2); box-shadow: inset 3px 0 var(--accent), 0 3px 12px rgba(0, 0, 0, .18); }
-.tool-icon { flex: 0 0 auto; width: 36px; height: 36px; display: grid; place-items: center; color: var(--accent); font: 600 10px 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); transition: all var(--transition); }
+.tool-list button.active { border-color: color-mix(in srgb, var(--accent) 34%, var(--line)); background: linear-gradient(90deg, var(--accent-soft), transparent 72%), var(--panel-2); box-shadow: inset 3px 0 var(--accent), 0 0 18px color-mix(in srgb, var(--accent) 9%, transparent), 0 4px 14px rgba(0, 0, 0, .2); }
+.tool-icon { flex: 0 0 auto; width: 36px; height: 36px; display: grid; place-items: center; color: var(--accent); font: 600 10px 'Cascadia Code', Consolas, monospace; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 10.5px; background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 7%, var(--panel)), var(--panel) 65%); box-shadow: 0 3px 10px rgba(0, 0, 0, .16); transition: all var(--transition); }
+.tool-list button:hover .tool-icon { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 18%, transparent); }
+.tool-list button.active .tool-icon { color: #fff; border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: var(--btn-gradient); box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 40%, transparent); }
 .tool-icon svg { width: 17px; height: 17px; }
 .tool-icon.large { width: 46px; height: 46px; border-radius: 11px; font-size: 12px; }
 .tool-icon.large svg { width: 22px; height: 22px; }
@@ -176,11 +190,11 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 8px; color: var(--muted); 
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── 工具控制条 ── */
-.tool-controls { min-height: 54px; flex: 0 0 auto; display: flex; align-items: center; gap: 10.5px; padding: 8px 10px; border: 1px solid var(--line); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; background: var(--panel); flex-wrap: wrap; transition: border-color var(--transition); }
+.tool-controls { min-height: 54px; flex: 0 0 auto; display: flex; align-items: center; gap: 10.5px; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--line) 85%, transparent); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; background: color-mix(in srgb, var(--panel) 78%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); flex-wrap: wrap; transition: border-color var(--transition); }
 .actions { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10.5px; background: var(--bg); overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
 .actions::-webkit-scrollbar { height: 0; display: none; }
 .actions button { height: 31px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 12.5px; border: 0; border-radius: 7px; background: transparent; white-space: nowrap; flex-shrink: 0; transition: all var(--transition); }
-.actions button:hover { color: var(--text); background: var(--hover); }
+.actions button:hover { color: var(--text); background: var(--hover); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); }
 .actions button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 28%, transparent); }
 .options { min-width: 0; display: flex; gap: 10.5px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
 .options::-webkit-scrollbar { height: 0; display: none; }
@@ -202,7 +216,7 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 8px; color: var(--muted); 
 .ai-button:disabled { cursor: default; opacity: .4; }
 
 /* ── 编辑器双栏 ── */
-.editor-grid { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); border: 1px solid var(--line); border-radius: 0 0 12px 12px; overflow: hidden; background: var(--panel-2); }
+.editor-grid { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); border: 1px solid color-mix(in srgb, var(--line) 85%, transparent); border-radius: 0 0 12px 12px; overflow: hidden; background: color-mix(in srgb, var(--panel-2) 86%, transparent); box-shadow: 0 12px 40px rgba(0, 0, 0, .18); }
 .editor-grid.single { grid-template-columns: 1fr; }
 .editor-grid.single .output-pane { border-left: 0; }
 .editor-pane { min-width: 0; min-height: 0; display: grid; grid-template-rows: 40px minmax(0, 1fr); }
@@ -219,7 +233,7 @@ kbd { flex: 0 0 auto; margin-right: 8px; padding: 4px 8px; color: var(--muted); 
 .editor-pane header button { height: 28px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 11.5px; border: 1px solid transparent; border-radius: 7px; background: transparent; transition: all var(--transition); }
 .editor-pane header button:hover:not(:disabled) { color: var(--text); border-color: var(--line); background: var(--hover); }
 .editor-pane header button:disabled { opacity: .35; cursor: default; }
-.editor-pane textarea, .editor-pane pre { width: 100%; height: 100%; min-height: 0; margin: 0; padding: 18px; overflow: auto; resize: none; color: var(--text); font: 450 13.5px/1.72 'Cascadia Code', 'SFMono-Regular', Consolas, monospace; white-space: pre-wrap; word-break: break-word; border: 0; outline: 0; background: var(--panel-2); tab-size: 2; }
+.editor-pane textarea, .editor-pane pre { width: 100%; height: 100%; min-height: 0; margin: 0; padding: 18px; overflow: auto; resize: none; color: var(--text); font: 450 13.5px/1.72 'Cascadia Code', 'SFMono-Regular', Consolas, monospace; white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; border: 0; outline: 0; background: transparent; tab-size: 2; }
 .editor-pane textarea::placeholder { color: var(--muted-2); }
 .editor-pane pre.plain { font-family: inherit; font-size: 14px; }
 .syntax-key { color: #7cb8ff; }
@@ -506,7 +520,8 @@ textarea::-webkit-scrollbar-thumb:hover, pre::-webkit-scrollbar-thumb:hover {
 }
 
 /* ── 输入高亮层（JSON 语法高亮输入） ── */
-.editor-input { position: relative; min-height: 0; height: 100%; }
+.editor-input { position: relative; min-height: 0; height: 100%; background: color-mix(in srgb, var(--panel-2) 72%, transparent); }
+.editor-input::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: radial-gradient(600px 200px at 20% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 70%); }
 .editor-input pre.input-hl { position: absolute; inset: 0; z-index: 0; pointer-events: none; color: transparent; background: transparent; }
 .editor-input.hli textarea { color: transparent; caret-color: var(--text); }
 .editor-input.hli textarea::selection { background: var(--accent-soft); }
