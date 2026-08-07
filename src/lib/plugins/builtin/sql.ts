@@ -44,7 +44,7 @@ export function profileFromOptions(options: Record<string, string>): SqlProfile 
 
 export const sqlPlugin: SpurhPlugin = {
   id: 'spurh.sql',
-  name: 'SQL 工具',
+  name: '数据库工具',
   description: 'MySQL · SQLite · PostgreSQL',
   icon: ICONS['spurh.sql'],
   version: '0.1.0',

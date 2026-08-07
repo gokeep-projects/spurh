@@ -63,7 +63,7 @@ export function explainRegexTokens(pattern: string): RegexToken[] {
       if (/^\?<[A-Za-z_]\w*>/.test(rest)) {
         const name = rest.match(/^\?<([A-Za-z_]\w*)>/)?.[1] ?? '';
         out.push({ token: `(?<${name}>`, meaning: `命名分组 ${name}`, indent });
-        i += 3 + name.length;
+        i += 4 + name.length; // (?<name> 共 4 + name.length 个字符)
         indent += 1;
         continue;
       }

@@ -531,7 +531,8 @@
   }
 
   // to-unix 用 picker 作为输入时隐藏文本框；但文本框有内容（自动识别粘贴/手动输入）时保留可见，避免残留输入不可见
-  let hideInputPane = $derived(activePluginId === 'spurh.timestamp' && activeSession.actionId === 'to-unix' || activeSession.actionId === 'now');
+  // 时间戳面板自带紧凑输入控件，所有模式都隐藏通用大输入框
+  let hideInputPane = $derived(activePluginId === 'spurh.timestamp');
 
   function changeAction(actionId: string): void {
     // Cron 面板内配置的表达式（手写/自定义）需同步到共享输入，解析/执行时间才有内容可用
@@ -1218,7 +1219,7 @@
 
   <div class:sidebar-hidden={!sidebarOpen} class="app-body">
     <aside class="sidebar">
-      <div class="side-heading"><small>??</small></div>
+      <div class="side-heading"><small>{plugins.length} 个工具</small></div>
       <label class="tool-search"><span>{@html UI_ICONS.search}</span><input bind:value={toolSearch} placeholder="搜索" /></label>
       <div class="category-tabs">
         {#each categories as item}<button class:active={category === item} onclick={() => (category = item)}>{item}</button>{/each}

@@ -1191,7 +1191,7 @@
   <header class="sql-bar">
     <div class="sql-bar-id">
       <span class="sql-bar-ico">{@html iconHtml(TOOL_ICONS['spurh.sql'])}</span>
-      <div><b>{activeConn ? activeConn.name : 'SQL 工具'}</b><small>{activeConn ? connSubtitle(activeConn) : 'MySQL · SQLite · PostgreSQL 数据库管理'}</small></div>
+      <div><b>{activeConn ? activeConn.name : '数据库工具'}</b><small>{activeConn ? connSubtitle(activeConn) : 'MySQL · SQLite · PostgreSQL 数据库管理'}</small></div>
     </div>
     <div class="sql-bar-status" class:on={connected} class:err={Boolean(connError)} title={serverVersion || (connError || '')}>
       <i></i><span>{connected ? '已连接' : (connecting ? '连接中…' : (connError ? '连接失败' : '未连接'))}</span>
@@ -1587,7 +1587,7 @@
             {/if}
             <AiAssist
               config={aiConfig}
-              tool="SQL 工具"
+              tool="数据库工具"
               action="AI 助手"
               instruction="你是资深数据库工程师。生成可执行的 SQL 时只输出 SQL 语句本身（不要 Markdown 代码块、不要解释）；解释问题时给出原因和修复后的 SQL。"
               presets={[

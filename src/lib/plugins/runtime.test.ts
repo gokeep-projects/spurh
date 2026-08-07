@@ -183,7 +183,11 @@ describe('PluginRuntime', () => {
     const anchor = await runtime.execute('spurh.regex', 'explain', 'abc', { pattern: '^abc', flags: 'g' });
     expect(anchor.output).toContain('匹配文本开头');
     const plain = await runtime.execute('spurh.regex', 'explain', 'abc', { pattern: 'abc', flags: 'g' });
-    expect(plain.output).toContain('未检测到特殊结构');
+    expect(plain.output).toContain('字面量文本');
+    // 命名分组与量词逐项解释
+    const named = await runtime.execute('spurh.regex', 'explain', 'abc', { pattern: '(?<year>\\d{4})', flags: 'g' });
+    expect(named.output).toContain('命名分组 year');
+    expect(named.output).toContain('重复 4 次');
   });
 
   it('timestamp detection and conversion', async () => {
@@ -307,7 +311,7 @@ describe('PluginRuntime', () => {
 
   it('all plugin views are covered by ResultView branches', async () => {
     // ResultView 显式分支 + 最终 else 兜底(code/text):防 view 值遗漏导致结果区空白
-    const supported = new Set(['timestamp', 'http', 'jwt', 'stats', 'matches', 'list', 'hash', 'sql', 'log', 'code', 'text', '']);
+    const supported = new Set(['timestamp', 'http', 'jwt', 'stats', 'matches', 'list', 'hash', 'sql', 'log', 'colors', 'code', 'text', '']);
     const seen = new Set<string>();
     for (const plugin of runtime.list()) {
       for (const action of plugin.actions) {
