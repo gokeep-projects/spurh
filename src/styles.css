@@ -2057,6 +2057,14 @@ kbd {
   70% { box-shadow: 0 0 0 7px rgba(52, 211, 153, 0); }
   100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
 }
+.about-version .about-clock {
+  font-style: normal;
+  font-size: 13px;
+  color: var(--muted-2);
+  font-family: ui-monospace, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .3px;
+}
 .about-chips {
   position: relative;
   display: flex;

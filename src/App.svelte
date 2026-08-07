@@ -173,8 +173,9 @@
   let clipElement = $state<HTMLInputElement | undefined>(undefined);
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
-  /* ── 关于页实时动态：会话运行时长 ── */
+  /* ── 关于页实时动态：会话运行时长 + 实时时钟 ── */
   let aboutUptime = $state(0);
+  let aboutClock = $state('');
   let aboutTimer: ReturnType<typeof setInterval> | undefined;
   function formatUptime(seconds: number): string {
     const h = Math.floor(seconds / 3600);
@@ -182,10 +183,19 @@
     const s = seconds % 60;
     return h > 0 ? `${h} 时 ${m} 分` : m > 0 ? `${m} 分 ${s} 秒` : `${s} 秒`;
   }
+  function formatClock(date: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const week = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())} 星期${week}`;
+  }
   $effect(() => {
     if (settingsTab === 'about') {
       aboutUptime = 0;
-      aboutTimer = setInterval(() => { aboutUptime += 1; }, 1000);
+      aboutClock = formatClock(new Date());
+      aboutTimer = setInterval(() => {
+        aboutUptime += 1;
+        aboutClock = formatClock(new Date());
+      }, 1000);
       return () => { if (aboutTimer) clearInterval(aboutTimer); };
     }
   });
@@ -1706,7 +1716,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <div class="about-hero">
                   <span class="brand-mark large about-logo">{@html BRAND_MARK}</span>
                   <div><h3>Spurh</h3><p>AI Native Developer Toolbox</p></div>
-                  <div class="about-version"><b>v0.1.0</b><small>latest</small><i class="about-uptime"><span class="pulse-dot"></span>已运行 {formatUptime(aboutUptime)}</i></div>
+                  <div class="about-version"><b>v0.1.0</b><small>latest</small><i class="about-uptime"><span class="pulse-dot"></span>已运行 {formatUptime(aboutUptime)}</i><i class="about-clock">{aboutClock}</i></div>
                 </div>
                 <div class="about-chips"><span>Svelte 5</span><span>Tauri 2</span><span>Rust</span><span>TypeScript</span><span>AI Native</span><span>本地优先</span></div>
                 <div class="about-grid"><article><small>作者</small><b>xuning</b></article><article><small>版本</small><b>0.1.0</b></article><article><small>内置工具</small><b>14 个面板</b></article><article><small>许可</small><b>MIT</b></article></div>
