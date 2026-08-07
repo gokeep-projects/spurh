@@ -31,6 +31,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'spurh.network': S('<circle cx="12" cy="12" r="3"/><path d="M12 9V4.5M12 15v4.5M9 12H4.5M15 12h4.5"/><path d="M7.8 7.8 5 5M16.2 7.8 19 5M7.8 16.2 5 19M16.2 16.2 19 19"/>'),
   'spurh.clipboard': S('<rect width="13" height="16" x="5.5" y="4.5" rx="2"/><path d="M9 4.5a3 3 0 0 1 6 0"/><path d="M9 10.5h6M9 14h6"/>'),
   'spurh.remote': S('<rect x="3" y="4.5" width="18" height="13" rx="2.4"/><path d="m7.5 9 3 2.5-3 2.5"/><path d="M12.5 14h4"/><path d="M7 20.5h10"/>'),
+  'spurh.git': S('<circle cx="6" cy="6" r="2.6"/><circle cx="18" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><path d="M6 8.6v6.8M18 8.6a6.4 6.4 0 0 1-6.4 6.4H8.6"/>'),
   'spurh.log': S('<path d="M5 4.5h14M5 9.5h14M5 14.5h14M5 19.5h14"/><circle cx="8" cy="9.5" r=".6" fill="currentColor" stroke="none"/><circle cx="8" cy="14.5" r=".6" fill="currentColor" stroke="none"/><circle cx="8" cy="19.5" r=".6" fill="currentColor" stroke="none"/>'),
 };
 
@@ -43,6 +44,9 @@ export const UI_ICONS = {
   sun: S('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'),
   moon: S('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>'),
   contrast: S('<circle cx="12" cy="12" r="9"/><path d="M12 3v18"/>'),
+  leaf: S('<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>'),
+  expand: S('<path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="M9 21H3v-6"/><path d="m3 21 7-7"/>'),
+  shrink: S('<path d="M21 15h-6v6"/><path d="m15 15 6 6"/><path d="M3 9h6V3"/><path d="m9 9-6-6"/>'),
   keyboard: S('<rect width="20" height="15" x="2" y="4.5" rx="2.4"/><path d="M6 8.5h.01M10 8.5h.01M14 8.5h.01M18 8.5h.01M6 12.5h.01M10 12.5h.01M14 12.5h.01M18 12.5h.01M7 16h10"/>'),
   info: S('<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>'),
   close: S('<path d="M18 6 6 18M6 6l12 12"/>'),

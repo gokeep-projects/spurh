@@ -11,6 +11,7 @@
   import RegexPanel from './lib/panels/RegexPanel.svelte';
   import TimestampPanel from './lib/panels/TimestampPanel.svelte';
   import { runtime, type PluginResult } from './lib/plugins';
+  import { setPendingRepo } from './lib/panels/gitStore';
   import { trimImageHistory, type ClipItem } from './lib/clipHistory';
 
   type ToolSession = {
@@ -28,7 +29,7 @@
     aiStreamContent: string;
   };
 
-  type ThemeMode = 'light' | 'dark' | 'system';
+  type ThemeMode = 'light' | 'dark' | 'system' | 'aurora' | 'forest';
   type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts' | 'tools';
 
   const FONT_STACKS: Record<string, string> = {
@@ -212,6 +213,7 @@
     'spurh.clipboard': () => import('./lib/panels/ClipboardPanel.svelte') as Promise<LazyPanelModule>,
     'spurh.remote': () => import('./lib/panels/RemotePanel.svelte') as Promise<LazyPanelModule>,
     'spurh.sql': () => import('./lib/panels/SqlPanel.svelte') as Promise<LazyPanelModule>,
+    'spurh.git': () => import('./lib/panels/GitPanel.svelte') as Promise<LazyPanelModule>,
   };
   let lazyPanel = $state<Component | null>(null);
   let lazyPanelLoading = $state(false);
@@ -242,8 +244,42 @@
       .finally(() => { if (!cancelled) lazyPanelLoading = false; });
     return () => { cancelled = true; };
   });
-  let lightMode = $derived(appSettings.theme === 'light'
-    || (appSettings.theme === 'system' && !window.matchMedia('(prefers-color-scheme: dark)').matches));
+  /* ===== 全屏支持 ===== */
+  let isFullscreen = $state(false);
+  let fullscreenSupported = $state(
+    typeof document !== 'undefined' && (Boolean(document.documentElement.requestFullscreen) || isTauri),
+  );
+  async function toggleFullscreen(): Promise<void> {
+    try {
+      if (isTauri) {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const win = getCurrentWindow();
+        const next = !isFullscreen;
+        await win.setFullscreen(next);
+        isFullscreen = next;
+      } else if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  $effect(() => {
+    if (isTauri) return;
+    const onChange = (): void => { isFullscreen = Boolean(document.fullscreenElement); };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  });
+  let resolvedTheme = $derived<'dark' | 'light' | 'aurora' | 'forest'>(
+    appSettings.theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : appSettings.theme,
+  );
+  let lightMode = $derived(resolvedTheme === 'light');
+  let auroraMode = $derived(resolvedTheme === 'aurora');
+  let forestMode = $derived(resolvedTheme === 'forest');
   let anyAiProcessing = $derived(plugins.some((p) => sessions[p.id].aiProcessing));
   let statusText = $derived(
     activeSession.error ? '处理失败'
@@ -1237,7 +1273,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 </script>
 <svelte:window onkeydown={handleWindowKeydown} ondragover={handleFileDragOver} ondragleave={handleFileDragLeave} ondrop={handleFileDrop} />
 
-<div class:light={lightMode} class="app" style={`--app-font-size: ${appSettings.fontSize}px; --app-font-family: ${FONT_STACKS[appSettings.fontFamily] ?? FONT_STACKS['系统默认']}`}>
+<div class:light={lightMode} class:aurora={auroraMode} class:forest={forestMode} class="app" style={`--app-font-size: ${appSettings.fontSize}px; --app-font-family: ${FONT_STACKS[appSettings.fontFamily] ?? FONT_STACKS['系统默认']}`}>
   <header class="app-bar">
     <button class="brand" onclick={() => (sidebarOpen = !sidebarOpen)} aria-label="Spurh" title="Spurh 工具箱">
       <span class="brand-mark">{@html BRAND_MARK}</span>
@@ -1296,6 +1332,11 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
           </select>
           {#if anyAiProcessing}<span class="ai-spin" title="AI 处理中"></span>{/if}
         </label>
+      {/if}
+      {#if fullscreenSupported}
+        <button class="settings-button" onclick={toggleFullscreen} title={isFullscreen ? '退出全屏' : '全屏显示'}>
+          <span>{@html isFullscreen ? UI_ICONS.shrink : UI_ICONS.expand}</span>{isFullscreen ? '退出全屏' : '全屏'}
+        </button>
       {/if}
       <button class:configured={isAiConfigured(aiConfig)} class="settings-button" onclick={() => openSettings()}><span>{@html UI_ICONS.settings}</span>设置</button>
     </div>
@@ -1525,8 +1566,10 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               </button>
               <div class="setting-group"><div class="setting-copy"><b>主题</b></div>
                 <div class="theme-choice">
-                  <button class:active={appSettings.theme === 'light'} onclick={() => saveAppSettings({ theme: 'light' })}>{@html UI_ICONS.sun}<span>明亮</span></button>
                   <button class:active={appSettings.theme === 'dark'} onclick={() => saveAppSettings({ theme: 'dark' })}>{@html UI_ICONS.moon}<span>深色</span></button>
+                  <button class:active={appSettings.theme === 'light'} onclick={() => saveAppSettings({ theme: 'light' })}>{@html UI_ICONS.sun}<span>明亮</span></button>
+                  <button class:active={appSettings.theme === 'aurora'} onclick={() => saveAppSettings({ theme: 'aurora' })}>{@html UI_ICONS.sparkle}<span>极光</span></button>
+                  <button class:active={appSettings.theme === 'forest'} onclick={() => saveAppSettings({ theme: 'forest' })}>{@html UI_ICONS.leaf}<span>护眼</span></button>
                   <button class:active={appSettings.theme === 'system'} onclick={() => saveAppSettings({ theme: 'system' })}>{@html UI_ICONS.contrast}<span>跟随系统</span></button>
                 </div>
               </div>

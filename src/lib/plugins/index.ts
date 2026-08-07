@@ -2,6 +2,7 @@ import { clipboardPlugin } from './builtin/clipboard';
 import { cronPlugin } from './builtin/cron';
 import { cryptoPlugin } from './builtin/crypto';
 import { encoderPlugin } from './builtin/encoder';
+import { gitPlugin } from './builtin/git';
 import { jsonPlugin } from './builtin/json';
 import { logPlugin } from './builtin/log';
 import { networkPlugin } from './builtin/network';
@@ -14,6 +15,7 @@ import { timestampPlugin } from './builtin/timestamp';
 import { PluginRuntime } from './runtime';
 
 export const runtime = new PluginRuntime([
+  gitPlugin,
   jsonPlugin,
   timestampPlugin,
   textPlugin,

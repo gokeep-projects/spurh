@@ -14,6 +14,7 @@ use tauri::{Emitter, Manager};
 mod clipboard;
 mod secrets;
 mod net;
+mod git;
 mod sql;
 mod ssh;
 
@@ -805,7 +806,23 @@ sql::sql_alter_table,
             ssh::ssh_exec,
             ssh::ssh_resize,
             ssh::ssh_close,
-            apply_hotkeys
+            apply_hotkeys,
+            git::git_open,
+            git::git_detect,
+            git::git_status,
+            git::git_branches,
+            git::git_log,
+            git::git_diff_workdir,
+            git::git_diff_commit,
+            git::git_stage,
+            git::git_unstage,
+            git::git_discard,
+            git::git_commit,
+            git::git_checkout,
+            git::git_create_branch,
+            git::git_pull,
+            git::git_push,
+            git::pick_folder
         ])
         .build(tauri::generate_context!())
         .expect("error while building Spurh")

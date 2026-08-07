@@ -1,89 +1,88 @@
-﻿# ⚡ Spurh — AI Native Developer Toolbox
+# ⚡ Spurh — AI 原生开发者工具箱
 
-> 别找工具，直接粘贴。Spurh 自动识别你的内容，把结果放回你的指尖。
+<div align="center">
+
+**粘贴即识别 · 即输即转 · 全栈开发者的第二块屏幕**
+
+一个把「找工具 → 粘贴 → 复制结果」压缩成一步的桌面工具箱。
+JWT、JSON、Cron、时间戳、加解密、正则、数据库、SSH、Git……所有零碎活儿，一次输入全部搞定。
+
+</div>
 
 <p align="center">
-  <img src="screenshots/01-home-json.png" alt="Spurh 首页" width="760" />
+  <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-5ee8a5?style=for-the-badge&logo=github" />
+  <img alt="Platform" src="https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-8f8dff?style=for-the-badge" />
+  <img alt="Stack" src="https://img.shields.io/badge/Tauri%202%20%2B%20Svelte%205%20%2B%20Rust-090b10?style=for-the-badge" />
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-5ec8f0?style=for-the-badge" />
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-5ee8a5?style=flat-square" />
-  <img alt="License" src="https://img.shields.io/badge/license-MIT-5ec8f0?style=flat-square" />
-  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-8f8dff?style=flat-square" />
-  <img alt="Stack" src="https://img.shields.io/badge/Tauri%202%20%2B%20Svelte%205%20%2B%20Rust-090b10?style=flat-square" />
+  <img src="screenshots/01-home-json.png" alt="Spurh 首页" width="820" />
 </p>
 
 ---
 
-## 📑 目录
+## 🚀 立即下载
 
-- [为什么是 Spurh](#-为什么是-spurh)
-- [功能总览](#-功能总览)
-- [界面截图](#-界面截图)
-- [快速开始](#-快速开始)
-- [插件开发](#-插件开发)
-- [快捷键](#-快捷键)
-- [架构](#-架构)
-- [安全与隐私](#-安全与隐私)
-- [常见问题](#-常见问题)
-- [技术栈与目录结构](#-技术栈与目录结构)
-- [License](#-license)
+| 平台 | 安装包 | 便携版 |
+|---|---|---|
+| **Windows** | [spurh-windows-x64.exe](https://github.com/gokeep-projects/spurh/releases/latest/download/spurh-windows-x64.exe) · [.msi](https://github.com/gokeep-projects/spurh/releases/latest/download/spurh-windows-x64.msi) | [spurh-windows-x64-portable.zip](https://github.com/gokeep-projects/spurh/releases/latest/download/spurh-windows-x64-portable.zip) |
+| **macOS (Apple 芯片)** | [spurh-macos-arm.dmg](https://github.com/gokeep-projects/spurh/releases/latest/download/spurh-macos-arm.dmg) | — |
+| **macOS (Intel)** | [spurh-macos-intel.dmg](https://github.com/gokeep-projects/spurh/releases/latest/download/spurh-macos-intel.dmg) | — |
+
+> 全部安装包由 CI 自动构建发布，每次提交都会生成新的每日构建（nightly）。
 
 ---
 
 ## ✨ 为什么是 Spurh
 
-| 特性 | 说明 |
+| 能力 | 说明 |
 |---|---|
-| 🧠 **智能 Dispatcher** | 粘贴即路由：JWT / JSON / Cron / 时间戳 / Base64 自动识别，置信度排序 + 手动覆盖 |
-| 🔌 **插件优先** | 内置 13 个插件共用同一 `SpurhPlugin` 协议，第三方能力即插即用 |
-| 🗄️ **数据库管理** | MySQL / PostgreSQL / SQLite：库表浏览、数据编辑、SQL 高亮/补全/格式化/历史、表设计器、CSV 导出 |
-| 🖥️ **SSH 远程终端** | xterm.js 多标签终端、会话持久化、快捷命令、文件传输、主机资源监控 |
-| 🤖 **AI 原生** | OpenAI 兼容流式接入（OpenAI / DeepSeek / Anthropic / Gemini / Ollama 等），本地失败一键 AI 修复 |
-| 🔒 **本地优先 · 安全** | 凭据存系统钥匙串，数据库连接支持 TLS，剪贴板监听可关闭 |
-| 🎨 **极致体验** | 深色/浅色主题、全局快捷键、命令面板、剪贴板历史、零多余 UI |
+| 🧠 **粘贴即路由** | 任意内容粘贴进顶部输入框，自动识别 JWT / JSON / Cron / 时间戳 / Base64 ……并路由到正确工具，无需选择 |
+| 🤖 **AI 原生** | 每个工具都内置 AI 处理：本地失败一键修复、日志根因分析、SQL 错误解释、正则解释，接入任意 OpenAI 兼容端点 |
+| 🗄️ **数据库工具** | MySQL / PostgreSQL / SQLite：连接管理、数据网格编辑、SQL 高亮补全、表设计器、**用户与权限设置**（Navicat 式） |
+| 🖥️ **SSH 远程终端** | xterm.js 多标签终端、会话持久化、快捷命令、文件传输、资源监控 |
+| 🔧 **Git 工作台** | SourceTree 式体验：文件变更 / 暂存 / 丢弃、分支管理、提交历史与差异、拉取推送；打开任意文件夹自动识别仓库 |
+| 🌐 **网络工具** | 端口扫描、DNS、TCP/UDP 会话、链路追踪实时拓扑图（纯 Rust 实现） |
+| 🎨 **四套主题** | 深色 / 明亮 / 极光 / 护眼，一键切换，明亮模式同样精心调校 |
+| 🔒 **本地优先** | 凭据存系统钥匙串，全链路本地计算，剪贴板内容仅存内存 |
 
 ---
 
-## 🧰 功能总览
+## 🧰 内置工具（14 个）
 
-### 内置工具（13 个）
+<div align="center">
 
-| 类别 | 工具 | 亮点 |
-|---|---|---|
-| 🧩 数据 | JSON / XML、文本处理 | 格式化、压缩、排序、JSONPath、树视图检索、统计/去重/大小写 |
-| 🔤 编码 | Base64 / URL / Hex / Unicode / HTML | 双向转换、非法输入友好报错 |
-| 🔐 安全 | AES / RSA / JWT / MD5 / SHA / HMAC | AES-256-GCM、JWT 编解码/验签/生成、本地计算不上传 |
-| 🔎 开发 | 正则、Cron、随机、时间戳、日志 | 正则测试/替换/解释、Cron Quartz 扩展、安全随机、日志根因定位 |
-| 🗄️ 数据库 | SQL 面板 | 三库客户端、数据网格编辑、WHERE 跨页筛选、SQL 补全/格式化/历史、表设计器、CSV 导出 |
-| 🖥️ 远程 | SSH 面板 | 多标签终端、会话跨重启保持、快捷命令、文件传输、资源监控 |
-| 🌐 网络 | 网络面板 | 端口扫描（并发受限）、DNS、TCP/UDP、路由追踪、IP 归属地 |
-| 📋 剪贴板 | 剪贴板历史 | 搜索复用、图片支持、隐私开关、全局浮层 |
+| 类别 | 工具 |
+|---|---|
+| 🧩 数据 | JSON / XML 格式化 · 文本处理 · 时间戳转换 |
+| 🔤 编码 | Base64 · URL · Hex · Unicode · HTML |
+| 🔐 安全 | AES · RSA · JWT · MD5 · SHA · HMAC |
+| 🔎 开发 | 正则表达式 · Cron · 随机生成 · 日志分析 |
+| 🗄️ 数据 | 数据库工具 · Git 仓库 |
+| 🌐 网络 | 端口探测 · DNS · 链路追踪 · TCP/UDP |
+| 🖥️ 远程 | SSH 终端 · 剪贴板历史 |
 
-### 数据库面板（产品级）
+</div>
 
-- 连接：自动重连上次连接、快速连接卡片、SSL 加密、系统钥匙串存密码、连接池复用
-- 数据：行号列、每页 50/100/200/500、当前页筛选（Ctrl+F）、**跨页 SQL 条件**（WHERE）、单元格右键复制、批量删除/新增/保存、CSV 导出
-- SQL：语法高亮、**Ctrl+Space 补全**（关键字/表名/字段名）、格式化、历史（下拉 + Ctrl+↑/↓）、执行选中、F5、多语句脚本、查询结果分页、导出 CSV
-- 表设计：建表/改表（增删改字段、主键、自增、注释）
+### 亮点速览
 
-### 远程面板（产品级）
-
-- 仅活动标签建立连接，切换按需连接、旧标签不断开
-- 会话搜索、标签页跨重启保持、连接错误重试
-- 终端工具栏：字号 A± / 清屏 / 复制 / 粘贴；快捷键 Ctrl+L、Ctrl+Shift+C/V
-- 快捷命令（磁盘/内存/uptime/ls/top 等一键发送）、文件上传下载（含大小提示）、主机资源信息
+- **数据库工具**：连接池复用、跨页 WHERE 筛选、Ctrl+Space 补全、CSV 导出、用户管理与权限设置
+- **Git 工作台**：右键 / 拖入文件夹自动识别仓库；最近打开记录；暂存、丢弃、提交、分支切换、差异高亮
+- **网络工具**：链路追踪实时拓扑图，TCP/UDP 会话可视化
+- **日志分析**：自动识别时间 / 级别 / 字段，一键 AI 根因定位
+- **聚焦框**：Ctrl+Shift+Space 随时唤起，输入即路由，支持全屏模式
 
 ---
 
-## 📸 界面截图
+## 📸 界面一览
 
 | | |
 |---|---|
-| 首页 · JSON 树视图与检索 | ![首页](screenshots/01-home-json.png) |
-| 智能 Dispatcher 识别 | ![Dispatcher](screenshots/06-dispatcher.png) |
-| SQL 表数据浏览 | ![SQL 表数据](screenshots/02-sql-table-data.png) |
-| SQL 编辑器（高亮/补全/格式化） | ![SQL 编辑器](screenshots/03-sql-editor.png) |
+| 首页 · 智能路由 | ![首页](screenshots/01-home-json.png) |
+| 智能 Dispatcher | ![Dispatcher](screenshots/06-dispatcher.png) |
+| 数据库表数据 | ![SQL 表数据](screenshots/02-sql-table-data.png) |
+| SQL 编辑器 | ![SQL 编辑器](screenshots/03-sql-editor.png) |
 | SSH 远程终端 | ![远程终端](screenshots/04-remote.png) |
 | 设置面板 | ![设置](screenshots/05-settings.png) |
 
@@ -93,31 +92,70 @@
 
 ### 环境要求
 
-- **Node.js 20+**、**Rust 1.80+**
+- **Node.js 20+** · **Rust 1.80+**
 - 对应平台的 [Tauri 前置依赖](https://v2.tauri.app/start/prerequisites/)
 
-### 安装与运行
+### 本地运行
 
 ```bash
-# 安装依赖
 npm install
 
-# 浏览器模式（仅前端，部分系统能力不可用：SQL/SSH/网络/剪贴板会提示需桌面应用；拖拽文件可直接打开分析）
+# 浏览器模式（部分系统能力如 SQL / SSH / Git 需要桌面环境）
 npm run dev
 
-# 桌面应用（完整能力：托盘/全局快捷键/右键菜单/SSH/SQL/剪贴板）
+# 桌面应用（完整能力）
 npm run tauri dev
 ```
 
-### 质量检查
+### 质量保证
 
 ```bash
-npm run check      # svelte-check（0 错误 0 警告）
-npm test           # vitest（197 个测试）
-npm run build      # 前端生产构建
-cargo test --manifest-path src-tauri/Cargo.toml --lib   # Rust 单元测试（19 个：SQL 识别/引用/注释/SQLite 往返）
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings   # Rust 静态检查
+npm run check     # 类型检查：0 错误 0 警告
+npm test          # 前端测试：212 个用例
+npm run build     # 前端生产构建
+cargo test --manifest-path src-tauri/Cargo.toml --lib   # Rust 测试：27 个用例
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 ```
+
+---
+
+## ⌨️ 快捷键
+
+| 快捷键 | 功能 |
+|---|---|
+| `Ctrl+Shift+Space` | 全局唤起 / 聚焦 Dispatcher |
+| `Ctrl+K` | 命令面板 |
+| `Ctrl+Shift+V` | 剪贴板历史浮层 |
+| `Alt+1..9` | 快速切换工具 |
+| `Ctrl+Enter` / `F5`（SQL） | 执行 SQL |
+| `Ctrl+Space`（SQL） | SQL 补全 |
+| `Ctrl+L`（终端） | 清屏 |
+| `Esc` | 关闭浮层 / 菜单 / 补全 |
+
+---
+
+## 🏗️ 架构
+
+```mermaid
+flowchart LR
+  U[粘贴内容] --> D[智能 Dispatcher]
+  D -->|识别| P[Plugin Runtime]
+  P --> JSON[JSON / XML]
+  P --> CRY[加解密]
+  P --> REG[正则]
+  P --> SQL[数据库工具]
+  P --> SSH[SSH 终端]
+  P --> GIT[Git 工作台]
+  SQL --> R1[Rust: sql.rs]
+  SSH --> R2[Rust: ssh.rs]
+  GIT --> R3[Rust: git.rs]
+  R1 --> DB[(MySQL / PG / SQLite)]
+  AI[AI 处理] --> GW[OpenAI 兼容端点]
+```
+
+- **前端**：Svelte 5（runes）+ TypeScript + Vite，面板按需懒加载，首屏 < 100KB gzip
+- **后端**：Tauri 2（Rust），模块化 `sql` / `ssh` / `net` / `git` / `clipboard` / `secrets`
+- **数据流**：前端 `invoke` → Rust 命令 → 统一 `PluginResult` 渲染
 
 ---
 
@@ -130,17 +168,13 @@ import type { SpurhPlugin } from './src/lib/plugins/types';
 import { runtime } from './src/lib/plugins';
 
 const plugin: SpurhPlugin = {
-  id: 'acme.example',          // 小写字母开头，仅允许 a-z 0-9 . -
+  id: 'acme.example',
   name: 'Example',
   description: 'Example plugin',
   icon: 'EX',
   version: '0.1.0',
   category: '开发',
   actions: [{ id: 'run', label: '运行', description: '处理输入' }],
-  options: [
-    { id: 'mode', label: '模式', type: 'select', defaultValue: 'a',
-      choices: [{ value: 'a', label: '模式 A' }, { value: 'b', label: '模式 B' }] },
-  ],
   detect: (input) => input.startsWith('example:')
     ? { confidence: 0.9, reason: '检测到 example 前缀' }
     : null,
@@ -161,91 +195,15 @@ runtime.register(plugin);
 
 ---
 
-## ⌨️ 快捷键
-
-| 快捷键 | 功能 |
-|---|---|
-| `Ctrl+Shift+Space` | 全局唤起 / 聚焦 Dispatcher |
-| `Ctrl+K` | 命令面板 |
-| `Ctrl+Shift+V` | 剪贴板历史浮层 |
-| `Ctrl+Enter` / `F5`（SQL） | 执行 SQL（有选中只执行选中） |
-| `Ctrl+Space`（SQL） | 关键字 / 表名 / 字段补全 |
-| `Ctrl+F`（SQL） | 聚焦当前页筛选 |
-| `Ctrl+S`（SQL） | 保存数据 / 表结构 |
-| `Ctrl+↑` / `Ctrl+↓`（SQL） | 历史查询切换 |
-| `Ctrl+L`（终端） | 清屏 |
-| `Ctrl+Shift+C` / `Ctrl+Shift+V`（终端） | 复制 / 粘贴 |
-| `Alt+1..9` | 快速切换工具 |
-| `Esc` | 关闭浮层 / 菜单 / 补全 |
-
----
-
-## 🏗️ 架构
-
-```mermaid
-flowchart LR
-  U[用户粘贴内容] --> D[Dispatcher]
-  D -->|识别| P[Plugin Runtime]
-  P --> JSON[JSON/XML]
-  P --> CRY[加解密]
-  P --> CRON[Cron]
-  P --> REG[正则]
-  P --> SQL[SQL 面板]
-  P --> SSH[SSH 终端]
-  SQL --> R1[Rust: sql.rs]
-  SSH --> R2[Rust: ssh.rs]
-  R1 --> DB[(MySQL/PG/SQLite)]
-  R2 --> NET[(远程主机)]
-  AI[AI 处理] --> GW[OpenAI 兼容端点]
-```
-
-- **前端**：Svelte 5（runes）+ TypeScript + Vite 8，重型面板按需懒加载（首屏 JS ≈ 82KB gzip）
-- **后端**：Tauri 2（Rust），模块化 `sql` / `ssh` / `net` / `clipboard` / `secrets`
-- **数据流**：前端 `invoke` → Rust 命令 → 结果经统一 `PluginResult` 结构渲染
-
----
-
 ## 🔒 安全与隐私
 
-- **凭据**：API Key、数据库密码、SSH 密码/口令保存在**系统钥匙串**（Windows Credential Manager / macOS Keychain / Linux Secret Service），`localStorage` 只存非敏感配置，旧明文数据自动迁移
-- **连接**：MySQL / PostgreSQL 支持 **TLS 加密**；SSH 采用 **TOFU**（首次连接记录主机指纹，后续不匹配拒绝连接）
-- **AI**：仅在用户点击「AI 处理」时发送当前内容；支持自定义端点
-- **剪贴板**：历史默认开启，可在设置中关闭；内容仅存内存
-- **网络**：端口扫描并发受限（256）、查询超时可中断（SQLite interrupt）
+- **凭据**：API Key、数据库密码、SSH 口令保存在**系统钥匙串**（Windows Credential Manager / macOS Keychain / Linux Secret Service）
+- **连接**：MySQL / PostgreSQL 支持 TLS；SSH 采用 TOFU 指纹校验
+- **AI**：仅在点击「AI 处理」时发送当前内容，支持自定义端点
+- **剪贴板**：历史默认关闭监听，内容仅存内存
+- **网络**：端口扫描并发受限，查询可中断
 
 ---
-
-## ❓ 常见问题
-
-**Q: 为什么数据库面板切走后再进来不用重新连接？**
-A: 面板会恢复上次使用的连接并自动重连；连接池复用让临时表/事务跨命令保持。
-
-**Q: SSH 标签页重启应用后还在吗？**
-A: 在。打开的标签与活动会话会持久化，启动后仅活动标签自动重连。
-
-**Q: 凭据存在哪？安全吗？**
-A: 系统钥匙串，由操作系统加密保护，不落盘明文到应用目录。
-
-**Q: SQL 一次能执行多条语句吗？**
-A: SQLite 支持多语句脚本（`execute_batch`）；MySQL/PG 建议逐条执行。
-
----
-
-## 🏗️ 技术栈与目录结构
-
-```
-spurh/
-├─ src/                  # 前端（Svelte 5）
-│  ├─ lib/plugins/       # 插件协议与 13 个内置插件
-│  ├─ lib/panels/        # SQL / SSH / 网络 / 日志 / 剪贴板 / Cron / Crypto / Regex
-│  ├─ lib/components/    # 结果视图 / JSON 树
-│  └─ App.svelte         # Dispatcher 与主界面
-├─ src-tauri/            # Rust 后端（Tauri 2）
-│  └─ src/               # sql / ssh / net / clipboard / secrets / lib
-├─ screenshots/          # 界面截图（README 与官网共用）
-├─ website/              # 独立官网首页（单 HTML）
-└─ docs/DESIGN.md        # 产品与技术设计
-```
 
 ## 📄 License
 
