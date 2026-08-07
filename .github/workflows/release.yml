@@ -159,7 +159,7 @@ jobs:
             TITLE="Spurh 每日构建 ${GITHUB_SHA:0:8}"
           fi
           echo "TAG=$TAG TITLE=$TITLE REPO=$GITHUB_REPOSITORY"
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq ".html_url" >/dev/null 2>&1; then
             gh release upload "$TAG" artifacts/windows-bundle/* artifacts/macos-bundle/* --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$TAG" --title "$TITLE" --notes-file notes.md --repo "$GITHUB_REPOSITORY" $PRERELEASE
           elif gh release create "$TAG" artifacts/windows-bundle/* artifacts/macos-bundle/* --title "$TITLE" --notes-file notes.md --repo "$GITHUB_REPOSITORY" $PRERELEASE; then
@@ -170,13 +170,4 @@ jobs:
             jq -n --arg tag "$TAG" --arg title "$TITLE" --arg body "$(cat notes.md)" --arg pre "$PR" '{tag_name: $tag, name: $title, body: $body, prerelease: ($pre == "true")}' > release-body.json
             gh api --method POST "repos/$GITHUB_REPOSITORY/releases" --input release-body.json
           fi
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" 2>&1
-            rc=$?
-            echo "PUBLISH_RC=$rc"
-          } > publish.log 2>&1
-          cat publish.log
-          rc=$(grep -o 'PUBLISH_RC=[0-9]*' publish.log | tail -1 | cut -d= -f2)
-          echo "PUBLISH_RC=${rc:-1}" >> "$GITHUB_OUTPUT"
-          exit 0
-
-
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq ".html_url"
