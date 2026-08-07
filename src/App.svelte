@@ -196,6 +196,7 @@
   let aboutTagline = $state('');
   let aboutPanelsShown = $state(0);
   const aboutPhrases = ['AI Native Developer Toolbox', '本地优先 · 数据不出设备', '粘贴即用 · 一步完成', '14 个工具 · 一个入口'];
+  const aboutToolNames = ['JSON 格式化', '时间戳转换', '文本处理', '随机生成', '加解密', 'Cron 表达式', '编码转换', '正则表达式', '数据库工具', '网络工具', '日志分析', '远程连接', 'Git 仓库', '剪贴板历史'];
 
   function startAboutCanvas(canvas: HTMLCanvasElement, stage: HTMLElement): () => void {
     const ctx = canvas.getContext('2d');
@@ -1861,25 +1862,43 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <div class="about-orb about-orb-b" aria-hidden="true"></div>
                 <div class="about-particles" aria-hidden="true"><i style="--px:12%;--pd:.0s;--ps:9px"></i><i style="--px:26%;--pd:1.3s;--ps:5px"></i><i style="--px:42%;--pd:.6s;--ps:7px"></i><i style="--px:58%;--pd:2s;--ps:6px"></i><i style="--px:72%;--pd:.9s;--ps:8px"></i><i style="--px:86%;--pd:1.7s;--ps:5px"></i><i style="--px:34%;--pd:2.6s;--ps:4px"></i><i style="--px:64%;--pd:3.1s;--ps:6px"></i><i style="--px:18%;--pd:3.8s;--ps:5px"></i><i style="--px:80%;--pd:2.3s;--ps:7px"></i></div>
                 <canvas bind:this={aboutCanvas} class="about-canvas" aria-hidden="true"></canvas>
-                <div class="about-hero">
-                  <span class="brand-mark large about-logo">{@html BRAND_MARK}</span>
-                  <div><h3>Spurh</h3><p class="about-type">{aboutTagline}<span class="about-caret" aria-hidden="true"></span></p></div>
-                  <div class="about-version"><b>v0.1.0</b><small>latest</small><i class="about-uptime"><span class="pulse-dot"></span>已运行 {formatUptime(aboutUptime)}</i><i class="about-clock">{aboutClock}</i></div>
+                <div class="about-cols">
+                  <div class="about-col-left">
+                    <div class="about-hero">
+                      <span class="brand-mark large about-logo">{@html BRAND_MARK}</span>
+                      <div><h3>Spurh</h3><p class="about-type">{aboutTagline}<span class="about-caret" aria-hidden="true"></span></p></div>
+                    </div>
+                    <div class="about-chips"><span>Svelte 5</span><span>Tauri 2</span><span>Rust</span><span>TypeScript</span><span>AI Native</span><span>本地优先</span></div>
+                    <div class="about-note"><b>本地优先 · AI 增强</b><p>所有工具在本地运行，数据不出设备；AI 能力按需接入，帮助生成、解释、修复与提炼，让重复工作一步完成。</p></div>
+                    <div class="about-actions">
+                      <a href="https://github.com/gokeep-projects/spurh" target="_blank" rel="noreferrer">{@html UI_ICONS.shield}<span>GitHub 仓库</span></a>
+                      <button onclick={() => (settingsNotice = `已是最新版本 v0.1.0`)}>{@html UI_ICONS.refresh}<span>检查更新</span></button>
+                    </div>
+                    <footer class="about-foot">© 2026 Spurh · Made with ❤ by xuning</footer>
+                  </div>
+                  <div class="about-col-right">
+                    <div class="about-version">
+                      <b>v0.1.0</b><small>latest</small>
+                      <i class="about-uptime"><span class="pulse-dot"></span>已运行 {formatUptime(aboutUptime)}</i>
+                      <i class="about-clock">{aboutClock}</i>
+                    </div>
+                    <div class="about-grid">
+                      <article><small>作者</small><b>xuning</b></article>
+                      <article><small>版本</small><b>0.1.0</b></article>
+                      <article><small>内置工具</small><b>{aboutPanelsShown} 个面板</b></article>
+                      <article><small>许可</small><b>MIT</b></article>
+                    </div>
+                    <div class="about-caps">
+                      <article><span>AI 增强</span><i><b style="--w:94%"></b></i><em>94%</em></article>
+                      <article><span>本地性能</span><i><b style="--w:96%"></b></i><em>96%</em></article>
+                      <article><span>工具覆盖</span><i><b style="--w:92%"></b></i><em>92%</em></article>
+                      <article><span>隐私安全</span><i><b style="--w:98%"></b></i><em>98%</em></article>
+                    </div>
+                    <div class="about-ticker" aria-hidden="true">
+                      <span class="about-ticker-track">{#each aboutToolNames as n}<i>{n}</i>{/each}{#each aboutToolNames as n}<i>{n}</i>{/each}</span>
+                    </div>
+                  </div>
                 </div>
-                <div class="about-chips"><span>Svelte 5</span><span>Tauri 2</span><span>Rust</span><span>TypeScript</span><span>AI Native</span><span>本地优先</span></div>
-                <div class="about-grid"><article><small>作者</small><b>xuning</b></article><article><small>版本</small><b>0.1.0</b></article><article><small>内置工具</small><b>{aboutPanelsShown} 个面板</b></article><article><small>许可</small><b>MIT</b></article></div>
-                <div class="about-caps">
-                  <article><span>AI 增强</span><i><b style="--w:94%"></b></i><em>94%</em></article>
-                  <article><span>本地性能</span><i><b style="--w:96%"></b></i><em>96%</em></article>
-                  <article><span>工具覆盖</span><i><b style="--w:92%"></b></i><em>92%</em></article>
-                  <article><span>隐私安全</span><i><b style="--w:98%"></b></i><em>98%</em></article>
-                </div>
-                <div class="about-note"><b>本地优先 · AI 增强</b><p>所有工具在本地运行，数据不出设备；AI 能力按需接入，帮助生成、解释、修复与提炼，让重复工作一步完成。</p></div>
-                <div class="about-actions">
-                  <a href="https://github.com/gokeep-projects/spurh" target="_blank" rel="noreferrer">{@html UI_ICONS.shield}<span>GitHub 仓库</span></a>
-                  <button onclick={() => (settingsNotice = `已是最新版本 v0.1.0`)}>{@html UI_ICONS.refresh}<span>检查更新</span></button>
-                </div>
-                <footer class="about-foot">© 2026 Spurh · Made with ❤ by xuning</footer>
               </div>
             {/if}
           </section>
