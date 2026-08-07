@@ -29,7 +29,7 @@
   };
 
   type ThemeMode = 'light' | 'dark' | 'system';
-  type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts';
+  type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts' | 'tools';
 
   const FONT_STACKS: Record<string, string> = {
     '系统默认': "-apple-system, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif",
@@ -50,6 +50,7 @@
     fontSize: number;
     fontFamily: string;
     sidebarShortcuts: boolean;
+    hiddenTools: string[];
   };
 
   type ContextInfo = { path: string; content: string };
@@ -64,6 +65,7 @@
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
       fontSize: 14, fontFamily: '系统默认',
       sidebarShortcuts: false,
+      hiddenTools: [],
     };
     try {
       const stored = localStorage.getItem(SETTINGS_KEY);
@@ -71,6 +73,7 @@
       return {
         ...fallback,
         ...parsed,
+        hiddenTools: Array.isArray(parsed.hiddenTools) ? parsed.hiddenTools : fallback.hiddenTools,
         fontSize: typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : fallback.fontSize,
         fontFamily: FONT_STACKS[parsed.fontFamily] ? parsed.fontFamily : '系统默认',
       };
@@ -173,9 +176,30 @@
   let activeSession = $derived(sessions[activePluginId]);
   let visibleResult = $derived(activeSession.aiResult ?? activeSession.result);
   let dispatch = $derived(runtime.dispatch(dispatcherInput));
-  let matchedPlugins = $derived(dispatcherInput ? dispatch.alternatives.slice(0, 5) : []);
+  type DispatchCandidate = { plugin: (typeof plugins)[number]; confidence: number | null; reason?: string; suggestedAction?: string };
+  let dispatcherCandidates = $derived<DispatchCandidate[]>(
+    (() => {
+      const query = dispatcherInput.trim();
+      if (!query) return [];
+      const isVisible = (plugin: (typeof plugins)[number]) => !appSettings.hiddenTools.includes(plugin.id);
+      const detected: DispatchCandidate[] = [dispatch.selected, ...dispatch.alternatives]
+        .filter((item): item is NonNullable<typeof item> => item !== null && isVisible(item.plugin))
+        .map((item) => ({ plugin: item.plugin, confidence: item.confidence, reason: item.reason, suggestedAction: item.suggestedAction }));
+      const detectedIds = new Set(detected.map((item) => item.plugin.id));
+      const ql = query.toLowerCase();
+      const named: DispatchCandidate[] = plugins
+        .filter((plugin) => isVisible(plugin) && !detectedIds.has(plugin.id))
+        .filter((plugin) => `${plugin.name} ${plugin.description} ${plugin.category}`.toLowerCase().includes(ql))
+        .slice(0, 5)
+        .map((plugin) => ({ plugin, confidence: null, reason: '工具名称匹配' }));
+      return [...detected, ...named];
+    })(),
+  );
+
+  /* 空态不展示工具卡片：聚焦框空态为智能路由引擎提示台 */
   let visiblePlugins = $derived(plugins.filter((plugin) =>
     (category === '全部' || plugin.category === category)
+    && !appSettings.hiddenTools.includes(plugin.id)
     && `${plugin.name} ${plugin.description}`.toLowerCase().includes(toolSearch.toLowerCase()),
   ));
   let aiConfig = $derived(aiStore.profiles.find((profile) => profile.id === aiStore.activeId));
@@ -493,14 +517,14 @@
       const lineEndPos = lineEndIdx < 0 ? value.length : lineEndIdx;
       const cursorPart = value.slice(lineStart, start);
       const fullLine = value.slice(lineStart, lineEndPos);
-      // ???????????????????
+      // 保持当前行缩进
       const indentSource = cursorPart.length === 0 ? fullLine : cursorPart;
       const indentMatch = indentSource.match(/^[\t ]*/);
       let indent = indentMatch ? indentMatch[0] : '';
-      // ??????/????????????????????
+      // 自动补全：未闭合引号 / 行尾开括号
       const openQuote = (cursorPart.match(/"/g) || []).length % 2 === 1;
       let extra = (!openQuote && /[{[(,:]$/.test(cursorPart.trimEnd())) ? '  ' : '';
-      // ???????????????????????
+      // 对齐闭合括号（} ] )）
       const nextLineStart = value.indexOf('\n', end);
       if (nextLineStart >= 0) {
         const nextLineEnd = value.indexOf('\n', nextLineStart + 1);
@@ -517,7 +541,7 @@
       return;
     }
 
-    // ??????????????????????????????
+    // 输入闭合括号时自动配对
     const CLOSERS: Record<string, string> = { '}': '{', ']': '[', ')': '(' };
     if (event.key.length === 1 && CLOSERS[event.key]) {
       const cLineStart = value.lastIndexOf('\n', start - 1) + 1;
@@ -652,15 +676,13 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   }
 
   function routeContent(content = dispatcherInput, pluginIndex = 0): void {
-    const dispatchResult = runtime.dispatch(content);
-    const matches = [dispatchResult.selected, ...dispatchResult.alternatives].filter(Boolean) as NonNullable<typeof dispatchResult.selected>[];
-    const match = matches[pluginIndex];
-    if (match) {
-      if (SELF_CONTAINED_PANELS.has(match.plugin.id)) {
+    const candidate = dispatcherCandidates[pluginIndex];
+    if (candidate) {
+      if (SELF_CONTAINED_PANELS.has(candidate.plugin.id)) {
         // 自包含面板不接受输入→输出路由：只切换面板，不注入内容
-        activePluginId = match.plugin.id;
+        activePluginId = candidate.plugin.id;
       } else {
-        routeToPlugin(match.plugin.id, content, match.suggestedAction);
+        routeToPlugin(candidate.plugin.id, content, candidate.suggestedAction);
       }
     } else {
       const plugin = plugins[pluginIndex] ?? plugins[0];
@@ -700,8 +722,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   }
 
   function handleDispatcherKeys(event: KeyboardEvent): void {
-    // 下拉行数：有匹配时为首项 selected + alternatives，未匹配时为全部工具
-    const max = dispatch.selected || matchedPlugins.length > 0 ? matchedPlugins.length : plugins.length - 1;
+    const max = dispatcherCandidates.length - 1;
     if (event.key === 'ArrowDown') { event.preventDefault(); dispatchIndex = Math.min(dispatchIndex + 1, max); return; }
     if (event.key === 'ArrowUp') { event.preventDefault(); dispatchIndex = Math.max(dispatchIndex - 1, 0); return; }
     if (event.key === 'Enter') {
@@ -714,7 +735,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
         dispatcherInput = '';
         dispatchIndex = 0;
       } else {
-        routeContent(content, dispatch.selected || matchedPlugins.length > 0 ? Math.min(dispatchIndex, matchedPlugins.length) : dispatchIndex);
+        routeContent(content, dispatchIndex);
       }
       return;
     }
@@ -985,6 +1006,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   function buildPaletteItems(): PaletteItem[] {
     const items: PaletteItem[] = [];
     for (const plugin of plugins) {
+      if (appSettings.hiddenTools.includes(plugin.id)) continue;
       items.push({
         id: 'tool:' + plugin.id,
         group: '工具',
@@ -1217,33 +1239,54 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 
 <div class:light={lightMode} class="app" style={`--app-font-size: ${appSettings.fontSize}px; --app-font-family: ${FONT_STACKS[appSettings.fontFamily] ?? FONT_STACKS['系统默认']}`}>
   <header class="app-bar">
-    <button class="brand" onclick={() => (sidebarOpen = !sidebarOpen)} aria-label="Spurh" title="Spurh ??????">
+    <button class="brand" onclick={() => (sidebarOpen = !sidebarOpen)} aria-label="Spurh" title="Spurh 工具箱">
       <span class="brand-mark">{@html BRAND_MARK}</span>
     </button>
     <div class="dispatcher">
-<input bind:this={dispatcherElement} bind:value={dispatcherInput} oninput={(event) => handleDispatcherInput(event.currentTarget.value)} onpaste={handleDispatcherPaste} onkeydown={handleDispatcherKeys} onfocus={() => (dispatcherOpen = true)} onblur={() => (dispatcherOpen = false)} placeholder="粘贴或输入内容，自动识别工具…" />
-      {#if dispatcherOpen && dispatcherInput && (dispatch.selected || matchedPlugins.length > 0)}
-        <div class="dispatch-matches">
-          {#each [dispatch.selected!, ...matchedPlugins].filter(Boolean).slice(0, 6) as match, i}
-            {#if match}
-              <button class:active={dispatchIndex === i} title={match.reason} onmousedown={(event) => event.preventDefault()} onclick={() => routeContent(dispatcherInput, i)}>
-                <span class="match-icon">{@html iconHtml(match.plugin.icon)}</span><b>{match.plugin.name}</b><small>{Math.round(match.confidence * 100)}%</small>
-                {#if dispatchIndex === i}<i>↵</i>{/if}
-              </button>
+        <span class="dispatcher-spark">{@html UI_ICONS.sparkle}</span>
+        <input bind:this={dispatcherElement} bind:value={dispatcherInput} oninput={(event) => handleDispatcherInput(event.currentTarget.value)} onpaste={handleDispatcherPaste} onkeydown={handleDispatcherKeys} onfocus={() => (dispatcherOpen = true)} onblur={() => (dispatcherOpen = false)} placeholder="粘贴内容，Spurh 自动路由到正确工具…" />
+        {#if dispatcherOpen}
+          <div class="dispatch-matches" role="listbox" aria-label="工具候选列表" tabindex="-1" onmousedown={(event) => { if (!(event.target as HTMLElement).closest('button')) dispatcherElement?.blur(); }}>
+            {#if dispatcherInput.trim()}
+              <div class="dispatch-header">
+                <span><i></i>智能路由引擎</span>
+                <small>{dispatcherCandidates.length} 个候选 · 内容识别 + 工具搜索</small>
+              </div>
+              {#if dispatcherCandidates.length === 0}
+                <div class="dispatch-empty">没有匹配的工具或内容 — 继续输入，或按 Esc 关闭</div>
+              {:else}
+                {#each dispatcherCandidates as item, i}
+                  <button class:active={dispatchIndex === i} title={item.reason || item.plugin.description} onmousedown={(event) => event.preventDefault()} onclick={() => routeContent(dispatcherInput.trim(), i)}>
+                    <span class="match-icon">{@html iconHtml(item.plugin.icon)}</span>
+                    <span class="match-main">
+                      <b>{item.plugin.name}</b>
+                      <small>{item.reason || item.plugin.description}</small>
+                    </span>
+                    {#if item.confidence !== null}
+                      <span class="match-score"><i class="match-bar" style={`width:${Math.round(item.confidence * 100)}%`}></i><em>{Math.round(item.confidence * 100)}%</em></span>
+                    {/if}
+                    {#if dispatchIndex === i}<i class="match-enter">↵</i>{/if}
+                  </button>
+                {/each}
+              {/if}
+              <div class="dispatch-footer"><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>↵</kbd> 执行</span><span><kbd>Esc</kbd> 关闭</span></div>
+            {:else}
+              <div class="dispatch-idle">
+                <div class="idle-halo"></div>
+                <div class="idle-orb idle-orb-a"></div>
+                <div class="idle-orb idle-orb-b"></div>
+                <div class="idle-scan"></div>
+                <span class="dispatch-idle-icon">{@html UI_ICONS.sparkle}</span>
+                <div class="dispatch-idle-copy"><b>Spurh 智能路由引擎</b><small>粘贴任意内容，自动识别类型并路由到正确工具 — 即输即转，无需选择</small></div>
+                <div class="idle-chips">
+                  {#each ['JSON 格式化', 'Unix 时间戳', 'Base64 编解码', 'SQL 美化', '日志解析', '正则测试', '密码生成', 'UUID', 'Cron 表达式', '哈希 / HMAC', 'URL 编解码', '端口探测'] as cap}<span class="idle-chip">{cap}</span>{/each}
+                </div>
+                <div class="idle-hint"><span><kbd>↑</kbd><kbd>↓</kbd> 选择候选</span><span><kbd>↵</kbd> 执行</span><span><kbd>Esc</kbd> 关闭</span></div>
+              </div>
             {/if}
-          {/each}
-        </div>
-      {:else if dispatcherOpen && dispatcherInput}
-        <div class="dispatch-matches">
-          <div class="dispatch-header">未匹配 — 选择工具：</div>
-          {#each plugins as plugin, i}
-            <button class:active={i === dispatchIndex} onmousedown={(event) => event.preventDefault()} onclick={() => { if (SELF_CONTAINED_PANELS.has(plugin.id)) activePluginId = plugin.id; else routeToPlugin(plugin.id, dispatcherInput); }}>
-              <span class="match-icon">{@html iconHtml(plugin.icon)}</span><b>{plugin.name}</b>{#if i === dispatchIndex}<i>↵</i>{/if}
-            </button>
-          {/each}
-        </div>
-      {/if}
-      <kbd>{dispatchHotkeyLabel}</kbd>
+          </div>
+        {/if}
+        <kbd>{dispatchHotkeyLabel}</kbd>
     </div>
     <div class="app-actions">
       {#if aiStore.profiles.length}
@@ -1260,7 +1303,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 
   <div class:sidebar-hidden={!sidebarOpen} class="app-body">
     <aside class="sidebar">
-      <div class="side-heading"><small>{plugins.length} 个工具</small></div>
+      <div class="side-heading"><small>{visiblePlugins.length} 个工具</small><button class="side-manage" title="管理工具显示与隐藏" onclick={() => openSettings('tools')}>{@html UI_ICONS.sliders}<span>显示/隐藏</span></button></div>
       <label class="tool-search"><span>{@html UI_ICONS.search}</span><input bind:value={toolSearch} placeholder="搜索" /></label>
       <div class="category-tabs">
         {#each categories as item}<button class:active={category === item} onclick={() => (category = item)}>{item}</button>{/each}
@@ -1281,7 +1324,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 
     <main class="workspace">
       {#if activePluginId === 'spurh.network' || activePluginId === 'spurh.log' || activePluginId === 'spurh.clipboard' || activePluginId === 'spurh.remote' || activePluginId === 'spurh.sql'}
-        {#if !isTauri && activePluginId !== 'spurh.log'}
+        {#if !isTauri && activePluginId !== 'spurh.log' && activePluginId !== 'spurh.network'}
           <div class="browser-note"><span>{@html UI_ICONS.info}</span>浏览器预览模式:{activePlugin.name} 需要桌面能力,请运行 <code>npm run tauri dev</code> 获得完整功能</div>
         {/if}
         {#if lazyPanel}
@@ -1376,7 +1419,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <ResultView result={currentSessionResult()!} />
               {/if}
             {:else}
-              <div class="output-empty"><span class="tool-icon large">{@html iconHtml(activePlugin.icon)}</span><b>等待输入</b><p>输入内容后自动处理</p><small class="hint">Alt+1..8 快速切换工具 · Ctrl+K 命令面板 · Ctrl+Shift+V 剪贴板历史</small></div>
+              <div class="output-empty"><span class="tool-icon large">{@html iconHtml(activePlugin.icon)}</span><b>等待输入</b><p>输入内容后自动处理</p></div>
             {/if}
           </div>
         </section>
@@ -1469,11 +1512,17 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
             <button class:active={settingsTab === 'general'} onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b><small>主题 · 启动 · 托盘</small></div></button>
             <button class:active={settingsTab === 'ai'} onclick={() => (settingsTab = 'ai')}><span>{@html UI_ICONS.sparkle}</span><div><b>AI 模型</b><small>服务商配置</small></div></button>
             <button class:active={settingsTab === 'shortcuts'} onclick={() => (settingsTab = 'shortcuts')}><span>{@html UI_ICONS.keyboard}</span><div><b>快捷键</b><small>全局绑定</small></div></button>
+            <button class:active={settingsTab === 'tools'} onclick={() => (settingsTab = 'tools')}><span>{@html UI_ICONS.grid}</span><div><b>工具</b><small>显示与隐藏</small></div></button>
             <button class:active={settingsTab === 'about'} onclick={() => (settingsTab = 'about')}><span>{@html UI_ICONS.info}</span><div><b>关于</b><small>版本信息</small></div></button>
           </nav>
           <section class="settings-content">
             {#if settingsTab === 'general'}
               <div class="settings-section-title"><h3>通用</h3></div>
+              <button class="visibility-entry" onclick={() => (settingsTab = 'tools')}>
+                <span class="visibility-entry-icon">{@html UI_ICONS.grid}</span>
+                <span class="visibility-entry-copy"><b>工具显示与隐藏</b><small>侧栏、聚焦框与命令面板中展示哪些工具</small></span>
+                <span class="visibility-entry-arrow">→</span>
+              </button>
               <div class="setting-group"><div class="setting-copy"><b>主题</b></div>
                 <div class="theme-choice">
                   <button class:active={appSettings.theme === 'light'} onclick={() => saveAppSettings({ theme: 'light' })}>{@html UI_ICONS.sun}<span>明亮</span></button>
@@ -1500,7 +1549,21 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               <label class="setting-row"><div class="setting-copy"><b>剪贴板历史</b><small>自动记录复制的文本（含密码等敏感内容，注意隐私）</small></div><input type="checkbox" checked={appSettings.clipboardWatch} disabled={settingsBusy === 'clipboard'} onchange={(event) => changeClipboardWatch(event.currentTarget.checked)} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>菜单栏显示快捷键</b><small>在左侧工具列表显示 Alt+1..9 快捷提示（默认隐藏）</small></div><input type="checkbox" checked={appSettings.sidebarShortcuts} onchange={(event) => saveAppSettings({ sidebarShortcuts: event.currentTarget.checked })} /><i></i></label>
               {#if settingsError}<div class="settings-error">{settingsError}</div>{/if}
-            {:else if settingsTab === 'ai'}
+            {/if}
+            {#if settingsTab === 'tools'}
+              <div class="settings-section-title model-title"><div><h3>工具显示</h3><small>默认全部显示，关闭后从侧栏、聚焦框与命令面板中隐藏</small></div><div class="visibility-actions"><button onclick={() => saveAppSettings({ hiddenTools: [] })}>全部显示</button><button onclick={() => saveAppSettings({ hiddenTools: plugins.map((plugin) => plugin.id) })}>全部隐藏</button></div></div>
+              <div class="tool-visibility-grid">
+                {#each plugins as plugin}
+                  {@const hidden = appSettings.hiddenTools.includes(plugin.id)}
+                  <label class="setting-row compact" class:off={hidden} title={plugin.description}>
+                    <span class="tool-icon small">{@html iconHtml(plugin.icon)}</span>
+                    <span class="visibility-copy"><b>{plugin.name}</b><small>{plugin.category}</small></span>
+                    <input type="checkbox" checked={!hidden} onchange={(event) => { const next = event.currentTarget.checked ? appSettings.hiddenTools.filter((id) => id !== plugin.id) : [...appSettings.hiddenTools, plugin.id]; saveAppSettings({ hiddenTools: next }); }} /><i></i>
+                  </label>
+                {/each}
+              </div>
+            {/if}
+            {#if settingsTab === 'ai'}
               <div class="settings-section-title model-title"><div><h3>AI 模型</h3></div><button onclick={addAiProfile}><span>{@html UI_ICONS.plus}</span>添加</button></div>
               {#if settingsNotice}<div class="settings-notice"><span>{@html UI_ICONS.info}</span>{settingsNotice}</div>{/if}
               <div class="profile-list">
@@ -1537,7 +1600,8 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <button class="test-button" disabled={aiTestStatus === 'testing' || !aiDraft.endpoint} onclick={testConnection}>测试</button>
                 <button class="save-button" disabled={!aiDraft.endpoint || !aiDraft.model} onclick={saveAiSettings}>保存</button>
               </div>
-            {:else if settingsTab === 'shortcuts'}
+            {/if}
+            {#if settingsTab === 'shortcuts'}
               <div class="settings-section-title"><h3>快捷键</h3><small>点击组合键后直接按下新组合，Esc 取消</small></div>
               {#if hotkeyError}<div class="settings-error">{hotkeyError}</div>{/if}
               <div class="shortcut-list">
@@ -1573,7 +1637,8 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 </div>
               </div>
               <div class="shortcuts-note">快捷键在系统全局生效，即使 Spurh 在后台也能唤起。Ctrl+Shift+Space 固定用于显示窗口，不可修改。</div>
-            {:else}
+            {/if}
+            {#if settingsTab === 'about'}
               <div class="about-hero"><span class="brand-mark large">{@html BRAND_MARK}</span><div><h3>Spurh</h3><p>AI Native Developer Toolbox</p></div><b>v0.1.0</b></div>
               <div class="about-grid"><article><small>作者</small><b>xuning</b></article><article><small>版本</small><b>0.1.0</b></article><article><small>技术栈</small><b>Svelte 5 · Tauri 2</b></article><article><small>许可</small><b>MIT</b></article></div>
             {/if}

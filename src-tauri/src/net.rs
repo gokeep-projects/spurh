@@ -1,9 +1,12 @@
 // 网络小工具：端口探测 / DNS 查询 / TCP/UDP 发送 / 路由追踪
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+#[cfg(not(windows))]
+use socket2::{Domain, Protocol, Socket, Type};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -124,7 +127,325 @@ pub async fn net_tcp_send(
     }
 }
 
-/// 路由追踪：调用系统 tracert（仅解析数字/IP 行，中文提示行自动忽略）
+/// 链路追踪：纯 Rust 实现（ICMP Echo + TTL），不依赖任何外部命令。
+/// Windows 使用系统 ICMP API（IcmpSendEcho，无需管理员权限）；
+/// macOS/Linux 使用无特权 DGRAM ICMP 套接字。
+
+#[cfg(not(windows))]
+fn icmp_checksum(data: &[u8]) -> u16 {
+    let mut sum = 0u32;
+    for pair in data.chunks_exact(2) {
+        sum += u16::from_le_bytes([pair[0], pair[1]]) as u32;
+    }
+    if let [last] = data.chunks_exact(2).remainder() {
+        sum += *last as u32;
+    }
+    while sum >> 16 != 0 {
+        sum = (sum & 0xffff) + (sum >> 16);
+    }
+    !(sum as u16)
+}
+
+#[cfg(not(windows))]
+fn build_echo_request(ident: u16, seq: u16) -> Vec<u8> {
+    let mut packet = Vec::with_capacity(16);
+    packet.push(8); // ICMP Echo Request
+    packet.push(0); // code
+    packet.extend_from_slice(&[0u8; 2]); // checksum 占位
+    packet.extend_from_slice(&ident.to_be_bytes());
+    packet.extend_from_slice(&seq.to_be_bytes());
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0);
+    packet.extend_from_slice(&stamp.to_be_bytes());
+    let sum = icmp_checksum(&packet);
+    packet[2..4].copy_from_slice(&sum.to_be_bytes());
+    packet
+}
+
+/// 解析收到的 ICMP 报文，返回 (icmp_type, identifier, 是否为匹配本会话的错误报文)。
+/// RAW 套接字收到的数据含 IP 头，DGRAM 套接字不含，按首字节版本号自动识别。
+#[cfg(not(windows))]
+fn parse_reply(buf: &[u8], ident: u16) -> Option<(u8, u16, bool)> {
+    let mut offset = 0usize;
+    if buf.len() >= 1 && (buf[0] >> 4) == 4 {
+        let ihl = ((buf[0] & 0x0f) as usize) * 4;
+        if ihl >= 20 && buf.len() >= ihl + 8 {
+            offset = ihl;
+        }
+    }
+    let icmp = &buf[offset..];
+    if icmp.len() < 8 {
+        return None;
+    }
+    let icmp_type = icmp[0];
+    let reply_ident = u16::from_be_bytes([icmp[4], icmp[5]]);
+    // ICMP 错误报文（time exceeded / unreachable）内嵌原始 IP 头 + 原始 ICMP 头：
+    // 偏移 28 处为原始 Echo 类型，偏移 32 处为原始 identifier。
+    let mut embedded = false;
+    if icmp.len() >= 36 && icmp[28] == 8 {
+        embedded = u16::from_be_bytes([icmp[32], icmp[33]]) == ident;
+    }
+    Some((icmp_type, reply_ident, embedded))
+}
+
+#[cfg(not(windows))]
+fn create_icmp_socket() -> Result<Socket, String> {
+    // macOS/Linux 无特权 DGRAM ICMP
+    if let Ok(socket) = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4)) {
+        return Ok(socket);
+    }
+    Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4))
+        .map_err(|error| format!("无法创建 ICMP 套接字：{error}"))
+}
+
+/// 单跳探测：发送 probes 个 Echo 请求，收集该 TTL 的响应 IP 与往返时延。
+#[cfg(not(windows))]
+fn probe_hop(
+    socket: &Socket,
+    dest: Ipv4Addr,
+    ttl: u8,
+    ident: u16,
+    seq: &mut u16,
+    probes: usize,
+) -> (Option<Ipv4Addr>, Vec<u32>, bool) {
+    let _ = socket.set_ttl_v4(ttl as u32);
+    let started = Instant::now();
+    let deadline = Duration::from_millis(500 * probes as u64 + 400);
+    let target = socket2::SockAddr::from(std::net::SocketAddr::new(IpAddr::V4(dest), 0));
+    for _ in 0..probes {
+        *seq = seq.wrapping_add(1);
+        let packet = build_echo_request(ident, *seq);
+        let _ = socket.send_to(&packet, &target);
+    }
+    let mut ms: Vec<u32> = Vec::new();
+    let mut hop: Option<Ipv4Addr> = None;
+    let mut reached = false;
+    let mut buf = [std::mem::MaybeUninit::<u8>::uninit(); 600];
+    while started.elapsed() < deadline {
+        match socket.recv_from(&mut buf) {
+            Ok((n, addr)) => {
+                let Some(src) = addr.as_socket_ipv4().map(|sa| *sa.ip()) else { continue };
+                // SAFETY: recv_from 已填充前 n 字节（n <= 600）
+                let bytes: &[u8] = unsafe { std::slice::from_raw_parts(buf.as_ptr() as *const u8, n) };
+                let Some((icmp_type, reply_ident, embedded)) = parse_reply(bytes, ident) else {
+                    continue;
+                };
+                match icmp_type {
+                    0 => {
+                        // Echo Reply：到达目标
+                        if reply_ident != ident {
+                            continue;
+                        }
+                        ms.push(started.elapsed().as_millis() as u32);
+                        if hop.is_none() {
+                            hop = Some(src);
+                        }
+                        reached = true;
+                    }
+                    11 | 3 => {
+                        // Time Exceeded（中间路由） / Destination Unreachable（目标端口不可达）
+                        if !embedded {
+                            continue;
+                        }
+                        ms.push(started.elapsed().as_millis() as u32);
+                        if hop.is_none() {
+                            hop = Some(src);
+                        }
+                        if icmp_type == 3 {
+                            reached = true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    (hop, ms, reached)
+}
+
+#[cfg(not(windows))]
+fn run_icmp_traceroute(
+    socket: &Socket,
+    dest: Ipv4Addr,
+    emit: &mut impl FnMut(TraceHop),
+) -> Result<Vec<TraceHop>, String> {
+    let ident = (std::process::id() as u16).wrapping_add(dest.octets()[3] as u16);
+    socket
+        .set_read_timeout(Some(Duration::from_millis(500)))
+        .map_err(|error| format!("设置套接字超时失败：{error}"))?;
+    let mut hops: Vec<TraceHop> = Vec::new();
+    let mut seq: u16 = 0;
+    for ttl in 1..=20u8 {
+        let (ip, ms, done) = probe_hop(socket, dest, ttl, ident, &mut seq, 3);
+        if ip.is_some() || !ms.is_empty() {
+            let item = TraceHop {
+                hop: ttl as u32,
+                ip: ip.map(|value| value.to_string()).unwrap_or_default(),
+                ms,
+            };
+            emit(item.clone());
+            hops.push(item);
+        }
+        if done {
+            break;
+        }
+    }
+    if hops.is_empty() {
+        return Err("未收到任何路由节点响应，请检查目标主机或网络".into());
+    }
+    Ok(hops)
+}
+
+/// Windows 链路追踪：基于系统 ICMP API（IcmpSendEcho），普通权限即可使用。
+#[cfg(windows)]
+mod windows_icmp {
+    use std::net::Ipv4Addr;
+    use windows_sys::Win32::Foundation::{INVALID_HANDLE_VALUE, HANDLE};
+    use windows_sys::Win32::NetworkManagement::IpHelper::{
+        IcmpCloseHandle, IcmpCreateFile, IcmpSendEcho, ICMP_ECHO_REPLY, IP_OPTION_INFORMATION,
+        IP_DEST_HOST_UNREACHABLE, IP_DEST_NET_UNREACHABLE, IP_SUCCESS, IP_TTL_EXPIRED_TRANSIT,
+    };
+
+    fn to_ipaddr(addr: Ipv4Addr) -> u32 {
+        u32::from_le_bytes(addr.octets())
+    }
+
+    fn from_ipaddr(value: u32) -> Ipv4Addr {
+        Ipv4Addr::from(value.to_le_bytes())
+    }
+
+    /// 单跳探测：每跳发送 probes 个 Echo（TTL 相同），收集响应 IP 与往返时延。
+    fn probe_hop(
+        handle: HANDLE,
+        dest: Ipv4Addr,
+        ttl: u8,
+        probes: usize,
+    ) -> (Option<Ipv4Addr>, Vec<u32>, bool) {
+        let options = IP_OPTION_INFORMATION {
+            Ttl: ttl,
+            Tos: 0,
+            Flags: 0,
+            OptionsSize: 0,
+            OptionsData: std::ptr::null_mut(),
+        };
+        let mut payload = [0u8; 8];
+        let reply_size = (std::mem::size_of::<ICMP_ECHO_REPLY>() + 256) as u32;
+        let mut reply = vec![0u8; reply_size as usize];
+        let mut ms: Vec<u32> = Vec::new();
+        let mut hop: Option<Ipv4Addr> = None;
+        let mut reached = false;
+        for _ in 0..probes {
+            let stamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_millis() as u64)
+                .unwrap_or(0);
+            payload.copy_from_slice(&stamp.to_le_bytes());
+            // IcmpSendEcho：无特权系统 API，一次调用一轮探测
+            let count = unsafe {
+                IcmpSendEcho(
+                    handle,
+                    to_ipaddr(dest),
+                    payload.as_ptr() as *const core::ffi::c_void,
+                    payload.len() as u16,
+                    &options,
+                    reply.as_mut_ptr() as *mut core::ffi::c_void,
+                    reply_size,
+                    500,
+                )
+            };
+            if count == 0 {
+                ms.push(0); // 超时
+                continue;
+            }
+            let entry = unsafe { &*(reply.as_ptr() as *const ICMP_ECHO_REPLY) };
+            let addr = from_ipaddr(entry.Address);
+            match entry.Status {
+                IP_SUCCESS | IP_DEST_HOST_UNREACHABLE | IP_DEST_NET_UNREACHABLE => reached = true,
+                IP_TTL_EXPIRED_TRANSIT | _ => {}
+            }
+            ms.push(entry.RoundTripTime);
+            if hop.is_none() && addr != Ipv4Addr::UNSPECIFIED {
+                hop = Some(addr);
+            }
+        }
+        (hop, ms, reached)
+    }
+
+    pub(super) fn run(
+        dest: Ipv4Addr,
+        emit: &mut impl FnMut(super::TraceHop),
+    ) -> Result<Vec<super::TraceHop>, String> {
+        let handle = unsafe { IcmpCreateFile() };
+        if handle == INVALID_HANDLE_VALUE {
+            return Err("无法创建 ICMP 句柄（IcmpCreateFile 失败）".into());
+        }
+        let mut hops: Vec<super::TraceHop> = Vec::new();
+        for ttl in 1..=20u8 {
+            let (ip, ms, done) = probe_hop(handle, dest, ttl, 3);
+            if ip.is_some() || !ms.is_empty() {
+                let item = super::TraceHop {
+                    hop: ttl as u32,
+                    ip: ip.map(|value| value.to_string()).unwrap_or_default(),
+                    ms,
+                };
+                emit(item.clone());
+                hops.push(item);
+            }
+            if done {
+                break;
+            }
+        }
+        unsafe { IcmpCloseHandle(handle) };
+        if hops.is_empty() {
+            return Err("未收到任何路由节点响应，请检查目标主机或网络".into());
+        }
+        Ok(hops)
+    }
+}
+
+fn run_traceroute_blocking(
+    dest: Ipv4Addr,
+    mut emit: impl FnMut(TraceHop),
+) -> Result<Vec<TraceHop>, String> {
+    #[cfg(windows)]
+    {
+        windows_icmp::run(dest, &mut emit)
+    }
+    #[cfg(not(windows))]
+    {
+        let socket = create_icmp_socket()?;
+        run_icmp_traceroute(&socket, dest, &mut emit)
+    }
+}
+
+async fn resolve_ipv4(host: &str) -> Result<Ipv4Addr, String> {
+    let host = host.trim();
+    if let Ok(ip) = host.parse::<Ipv4Addr>() {
+        return Ok(ip);
+    }
+    if host.parse::<std::net::Ipv6Addr>().is_ok() {
+        return Err("链路追踪暂不支持 IPv6 目标".into());
+    }
+    let resolver = hickory_resolver::Resolver::builder_tokio()
+        .map_err(|error| format!("DNS 解析器初始化失败：{error}"))?
+        .build()
+        .map_err(|error| format!("DNS 解析器初始化失败：{error}"))?;
+    let lookup = resolver
+        .lookup_ip(host)
+        .await
+        .map_err(|error| format!("域名解析失败：{error}"))?;
+    lookup
+        .iter()
+        .find_map(|addr| match addr {
+            IpAddr::V4(v4) => Some(v4),
+            _ => None,
+        })
+        .ok_or_else(|| "域名没有 IPv4 解析结果".to_string())
+}
+
 #[tauri::command]
 pub async fn net_traceroute(host: String) -> Result<Vec<TraceHop>, String> {
     let host = host.trim().to_string();
@@ -134,43 +455,10 @@ pub async fn net_traceroute(host: String) -> Result<Vec<TraceHop>, String> {
     if host.starts_with('-') {
         return Err("主机名不能以 - 开头".into());
     }
-    let output = tokio::process::Command::new("tracert")
-        .args(["-d", "-h", "20", "-w", "500", &host])
-        .output()
+    let dest = resolve_ipv4(&host).await?;
+    tokio::task::spawn_blocking(move || run_traceroute_blocking(dest, |_| {}))
         .await
-        .map_err(|error| format!("无法执行 tracert：{error}"))?;
-    let text = String::from_utf8_lossy(&output.stdout).to_string();
-    let mut hops: Vec<TraceHop> = Vec::new();
-    for line in text.lines() {
-        let fields: Vec<&str> = line.split_whitespace().collect();
-        if fields.len() < 2 {
-            continue;
-        }
-        let Ok(hop) = fields[0].parse::<u32>() else { continue };
-        let mut ms: Vec<u32> = Vec::new();
-        let mut ip = String::new();
-        let mut seen_time = false;
-        for field in &fields[1..] {
-            if *field == "*" {
-                ms.push(0);
-                seen_time = true;
-            } else if let Some(value) = field.strip_suffix("ms") {
-                if let Ok(v) = value.trim().parse::<u32>() {
-                    ms.push(v);
-                    seen_time = true;
-                }
-            } else if seen_time && ip.is_empty() && field.contains('.') {
-                ip = field.to_string();
-            }
-        }
-        if seen_time || !ip.is_empty() {
-            hops.push(TraceHop { hop, ip, ms });
-        }
-    }
-    if hops.is_empty() {
-        return Err("tracert 未返回有效结果，请检查目标主机或网络".into());
-    }
-    Ok(hops)
+        .map_err(|error| format!("链路追踪任务失败：{error}"))?
 }
 
 #[tauri::command]
@@ -442,56 +730,33 @@ pub struct LocalNetInfo {
     pub gateways: Vec<String>,
 }
 
-fn is_private_ish(ip: &str) -> bool {
-    let Ok(addr) = ip.parse::<std::net::Ipv4Addr>() else { return true };
-    addr.is_loopback() || addr.is_link_local() || addr.is_unspecified()
-}
-
 #[tauri::command]
 pub async fn net_local_info() -> Result<LocalNetInfo, String> {
-    let hostname = std::env::var("COMPUTERNAME")
-        .or_else(|_| std::env::var("HOSTNAME"))
-        .unwrap_or_else(|_| "??".to_string());
+    let hostname = gethostname::gethostname().to_string_lossy().to_string();
     let mut ips: Vec<String> = Vec::new();
-    if let Ok(output) = tokio::process::Command::new("ipconfig").output().await {
-        let text = String::from_utf8_lossy(&output.stdout).to_string();
-        for line in text.lines() {
-            if !line.contains("IPv4") || !line.contains(':') {
+    if let Ok(interfaces) = if_addrs::get_if_addrs() {
+        for iface in interfaces {
+            if iface.is_loopback() {
                 continue;
             }
-            let value = line.split(':').next_back().unwrap_or("").trim();
-            if value.is_empty() || is_private_ish(value) {
-                continue;
-            }
-            if !ips.contains(&value.to_string()) {
-                ips.push(value.to_string());
+            match iface.addr.ip() {
+                IpAddr::V4(ip) if !ip.is_link_local() && !ip.is_unspecified() => ips.push(ip.to_string()),
+                IpAddr::V6(ip) if !ip.is_loopback() && !ip.is_unspecified() => ips.push(ip.to_string()),
+                _ => {}
             }
         }
     }
-    // ??????????????
     if ips.is_empty() {
         ips.push("127.0.0.1".to_string());
     }
     let mut gateways: Vec<String> = Vec::new();
-    if let Ok(output) = tokio::process::Command::new("route")
-        .args(["print", "-4"])
-        .output()
-        .await
-    {
-        let text = String::from_utf8_lossy(&output.stdout).to_string();
-        for line in text.lines() {
-            let fields: Vec<&str> = line.split_whitespace().collect();
-            if fields.len() >= 3 && fields[0] == "0.0.0.0" && fields[1] == "0.0.0.0" {
-                if fields[2].parse::<std::net::Ipv4Addr>().is_ok() && !gateways.contains(&fields[2].to_string()) {
-                    gateways.push(fields[2].to_string());
-                }
-            }
-        }
+    if let Ok(gateway) = default_net::get_default_gateway() {
+        gateways.push(gateway.ip_addr.to_string());
     }
     Ok(LocalNetInfo { hostname, ips, gateways })
 }
 
-// ?????????????? ?????????????? ??????????????
+// 网络会话：TCP / UDP 交互式会话
 #[tauri::command]
 pub async fn net_traceroute_stream(
     host: String,
@@ -499,59 +764,24 @@ pub async fn net_traceroute_stream(
 ) -> Result<Vec<TraceHop>, String> {
     let host = host.trim().to_string();
     if host.is_empty() {
-        return Err("???????".into());
+        return Err("请输入目标主机".into());
     }
     if host.starts_with('-') {
-        return Err("?????? - ??".into());
+        return Err("主机名不能以 - 开头".into());
     }
-    let mut child = tokio::process::Command::new("tracert")
-        .args(["-d", "-h", "20", "-w", "500", &host])
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .map_err(|error| format!("???? tracert?{error}"))?;
-    let stdout = child.stdout.take().ok_or("???? tracert ??")?;
-    let mut reader = tokio::io::BufReader::new(stdout).lines();
-    let mut hops: Vec<TraceHop> = Vec::new();
-    while let Ok(Some(line)) = reader.next_line().await {
-        let fields: Vec<&str> = line.split_whitespace().collect();
-        if fields.len() < 2 {
-            continue;
-        }
-        let Ok(hop) = fields[0].parse::<u32>() else { continue };
-        let mut ms: Vec<u32> = Vec::new();
-        let mut ip = String::new();
-        let mut seen_time = false;
-        for field in &fields[1..] {
-            if *field == "*" {
-                ms.push(0);
-                seen_time = true;
-            } else if let Some(value) = field.strip_suffix("ms") {
-                if let Ok(v) = value.trim().parse::<u32>() {
-                    ms.push(v);
-                    seen_time = true;
-                }
-            } else if seen_time && ip.is_empty() && field.contains('.') {
-                ip = field.to_string();
+    let dest = resolve_ipv4(&host).await?;
+    tokio::task::spawn_blocking(move || {
+        run_traceroute_blocking(dest, |hop| {
+            if channel.send(hop).is_err() {
+                // 前端已关闭：停止发送
             }
-        }
-        if seen_time || !ip.is_empty() {
-            let item = TraceHop { hop, ip, ms };
-            if channel.send(item.clone()).is_err() {
-                break; // ?????
-            }
-            hops.push(item);
-        }
-    }
-    let _ = child.kill().await;
-    let _ = child.wait().await;
-    if hops.is_empty() {
-        return Err("tracert ??????????????????".into());
-    }
-    Ok(hops)
+        })
+    })
+    .await
+    .map_err(|error| format!("链路追踪任务失败：{error}"))?
 }
 
-// ?????????????? TCP / UDP ???? ??????????????
+
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NetSessionEvent {

@@ -53,7 +53,7 @@ describe('AI_PRESETS', () => {
   it('exposes sane defaults for every provider', () => {
     expect(AI_PRESETS.openai.endpoint).toBe('https://api.openai.com/v1');
     expect(AI_PRESETS.deepseek.model).toMatch(/^deepseek/);
-    expect(AI_PRESETS.qwen.endpoint).toContain('dashscope');
+    expect('qwen' in AI_PRESETS).toBe(false);
     expect(AI_PRESETS.ollama.endpoint).toBe('http://localhost:11434/v1');
     expect(AI_PRESETS.custom.endpoint).toBe('');
   });
@@ -142,7 +142,7 @@ describe('isAiConfigured', () => {
   it('requires an api key except for ollama', () => {
     expect(isAiConfigured({ provider: 'openai', endpoint: 'https://x', model: 'm', apiKey: '' })).toBe(false);
     expect(isAiConfigured({ provider: 'openai', endpoint: 'https://x', model: 'm', apiKey: 'k' })).toBe(true);
-    // ollama ? API Key??????????? /v1 ???? model ???
+    // ollama 无需 API Key，仅需 endpoint /v1 与 model 名称
     expect(isAiConfigured({ provider: 'ollama', endpoint: 'http://localhost:11434/v1', model: '', apiKey: '' })).toBe(false);
     expect(isAiConfigured({ provider: 'ollama', endpoint: 'http://localhost:11434/v1', model: 'llama3', apiKey: '' })).toBe(true);
   });
@@ -225,8 +225,8 @@ describe('processWithAi', () => {
   it('propagates invoke errors and always unlistens', async () => {
     const unlisten = vi.fn();
     mocks.safeListen.mockResolvedValue(unlisten);
-    mocks.safeInvoke.mockRejectedValue(new Error('AI ????'));
-    await expect(processWithAi(config, 'x', { tool: 'text', action: 'stats' }, () => {})).rejects.toThrow('AI ????');
+    mocks.safeInvoke.mockRejectedValue(new Error('AI 处理失败'));
+    await expect(processWithAi(config, 'x', { tool: 'text', action: 'stats' }, () => {})).rejects.toThrow('AI 处理失败');
     expect(unlisten).toHaveBeenCalled();
   });
 });

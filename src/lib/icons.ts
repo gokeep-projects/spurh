@@ -50,6 +50,7 @@ export const UI_ICONS = {
   refresh: S('<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/>'),
   trash: S('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/>'),
   sliders: S('<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1.5 14h5M9.5 8h5M17.5 16h5"/>'),
+  grid: S('<rect width="7" height="7" x="3" y="3" rx="1.6"/><rect width="7" height="7" x="14" y="3" rx="1.6"/><rect width="7" height="7" x="3" y="14" rx="1.6"/><rect width="7" height="7" x="14" y="14" rx="1.6"/>'),
   file: S('<path d="M6.5 3.5h7.2L18 8v12.5H6.5z"/><path d="M13.5 3.5V8H18"/>'),
   play: S('<path d="m7 5 12 7-12 7z"/>'),
   key: S('<circle cx="7.5" cy="15.5" r="4.5"/><path d="m11.2 11.8 8.3-8.3"/><path d="M16.5 7l2.8 2.8M13.7 9.8 16.5 12.6"/>'),

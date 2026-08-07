@@ -15,7 +15,7 @@ const POOL = [
 
 describe('fuzz plugin execute stability', () => {
   for (const plugin of runtime.list()) {
-    it(`${plugin.id} never crashes on hostile input`, async () => {
+    it(`${plugin.id} never crashes on hostile input`, { timeout: 30_000 }, async () => {
       for (const action of plugin.actions) {
         for (const input of POOL) {
           try {

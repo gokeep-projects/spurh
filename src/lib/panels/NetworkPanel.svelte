@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Channel } from '@tauri-apps/api/core';
-  import { safeInvoke } from '../env';
+  import { isTauri, safeInvoke } from '../env';
   import { TOOL_ICONS, UI_ICONS, iconHtml } from '../icons';
 
   type PortResult = { port: number; open: boolean; elapsedMs: number };
@@ -45,6 +45,41 @@
     return [...ports].sort((a, b) => a - b);
   }
   let portLog = $state<{ ts: string; text: string; ok: boolean }[]>([]);
+  /* 浏览器模式降级：HTTP 探测 / DoH 查询 */
+  async function httpProbe(host: string, port: number, timeoutMs = 1500): Promise<boolean> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const proto = port === 443 || port === 8443 ? 'https' : 'http';
+      await fetch(`${proto}://${host}:${port}/`, { mode: 'no-cors', signal: controller.signal, cache: 'no-store' });
+      return true;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  async function browserLookupDns(host: string, type: string): Promise<{ name: string; ttl: number; data: string }[]> {
+    // 多服务商 fallback：阿里云 DoH（国内可达）主，Google DoH 备用
+    const endpoints = [
+      `https://dns.alidns.com/resolve?name=${encodeURIComponent(host)}&type=${type}`,
+      `https://dns.google/resolve?name=${encodeURIComponent(host)}&type=${type}`,
+    ];
+    let lastError: unknown = null;
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`DoH 查询失败：HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.Status !== 0) throw new Error(`DNS 查询失败：Status ${data.Status}`);
+        return (data.Answer || []).map((a: { name: string; TTL: number; data: string }) => ({ name: a.name, ttl: a.TTL, data: a.data }));
+      } catch (cause) {
+        lastError = cause;
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error('DoH 查询失败');
+  }
+
   function useCommonPorts(ports: string): void { portRange = ports; }
   async function scanPorts(): Promise<void> {
     if (!portHost.trim()) { portError = '请输入主机地址'; return; }
@@ -54,6 +89,25 @@
     portResults = []; portElapsed = 0; portTotal = targets.length; portDone = 0;
     portLog = [{ ts: now(), text: `开始扫描 ${portHost.trim()} 的 ${targets.length} 个端口…`, ok: true }];
     const started = performance.now();
+    if (!isTauri) {
+      // 浏览器模式：无法裸 TCP，使用 HTTP 探测常见 Web 端口
+      const chunk = 16;
+      for (let idx = 0; idx < targets.length; idx += chunk) {
+        if (scanCanceled) { portLog = [...portLog, { ts: now(), text: '已手动停止扫描', ok: false }]; break; }
+        const batch = targets.slice(idx, idx + chunk);
+        const batchResults = await Promise.all(batch.map(async (port) => {
+          const pstart = performance.now();
+          const open = await httpProbe(portHost.trim(), port);
+          return { port, open, elapsedMs: Math.round(performance.now() - pstart) };
+        }));
+        portResults = [...portResults, ...batchResults];
+        portDone = Math.min(portTotal, portDone + batch.length);
+        portLog = [...portLog, { ts: now(), text: `已探测 ${portDone}/${portTotal}，发现 ${portResults.filter((r) => r.open).length} 个开放端口（HTTP 探测）`, ok: true }];
+      }
+      portElapsed = Math.round(performance.now() - started);
+      portScanning = false;
+      return;
+    }
     try {
       const chunk = 64;
       for (let idx = 0; idx < targets.length; idx += chunk) {
@@ -82,7 +136,9 @@
     if (!dnsHost.trim()) { dnsError = '请输入域名'; return; }
     dnsLoading = true; dnsError = ''; dnsRecords = [];
     try {
-      dnsRecords = await safeInvoke('net_dns_lookup', { host: dnsHost.trim(), recordType: dnsType });
+      dnsRecords = isTauri
+        ? await safeInvoke('net_dns_lookup', { host: dnsHost.trim(), recordType: dnsType })
+        : await browserLookupDns(dnsHost.trim(), dnsType);
     } catch (cause) {
       dnsError = cause instanceof Error ? cause.message : String(cause);
     }
@@ -113,6 +169,7 @@
     const port = Number(tcpPort);
     if (!Number.isInteger(port) || port < 1 || port > 65535) { tcpError = '端口无效'; return; }
     if (!tcpHost.trim()) { tcpError = '请输入主机地址'; return; }
+    if (!isTauri) { tcpError = '浏览器预览模式不支持裸 TCP/UDP 会话，请运行 npm run tauri dev 使用完整版'; return; }
     tcpConnecting = true; tcpError = ''; tcpLogs = []; tcpBytesIn = 0; tcpBytesOut = 0;
     try {
       const channel = new Channel<SessionEvent>();
@@ -190,6 +247,10 @@
   let prevTraceIps = $state<string[]>([]);
 
   onMount(() => {
+    if (!isTauri) {
+      localInfo = { hostname: location.hostname || 'browser', ips: [], gateways: [] };
+      return;
+    }
     safeInvoke<LocalInfo>('net_local_info').then((info) => { localInfo = info; }).catch(() => undefined);
   });
 
@@ -214,6 +275,17 @@
   }
   async function runTrace(): Promise<void> {
     if (!traceHost.trim()) { traceError = '请输入目标主机'; return; }
+    if (!isTauri) {
+      // 浏览器模式：HTTP 延迟探测（完整 traceroute 需桌面版）
+      tracing = true; traceError = ''; traceHops = [];
+      const traceStart = performance.now();
+      const ok = await httpProbe(traceHost.trim().replace(/^https?:\/\//, ''), 443, 4000);
+      const ms = Math.round(performance.now() - traceStart);
+      traceHops = [{ hop: 1, ip: ok ? 'HTTP 探测成功' : '无法连接', ms: ok ? [ms] : [] }];
+      traceElapsed = ms;
+      tracing = false;
+      return;
+    }
     tracing = true; traceError = ''; traceHops = [];
     const started = performance.now();
     const channel = new Channel<TraceHop>();
@@ -353,6 +425,7 @@ const MIME_TYPES: Array<[string, string]> = [
   </div>
 
   <div class="net-body">
+    {#if !isTauri}<div class="net-browser-note"><i></i>浏览器预览模式：端口扫描使用 HTTP 探测、DNS 走 DoH；TCP/UDP 与 traceroute 需桌面版（npm run tauri dev）</div>{/if}
     {#if tab === 'port'}
       {#if portError}<div class="net-error"><i></i>{portError}</div>{/if}
       {#if portLog.length > 0}

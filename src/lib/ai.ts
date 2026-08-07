@@ -32,7 +32,6 @@ type StreamEvent = {
 export const AI_PRESETS: Record<string, Omit<AiConfig, 'apiKey'>> = {
   openai: { provider: 'openai', endpoint: 'https://api.openai.com/v1', model: 'gpt-5.6-terra' },
   deepseek: { provider: 'deepseek', endpoint: 'https://api.deepseek.com', model: 'deepseek-v4-flash' },
-  qwen: { provider: 'qwen', endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen3.7-plus' },
   anthropic: { provider: 'anthropic', endpoint: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-5' },
   gemini: { provider: 'gemini', endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash' },
   ollama: { provider: 'ollama', endpoint: 'http://localhost:11434/v1', model: '' },
@@ -54,7 +53,8 @@ function migrateConfig(config: AiConfig): AiConfig {
     next.endpoint = AI_PRESETS.deepseek.endpoint;
     next.model = AI_PRESETS.deepseek.model;
   }
-  if (next.provider === 'qwen' && next.model === 'qwen-plus') next.model = AI_PRESETS.qwen.model;
+  // 旧版未知名服务商：回退到自定义配置入口
+  if (!AI_PRESETS[next.provider]) next.provider = 'custom';
   if (next.provider === 'openai' && !next.model) next.model = AI_PRESETS.openai.model;
   return next;
 }

@@ -122,7 +122,7 @@
       items = trimImageHistory([...images, ...event.payload].slice(0, 100));
     });
     const unlisten2 = safeListen<ClipItem>('clipboard:item', (event) => {
-      // ????????/?????????????????????
+      // 图片去重：同图仅保留最新一条
       if (event.payload.kind === 'image' && event.payload.image) {
         const dup = items.find((other) => other.kind === 'image' && other.image === event.payload.image);
         if (dup) {

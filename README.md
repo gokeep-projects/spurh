@@ -39,7 +39,7 @@
 | 🔌 **插件优先** | 内置 13 个插件共用同一 `SpurhPlugin` 协议，第三方能力即插即用 |
 | 🗄️ **数据库管理** | MySQL / PostgreSQL / SQLite：库表浏览、数据编辑、SQL 高亮/补全/格式化/历史、表设计器、CSV 导出 |
 | 🖥️ **SSH 远程终端** | xterm.js 多标签终端、会话持久化、快捷命令、文件传输、主机资源监控 |
-| 🤖 **AI 原生** | OpenAI 兼容流式接入（OpenAI / DeepSeek / Qwen / Gemini / Ollama 等），本地失败一键 AI 修复 |
+| 🤖 **AI 原生** | OpenAI 兼容流式接入（OpenAI / DeepSeek / Anthropic / Gemini / Ollama 等），本地失败一键 AI 修复 |
 | 🔒 **本地优先 · 安全** | 凭据存系统钥匙串，数据库连接支持 TLS，剪贴板监听可关闭 |
 | 🎨 **极致体验** | 深色/浅色主题、全局快捷键、命令面板、剪贴板历史、零多余 UI |
 
