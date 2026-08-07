@@ -316,10 +316,10 @@
   .log-ai-head { display: flex; align-items: center; gap: 7px; }
   .log-ai-head > .btn-ai { display: inline-flex; color: var(--accent); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 65%, transparent)); }
   .log-ai-head b { font-size: 13.5px; }
-  .log-ai-head small { color: var(--muted-2); font-size: 12.5px; }
+  .log-ai-head small { color: var(--muted-2); font-size: 13px; }
   .log-ai-actions { margin-left: auto; display: flex; gap: 6px; }
   .log-ai-reasoning { padding: 8px 10px; color: var(--muted); font-size: 13px; border: 1px dashed var(--line-2); border-radius: 8px; background: color-mix(in srgb, var(--bg) 60%, transparent); }
-  .log-ai-reasoning small { display: block; margin-bottom: 4px; color: var(--muted-2); font-size: 12px; }
+  .log-ai-reasoning small { display: block; margin-bottom: 4px; color: var(--muted-2); font-size: 13px; }
   .log-ai-reasoning p { margin: 0; line-height: 1.55; white-space: pre-wrap; }
   .log-ai-error { padding: 9px 11px; color: var(--danger); font-size: 13.5px; border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
   .log-ai-output { padding: 11px 13px; color: var(--text); font: 450 13.5px/1.7 'Cascadia Code', 'Microsoft YaHei', monospace; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
@@ -328,7 +328,7 @@
   .log-input { flex: 0 0 auto; display: flex; flex-direction: column; gap: 5px; }
   .log-input textarea { width: 100%; height: 170px; padding: 12px 14px; resize: vertical; color: var(--text); font: 450 13.5px/1.6 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 10px; outline: 0; background: var(--panel); }
   .log-input textarea:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .log-input small { color: var(--muted-2); font-size: 12px; }
+  .log-input small { color: var(--muted-2); font-size: 13px; }
 
   .log-error { padding: 12px; color: var(--danger); font-size: 13px; border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
   .log-loading { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 20px; color: var(--muted); }

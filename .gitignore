@@ -28,3 +28,4 @@ ui.png
 
 # 预览截图（本地查看用，不入库）
 final-*.png
+.tools/

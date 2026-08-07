@@ -548,11 +548,11 @@
   .rt-connect { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: 13.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease; }
   .rt-connect:hover { transform: translateY(-1px); box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 30%, transparent); }
   .rt-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
-  .rt-quiet { height: 30px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 12px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
+  .rt-quiet { height: 30px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
   .rt-quiet:hover { color: var(--text); border-color: var(--line-2); background: var(--hover); }
   .rt-quiet.danger:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 6%, transparent); }
   .remote-tabs { flex: 0 0 auto; display: flex; gap: 4px; padding: 7px 10px 0; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .remote-tab { position: relative; height: 31px; display: flex; align-items: center; gap: 7px; padding: 0 8px 0 11px; cursor: pointer; color: var(--muted); font-size: 12px; border: 1px solid var(--line); border-radius: 8px 8px 0 0; border-bottom: 0; background: var(--bg); transition: color .15s ease, background .15s ease; }
+  .remote-tab { position: relative; height: 31px; display: flex; align-items: center; gap: 7px; padding: 0 8px 0 11px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 8px 8px 0 0; border-bottom: 0; background: var(--bg); transition: color .15s ease, background .15s ease; }
   .remote-tab:hover { color: var(--text); }
   .remote-tab.active { color: var(--text); background: var(--panel-2); box-shadow: inset 0 2px 0 color-mix(in srgb, var(--accent) 85%, transparent); }
   .remote-tab i { width: 5px; height: 5px; border-radius: 50%; background: var(--muted-2); }
@@ -575,7 +575,7 @@
   .form-close:hover { color: var(--text); background: var(--hover); }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; padding: 18px; }
   .form-grid label { display: flex; flex-direction: column; gap: 6px; }
-  .form-grid label > span { color: var(--muted); font-size: 12px; }
+  .form-grid label > span { color: var(--muted); font-size: 13px; }
   .form-grid input { height: 33px; padding: 0 11px; color: var(--text); font: 500 13px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .form-grid input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .form-grid .form-port input { max-width: 130px; }
@@ -586,16 +586,16 @@
   :global(.secret-toggle svg) { width: 13px; height: 13px; }
   .secret-toggle:hover { color: var(--text); background: var(--hover); }
   .form-auth { display: flex; flex-direction: column; gap: 6px; }
-  .form-auth > span { color: var(--muted); font-size: 12px; }
+  .form-auth > span { color: var(--muted); font-size: 13px; }
   .auth-chips { display: inline-flex; gap: 2px; align-self: flex-start; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  .auth-chips button { height: 26px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: 12px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
+  .auth-chips button { height: 26px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: 13px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
   .auth-chips button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .auth-chips button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .remote-form > footer { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); }
-  .form-hint { flex: 1; color: var(--muted-2); font-size: 12.5px; }
-  .form-test { color: var(--danger); font-size: 12px; white-space: nowrap; }
+  .form-hint { flex: 1; color: var(--muted-2); font-size: 13px; }
+  .form-test { color: var(--danger); font-size: 13px; white-space: nowrap; }
   .form-test.ok { color: var(--accent); }
-  .form-cancel { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 12px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
+  .form-cancel { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
   .form-cancel:hover { color: var(--text); border-color: var(--line-2); }
   .form-save { height: 30px; padding: 0 16px; cursor: pointer; color: #fff; font-size: 13.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
   .form-save:hover:not(:disabled) { transform: translateY(-1px); }

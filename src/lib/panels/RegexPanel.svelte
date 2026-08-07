@@ -205,27 +205,27 @@
   .regex-ai input:focus { border-style: solid; border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
   .regex-ai .ai-generate { height: 30px; padding: 0 12px; cursor: pointer; color: #fff; font-size: 13px; font-weight: 700; border: 0; border-radius: 6px; background: var(--btn-gradient); }
   .regex-ai .ai-generate:disabled { cursor: default; opacity: .4; }
-  .regex-ai .ai-hint { color: var(--muted-2); font-size: 12px; }
+  .regex-ai .ai-hint { color: var(--muted-2); font-size: 13px; }
   .regex-ai .ai-generate.ghost { background: transparent; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); }
   .regex-ai .ai-generate.ghost:hover:not(:disabled) { background: var(--accent-soft); }
   .regex-samples { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-  .regex-samples .sample-btn { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: 12px; font-weight: 600; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 12px; background: transparent; white-space: nowrap; }
+  .regex-samples .sample-btn { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: 13px; font-weight: 600; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 12px; background: transparent; white-space: nowrap; }
   .regex-samples .sample-btn:hover:not(:disabled) { background: var(--accent-soft); }
   .regex-samples .sample-btn:disabled { cursor: default; opacity: .4; }
   .sample-chips { display: flex; gap: 5px; flex-wrap: wrap; }
   .sample-chips button { padding: 3px 10.5px; cursor: pointer; color: var(--text); font: 500 13px 'Cascadia Code', monospace; border: 1px dashed var(--line-2); border-radius: 6px; background: var(--panel); user-select: all; }
   .sample-chips button:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
   .sample-chips button.copied { border-style: solid; border-color: var(--accent); color: var(--accent); }
-  .sample-error { color: var(--danger); font-size: 12px; }
+  .sample-error { color: var(--danger); font-size: 13px; }
   .regex-presets { display: flex; gap: 8px; align-items: center; }
-  .regex-presets > span { flex: 0 0 auto; color: var(--muted-2); font-size: 12px; }
+  .regex-presets > span { flex: 0 0 auto; color: var(--muted-2); font-size: 13px; }
   .preset-scroll { display: flex; gap: 5px; align-items: center; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
   .preset-scroll::-webkit-scrollbar { height: 4px; }
   .preset-scroll::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
-  .regex-presets button { flex: 0 0 auto; height: 24px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 12px; border: 1px solid var(--line); border-radius: 12px; background: transparent; white-space: nowrap; }
+  .regex-presets button { flex: 0 0 auto; height: 24px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 12px; background: transparent; white-space: nowrap; }
   .regex-presets button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
   .regex-presets button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
-  .regex-presets .preset-more { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: 12px; font-weight: 600; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 12px; background: transparent; white-space: nowrap; }
+  .regex-presets .preset-more { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: 13px; font-weight: 600; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 12px; background: transparent; white-space: nowrap; }
   .regex-presets .preset-more:hover { background: var(--accent-soft); border-style: solid; }
   .preset-hint { margin: 0; color: var(--warn); font-size: 13px; }
   .regex-actions { display: flex; gap: 4px; align-items: center; }
@@ -235,7 +235,7 @@
   .regex-actions button.active:not(.primary) { color: var(--text); background: var(--panel-2); border-color: var(--line-2); }
   .regex-actions button:hover { background: var(--hover); }
   .regex-actions button.primary:hover { filter: brightness(1.08); }
-  .regex-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 12px; border: 1px solid transparent; border-radius: 6px; background: transparent; }
+  .regex-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid transparent; border-radius: 6px; background: transparent; }
   .regex-clear:hover { color: var(--text); border-color: var(--line); }
   .control-spacer { flex: 1; }
 </style>

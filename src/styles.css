@@ -9,7 +9,7 @@
   --line-strong: rgba(140, 158, 255, .3);
   --text: #eef1ff;
   --muted: #97a1c8;
-  --muted-2: #5f6a96;
+  --muted-2: #7581b3;
   --c-cyan: #22d3ee;
   --c-violet: #8b5cf6;
   --c-magenta: #e879f9;
@@ -135,17 +135,17 @@ button { cursor: pointer; border: 0; background: none; }
   opacity: .6;
 }
 .app.light {
-  --bg0: #e6ebf7;
-  --bg1: #eef2fb;
+  --bg0: #dfe6f4;
+  --bg1: #e9eef9;
   --bg2: #ffffff;
-  --bg3: #dfe6f5;
-  --line: rgba(80, 95, 180, .18);
-  --line-strong: rgba(80, 95, 180, .32);
+  --bg3: #d5ddec;
+  --line: rgba(70, 85, 165, .22);
+  --line-strong: rgba(70, 85, 165, .4);
   --text: #171c33;
-  --muted: #5a6487;
-  --muted-2: #8a93b5;
-  --glass: rgba(255, 255, 255, .75);
-  --glass-strong: rgba(255, 255, 255, .9);
+  --muted: #4d5879;
+  --muted-2: #59648d;
+  --glass: rgba(255, 255, 255, .8);
+  --glass-strong: rgba(255, 255, 255, .92);
   --w-02: rgba(28, 38, 84, .03);
   --w-025: rgba(28, 38, 84, .035);
   --w-03: rgba(28, 38, 84, .045);
@@ -167,6 +167,41 @@ button { cursor: pointer; border: 0; background: none; }
     var(--bg0);
 }
 .app.light::before { display: none; }
+
+/* 浜槑涓婚涓嬬殑瀵规瘮搴﹁皟鏁达細鎷夐珮鍏抽敭鏂囨湰/杈归槬瀵规瘮搴?*/
+.app.light .ai-button {
+  color: #a21caf;
+  border-color: rgba(168, 85, 247, .35);
+  background: rgba(168, 85, 247, .07);
+}
+.app.light .tool-identity b,
+.app.light .tool-name b {
+  background: linear-gradient(92deg, #0e7490, #5b21b6 55%, #be185d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.app.light .brand b {
+  background: linear-gradient(92deg, #0e7490, #6d28d9 55%, #c026d3);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.app.light .side-manage,
+.app.light .quiet-button {
+  color: #3d4671;
+}
+.app.light .actions button:hover {
+  color: #0e7490;
+}
+.app.light .tool-list button:hover .tool-icon {
+  color: #0e7490;
+  background: linear-gradient(135deg, rgba(14, 116, 144, .1), rgba(91, 33, 182, .12));
+  box-shadow: 0 0 12px rgba(14, 116, 144, .2);
+}
+.app.light .editor-pane header button {
+  color: #3d4671;
+}
 
 /* ── 顶栏 ── */
 
@@ -195,8 +230,8 @@ button { cursor: pointer; border: 0; background: none; }
   gap: 14px;
   padding: 0 18px;
   background: var(--glass);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(10px) saturate(1.25);
+  -webkit-backdrop-filter: blur(10px) saturate(1.25);
   border-bottom: 1px solid var(--line);
   box-shadow: 0 10px 40px rgba(0, 0, 0, .22);
 }
@@ -839,10 +874,10 @@ kbd {
   box-shadow: 0 6px 24px rgba(99, 102, 241, .18);
 }
 .tool-list button:hover .tool-icon {
-  color: #fff;
+  color: var(--c-cyan);
   border-color: rgba(129, 140, 248, .5);
-  background: linear-gradient(135deg, rgba(34, 211, 238, .22), rgba(139, 92, 246, .3));
-  box-shadow: 0 0 14px rgba(129, 140, 248, .35);
+  background: linear-gradient(135deg, rgba(34, 211, 238, .18), rgba(139, 92, 246, .24));
+  box-shadow: 0 0 14px rgba(129, 140, 248, .25);
   transform: scale(1.06);
 }
 .tool-list button.active .tool-icon {
@@ -875,8 +910,8 @@ kbd {
 .tool-icon.large svg { width: 24px; height: 24px; }
 .icon-fallback { font-size: 15px; font-weight: 800; }
 .tool-name { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1.5px; }
-.tool-name b { font-size: 13.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tool-name small { font-size: 13px; color: var(--muted-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; line-height: 1.35; }
+.tool-name b { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tool-name small { font-size: 13.5px; color: var(--muted-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; line-height: 1.35; }
 .tool-kbd { font-size: 13px; padding: 1px 5px; color: var(--muted-2); }
 .plugin-health { display: flex; flex-direction: column; gap: 2px; padding: 2px 0; }
 .plugin-health > div { display: flex; align-items: center; gap: 6px; }
@@ -907,11 +942,11 @@ kbd {
   background:
     radial-gradient(30vw 24vh at 18% 12%, rgba(34, 211, 238, .05), transparent 65%),
     radial-gradient(30vw 24vh at 86% 78%, rgba(232, 121, 249, .05), transparent 65%);
-  animation: aurora-drift 16s ease-in-out infinite alternate;
+  animation: aurora-drift 18s ease-in-out infinite alternate;
 }
 @keyframes aurora-drift {
-  0% { opacity: .55; transform: translate3d(-1.2%, 0, 0) scale(1); }
-  100% { opacity: 1; transform: translate3d(1.2%, 0, 0) scale(1.04); }
+  0% { opacity: .5; }
+  100% { opacity: .92; }
 }
 .workspace > * { position: relative; }
 .tool-header {
@@ -932,7 +967,7 @@ kbd {
   background-clip: text;
   color: transparent;
 }
-.tool-identity b { font-size: 15px; font-weight: 750; }
+.tool-identity b { font-size: 15.5px; font-weight: 750; }
 .tool-identity p { margin: 0; font-size: 13px; color: var(--muted-2); }
 .auto-state {
   display: inline-flex;
@@ -982,7 +1017,6 @@ kbd {
 .tool-controls {
   flex: 0 1 auto;
   min-height: 0;
-  max-height: calc(100vh - 250px);
   overflow-y: auto;
   display: flex;
   align-items: flex-start;
@@ -1009,7 +1043,7 @@ kbd {
   height: 30px;
   padding: 0 13px;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--muted);
   transition: all var(--transition);
@@ -1036,7 +1070,7 @@ kbd {
   align-items: center;
   gap: 7px;
   flex: 0 0 auto;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--muted);
 }
 .options label > span { white-space: nowrap; }
@@ -1064,7 +1098,7 @@ kbd {
   height: 30px;
   padding: 0 12px;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--muted);
   border: 1px solid var(--line);
   background: var(--w-03);
@@ -1079,7 +1113,7 @@ kbd {
   height: 30px;
   padding: 0 13px;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--c-magenta);
   border: 1px solid rgba(232, 121, 249, .4);
@@ -1104,7 +1138,7 @@ kbd {
 /* ── 编辑器双栏 ── */
 .editor-grid {
   flex: 1;
-  min-height: 0;
+  min-height: 210px;
   display: grid;
   grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
   border: 1px solid var(--line);
@@ -1154,7 +1188,7 @@ kbd {
   outline: 0;
   resize: none;
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-  font-size: 12.8px;
+  font-size: 13.5px;
   line-height: 1.62;
   tab-size: 2;
   background: transparent;
@@ -1908,6 +1942,43 @@ kbd {
 .about-note { margin-top: 12px; padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--w-025); }
 .about-note b { font-size: 13.5px; }
 .about-note p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.about-caps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.about-caps article {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--w-025);
+}
+.about-caps span { flex: 0 0 auto; color: var(--muted); font-size: 13px; }
+.about-caps i {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--w-08);
+  overflow: hidden;
+}
+.about-caps b {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--grad-main);
+  box-shadow: 0 0 10px rgba(129, 140, 248, .5);
+  animation: about-cap-grow 1.1s cubic-bezier(.25, .9, .3, 1.2) forwards;
+}
+.about-caps em {
+  flex: 0 0 auto;
+  font-style: normal;
+  color: var(--c-cyan);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+@keyframes about-cap-grow { to { width: var(--w); } }
 
 /* ── 右键菜单 ── */
 /* ---- About page: dynamic hero ---- */
@@ -2071,7 +2142,7 @@ kbd {
   align-items: center;
   gap: 5px;
   font-style: normal;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--muted);
   font-family: ui-monospace, Consolas, monospace;
   font-variant-numeric: tabular-nums;
@@ -3772,7 +3843,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
   --line-strong: rgba(148, 163, 255, .34);
   --text: #f0f1ff;
   --muted: #a3a8e8;
-  --muted-2: #6a6fa8;
+  --muted-2: #838ac6;
   --glass: rgba(14, 15, 44, .68);
   --glass-strong: rgba(16, 17, 52, .85);
   --grad-main: linear-gradient(120deg, #60a5fa, #8b5cf6 45%, #d946ef);
@@ -3795,7 +3866,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
   --line-strong: rgba(94, 234, 174, .3);
   --text: #eafff4;
   --muted: #8fb8a4;
-  --muted-2: #557a69;
+  --muted-2: #719b87;
   --c-cyan: #2dd4bf;
   --c-violet: #34d399;
   --c-magenta: #4ade80;

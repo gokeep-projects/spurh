@@ -460,7 +460,11 @@
   $effect(() => {
     // 同步浏览器标签栏/桌面主题色
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', lightMode ? '#f4f6f9' : '#090b10');
+    const bgHex = lightMode ? '#dfe6f4' : resolvedTheme === 'aurora' ? '#060616' : resolvedTheme === 'forest' ? '#040d09' : '#04050b';
+    if (meta) meta.setAttribute('content', bgHex);
+    // body 随主题同步，避免 overscroll 露出深空色
+    document.body.style.background = bgHex;
+    document.body.style.color = lightMode ? '#171c33' : '#eef1ff';
   });
 
   $effect(() => {
@@ -1832,6 +1836,12 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 </div>
                 <div class="about-chips"><span>Svelte 5</span><span>Tauri 2</span><span>Rust</span><span>TypeScript</span><span>AI Native</span><span>本地优先</span></div>
                 <div class="about-grid"><article><small>作者</small><b>xuning</b></article><article><small>版本</small><b>0.1.0</b></article><article><small>内置工具</small><b>{aboutPanelsShown} 个面板</b></article><article><small>许可</small><b>MIT</b></article></div>
+                <div class="about-caps">
+                  <article><span>AI 增强</span><i><b style="--w:94%"></b></i><em>94%</em></article>
+                  <article><span>本地性能</span><i><b style="--w:96%"></b></i><em>96%</em></article>
+                  <article><span>工具覆盖</span><i><b style="--w:92%"></b></i><em>92%</em></article>
+                  <article><span>隐私安全</span><i><b style="--w:98%"></b></i><em>98%</em></article>
+                </div>
                 <div class="about-note"><b>本地优先 · AI 增强</b><p>所有工具在本地运行，数据不出设备；AI 能力按需接入，帮助生成、解释、修复与提炼，让重复工作一步完成。</p></div>
                 <div class="about-actions">
                   <a href="https://github.com/gokeep-projects/spurh" target="_blank" rel="noreferrer">{@html UI_ICONS.shield}<span>GitHub 仓库</span></a>

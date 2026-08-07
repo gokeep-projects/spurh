@@ -570,10 +570,10 @@
   .git-file-main:hover .git-file-path { color: var(--c-cyan); }
   .git-file-row:hover { background: var(--bg2); }
   .git-file-row.selected { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-  .git-file-mark { color: var(--muted-2); font-size: 12px; }
+  .git-file-mark { color: var(--muted-2); font-size: 13px; }
   .git-file-mark.staged { color: var(--c-green); }
   .git-file-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-  .git-file-state { color: var(--muted-2); font-size: 12.5px; white-space: nowrap; }
+  .git-file-state { color: var(--muted-2); font-size: 13px; white-space: nowrap; }
   .git-file-ops { display: flex; gap: 3px; opacity: 0; transition: opacity .12s; }
   .git-file-row:hover .git-file-ops { opacity: 1; }
   .git-files-empty { padding: 24px 12px; text-align: center; color: var(--muted-2); font-size: 13px; }
@@ -586,12 +586,12 @@
     border-bottom: 1px solid var(--line); font-size: 13px;
   }
   .git-diff-file { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .git-diff-status { color: var(--muted-2); font-size: 12.5px; border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+  .git-diff-status { color: var(--muted-2); font-size: 13px; border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
   .git-diff-stats { margin-left: auto; display: flex; gap: 7px; font-size: 13px; }
   .git-diff-stats .add { color: var(--c-green); }
   .git-diff-stats .del { color: var(--danger); }
   .git-diff-body { overflow: auto; flex: 1; font-family: 'Cascadia Code', Consolas, 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.55; }
-  .git-hunk-header { padding: 4px 12px; color: var(--c-blue); background: color-mix(in srgb, var(--c-blue) 8%, transparent); font-size: 12.5px; }
+  .git-hunk-header { padding: 4px 12px; color: var(--c-blue); background: color-mix(in srgb, var(--c-blue) 8%, transparent); font-size: 13px; }
   .git-line { display: flex; padding: 0 12px; min-height: 19px; }
   .git-line.add { background: color-mix(in srgb, var(--c-green) 13%, transparent); }
   .git-line.del { background: color-mix(in srgb, var(--danger) 12%, transparent); }
@@ -609,7 +609,7 @@
   .git-branch-ico { color: var(--c-cyan); display: inline-flex; }
   .git-branch-ico :global(svg) { width: 15px; height: 15px; }
   .git-branch-name { font-weight: 600; }
-  .git-branch-tag { font-size: 12px; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0 7px; }
+  .git-branch-tag { font-size: 13px; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0 7px; }
   .git-branch-up { color: var(--muted-2); font-size: 13px; margin-left: auto; }
   .git-commit-row {
     display: flex; align-items: center; gap: 10px; padding: 9px 12px; text-align: left;
@@ -621,7 +621,7 @@
   .git-commit-sha { color: var(--c-amber); font-family: 'Cascadia Code', Consolas, monospace; font-size: 13px; }
   .git-commit-msg { font-weight: 550; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .git-commit-meta { display: flex; gap: 8px; align-items: center; color: var(--muted-2); font-size: 13px; white-space: nowrap; }
-  .git-refs { color: var(--c-cyan); font-size: 12.5px; }
+  .git-refs { color: var(--c-cyan); font-size: 13px; }
   .git-commit-diff { margin-top: 8px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
   .git-commit-file { border-bottom: 1px solid var(--line); }
 

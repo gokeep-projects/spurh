@@ -635,7 +635,7 @@ const MIME_TYPES: Array<[string, string]> = [
   .network-panel { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
   .net-head { flex: 0 0 auto; display: flex; flex-direction: column; gap: 10.5px; padding: 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .net-modes { display: inline-flex; gap: 2px; align-self: flex-start; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  .net-modes button { height: 26px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 12px; border: 0; border-radius: 6px; background: transparent; white-space: nowrap; transition: all .15s ease; }
+  .net-modes button { height: 26px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 13px; border: 0; border-radius: 6px; background: transparent; white-space: nowrap; transition: all .15s ease; }
   .net-modes button span { display: inline-flex; }
   :global(.net-modes button span svg) { width: 13px; height: 13px; }
   .net-modes button:hover:not(.active) { color: var(--text); background: var(--hover); }
@@ -643,7 +643,7 @@ const MIME_TYPES: Array<[string, string]> = [
   .net-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
   .net-field { display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); transition: border-color var(--transition), box-shadow var(--transition); }
   .net-field:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .net-field span { color: var(--muted-2); font-size: 12px; white-space: nowrap; }
+  .net-field span { color: var(--muted-2); font-size: 13px; white-space: nowrap; }
   .net-field input { min-width: 0; height: 100%; padding: 0; color: var(--text); font-size: 13px; border: 0; outline: 0; background: transparent; }
   .net-field.grow { flex: 1; min-width: 120px; }
   .net-select select { height: 100%; color: var(--text); font-size: 13px; border: 0; outline: 0; background: transparent; cursor: pointer; }
@@ -656,9 +656,9 @@ const MIME_TYPES: Array<[string, string]> = [
   .net-run.busy .net-dot { animation: net-spin .8s linear infinite; }
   @keyframes net-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
   @keyframes net-spin { to { transform: rotate(360deg); } }
-  .net-summary { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+  .net-summary { color: var(--muted); font-size: 13px; white-space: nowrap; }
   .net-common-ports { display: inline-flex; gap: 4px; flex-wrap: wrap; }
-  .net-common-ports button { height: 24px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); transition: all .15s ease; }
+  .net-common-ports button { height: 24px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); transition: all .15s ease; }
   .net-common-ports button:hover { color: var(--text); border-color: var(--line-2); }
   .net-common-ports button.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
   .net-body { flex: 1; min-height: 0; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
@@ -666,14 +666,14 @@ const MIME_TYPES: Array<[string, string]> = [
   .net-error i { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }
   .net-result-title { display: flex; align-items: baseline; gap: 8px; }
   .net-result-title span { font-size: 13.5px; font-weight: 700; }
-  .net-result-title small { color: var(--muted-2); font-size: 12px; }
+  .net-result-title small { color: var(--muted-2); font-size: 13px; }
   .net-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 220px; color: var(--muted); text-align: center; }
   .net-empty-tile { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 15px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0,0,0,.25); }
   :global(.net-empty-tile svg) { width: 26px; height: 26px; }
   .net-empty b { color: var(--text); font-size: 13px; }
   .net-empty small { font-size: 13px; }
   .send-log { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
-  .send-log-line { display: flex; align-items: center; gap: 8px; padding: 4px 9px; font-size: 12.5px; border-radius: 6px; background: var(--panel); }
+  .send-log-line { display: flex; align-items: center; gap: 8px; padding: 4px 9px; font-size: 13px; border-radius: 6px; background: var(--panel); }
   .send-log-line i { color: var(--muted-2); font-style: normal; }
   .send-log-line b { color: #3ecf8e; }
   .send-log-line.bad b { color: var(--danger); }
@@ -690,11 +690,11 @@ const MIME_TYPES: Array<[string, string]> = [
   .port-chip em { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 13px; font-style: normal; border-radius: 10px; background: rgba(16,20,28,.82); backdrop-filter: blur(3px); }
   .dns-card { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .dns-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  .dns-table th { position: sticky; top: 0; padding: 8px 12px; color: var(--muted-2); font-size: 12px; text-align: left; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+  .dns-table th { position: sticky; top: 0; padding: 8px 12px; color: var(--muted-2); font-size: 13px; text-align: left; background: var(--panel-2); border-bottom: 1px solid var(--line); }
   .dns-table td { padding: 7px 12px; color: var(--text); border-bottom: 1px solid var(--line); }
   .dns-table tr:last-child td { border-bottom: 0; }
   .dns-table tr:hover td { background: var(--hover); }
-  .dns-copy button { height: 24px; padding: 0 9px; cursor: pointer; color: var(--accent); font-size: 12px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 6px; background: var(--accent-soft); }
+  .dns-copy button { height: 24px; padding: 0 9px; cursor: pointer; color: var(--accent); font-size: 13px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 6px; background: var(--accent-soft); }
   /* TCP/UDP 会话 */
   .net-link-on { display: inline-flex; align-items: center; gap: 6px; color: #3ecf8e; font-size: 13px; }
   .net-link-on i { width: 8px; height: 8px; border-radius: 50%; background: #3ecf8e; box-shadow: 0 0 10px #3ecf8e; animation: net-pulse 1.4s ease-in-out infinite; }
@@ -703,9 +703,9 @@ const MIME_TYPES: Array<[string, string]> = [
   .chat-status i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted-2); }
   .chat-status.on { color: #3ecf8e; }
   .chat-status.on i { background: #3ecf8e; box-shadow: 0 0 10px #3ecf8e; animation: net-pulse 1.4s ease-in-out infinite; }
-  .chat-hex-toggle { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+  .chat-hex-toggle { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 13px; cursor: pointer; }
   .chat-hex-toggle input { accent-color: var(--accent); }
-  .chat-bytes { margin-left: auto; color: var(--muted-2); font-size: 12px; font-family: 'Cascadia Code', Consolas, monospace; }
+  .chat-bytes { margin-left: auto; color: var(--muted-2); font-size: 13px; font-family: 'Cascadia Code', Consolas, monospace; }
   .chat-log { display: flex; flex-direction: column; gap: 3px; min-height: 140px; max-height: 46vh; overflow: auto; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #0b0e14; }
   .chat-line { display: flex; align-items: flex-start; gap: 8px; padding: 5px 8px; font-size: 13px; border-radius: 6px; }
   .chat-line i { flex: 0 0 auto; color: var(--muted-2); font-size: 9.5px; font-style: normal; font-family: 'Cascadia Code', Consolas, monospace; }
@@ -736,7 +736,7 @@ const MIME_TYPES: Array<[string, string]> = [
   @keyframes local-ring { 0% { transform: scale(.75); opacity: .9; } 100% { transform: scale(1.35); opacity: 0; } }
   .topo-local .local-core { fill: url(#topo-spine-g); filter: drop-shadow(0 0 10px rgba(62,207,142,.65)); }
   .topo-local text { fill: #fff; font-size: 13px; font-weight: 700; }
-  .topo-ip { fill: var(--text); font-size: 12.5px; font-family: 'Cascadia Code', Consolas, monospace; }
+  .topo-ip { fill: var(--text); font-size: 13px; font-family: 'Cascadia Code', Consolas, monospace; }
   .topo-ip.local-ip { font-size: 13px; font-weight: 700; fill: #3ecf8e; }
   .topo-gw { fill: var(--muted-2); font-size: 9.5px; font-family: 'Cascadia Code', Consolas, monospace; }
   .topo-node { opacity: 0; animation: node-in .4s cubic-bezier(.34,1.56,.64,1) forwards; transform-origin: center; }
@@ -752,7 +752,7 @@ const MIME_TYPES: Array<[string, string]> = [
   .topo-node.timeout circle:not(.node-halo) { fill: rgba(138,148,166,.12); stroke: #5b6475; }
   .topo-node.timeout .node-halo { stroke: #5b6475; }
   .topo-num { fill: var(--text); font-size: 13px; font-weight: 700; }
-  .topo-ms { fill: var(--muted); font-size: 12px; font-family: 'Cascadia Code', Consolas, monospace; }
+  .topo-ms { fill: var(--muted); font-size: 13px; font-family: 'Cascadia Code', Consolas, monospace; }
   .topo-loss { fill: var(--muted-2); font-size: 9px; font-family: 'Cascadia Code', Consolas, monospace; }
   .topo-bars rect { fill: #4cc2ff; opacity: 0; animation: bar-in .4s ease forwards; }
   .topo-bars rect.bar-timeout { fill: #5b6475; }
@@ -764,7 +764,7 @@ const MIME_TYPES: Array<[string, string]> = [
   .topo-target .target-halo { fill: none; stroke: #2f9de4; opacity: .3; }
   .topo-target text { fill: #fff; font-size: 14px; }
   .topo-legend { display: flex; gap: 14px; flex-wrap: wrap; }
-  .topo-legend .lg { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
+  .topo-legend .lg { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 13px; }
   .topo-legend .lg::before { content: ''; width: 8px; height: 8px; border-radius: 50%; }
   .lg.ok::before { background: #3ecf8e; box-shadow: 0 0 6px #3ecf8e; }
   .lg.warn::before { background: #e8b45a; box-shadow: 0 0 6px #e8b45a; }
@@ -775,7 +775,7 @@ const MIME_TYPES: Array<[string, string]> = [
   .status-chip { display: flex; align-items: center; gap: 8px; padding: 8px 11px; cursor: pointer; color: var(--muted); text-align: left; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); transition: all .15s ease; }
   .status-chip:hover { transform: translateY(-1px); border-color: var(--line-2); }
   .status-chip b { font-size: 13px; font-family: 'Cascadia Code', Consolas, monospace; }
-  .status-chip small { font-size: 12px; }
+  .status-chip small { font-size: 13px; }
   :global(.status-chip.tone-ok b) { color: #3ecf8e; }
   :global(.status-chip.tone-info b) { color: #4cc2ff; }
   :global(.status-chip.tone-redirect b) { color: #e8b45a; }
@@ -784,5 +784,5 @@ const MIME_TYPES: Array<[string, string]> = [
   .mime-chip { display: flex; flex-direction: column; gap: 2px; padding: 8px 11px; cursor: pointer; color: var(--muted); text-align: left; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); transition: all .15s ease; }
   .mime-chip:hover { transform: translateY(-1px); border-color: var(--line-2); }
   .mime-chip b { color: var(--text); font-size: 13.5px; font-family: 'Cascadia Code', Consolas, monospace; }
-  .mime-chip small { font-size: 12px; }
+  .mime-chip small { font-size: 13px; }
 </style>

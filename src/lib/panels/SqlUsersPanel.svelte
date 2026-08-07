@@ -328,17 +328,17 @@
   .sql-user-id b { font-size: 13px; }
   .sql-user-id small { color: var(--muted); font: 500 12.5px 'Cascadia Code', monospace; }
   .sql-user-attrs { display: flex; gap: 5px; flex-wrap: wrap; }
-  .sql-user-attrs em { padding: 2px 7px; color: var(--muted); font-size: 12px; font-style: normal; border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); }
+  .sql-user-attrs em { padding: 2px 7px; color: var(--muted); font-size: 13px; font-style: normal; border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); }
   .sql-user-actions { display: flex; gap: 6px; margin-left: auto; }
   .sql-user-panel { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-top: 1px solid var(--line); background: var(--panel-2); }
   .sql-user-panel label { display: flex; flex-direction: column; gap: 4px; min-width: 220px; flex: 1; }
-  .sql-user-panel label span { color: var(--muted); font-size: 12.5px; }
+  .sql-user-panel label span { color: var(--muted); font-size: 13px; }
   .sql-user-panel.grants { flex-direction: column; align-items: stretch; }
   .sql-grants-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .sql-grants-head b { font-size: 13px; }
   .sql-grants-head select { height: 30px; padding: 0 8px; color: var(--text); font-size: 13.5px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--panel); outline: 0; }
   .sql-privs { display: flex; gap: 4px 10px; flex-wrap: wrap; }
-  .sql-privs label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12.5px; flex: 0 0 auto; min-width: 0; }
+  .sql-privs label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 13px; flex: 0 0 auto; min-width: 0; }
   .sql-privs input { width: auto; }
   .sql-grants-msg { color: var(--accent); font-size: 13px; }
   .sql-grants-lines { display: flex; flex-direction: column; gap: 3px; max-height: 220px; overflow: auto; }
@@ -346,7 +346,7 @@
   .sql-user-create { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; padding: 12px; border: 1px dashed var(--line-2); border-radius: 11px; background: var(--panel-2); }
   .sql-user-create > b { width: 100%; font-size: 13px; }
   .sql-user-create label { display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1; }
-  .sql-user-create label span { color: var(--muted); font-size: 12.5px; }
+  .sql-user-create label span { color: var(--muted); font-size: 13px; }
   .sql-user-create .sql-secret { display: flex; align-items: center; gap: 6px; }
   .sql-user-panel .sql-secret { display: flex; align-items: center; gap: 6px; }
   .sql-user-create input[type='text'], .sql-user-create input[type='password'], .sql-user-panel input[type='text'], .sql-user-panel input[type='password'] { height: 32px; padding: 0 10px; color: var(--text); font-size: 13.5px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); outline: 0; }
