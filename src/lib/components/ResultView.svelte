@@ -302,74 +302,74 @@
   .result-view.tree-mode { padding: 0; display: flex; flex-direction: column; }
   .result-view.tree-mode :global(.json-tree) { flex: 1; min-height: 100%; }
   .result-view > pre { width: 100%; min-height: 100%; margin: 0; color: var(--text); font: 450 14px/1.72 'Cascadia Code', Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
-  .result-view > pre.plain { font-family: inherit; font-size: 15px; }
+  .result-view > pre.plain { font-family: inherit; font-size: var(--fs-lg); }
   small { color: var(--muted); }
   .time-hero { padding: 23px; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 12px; background: linear-gradient(135deg, var(--accent-soft), transparent); }
-  .time-hero small { display: block; margin-bottom: 8px; font-size: 13px; }
+  .time-hero small { display: block; margin-bottom: 8px; font-size: var(--fs-xs); }
   .time-hero strong { display: block; font: 650 26px/1.25 'Cascadia Code', Consolas, monospace; letter-spacing: -.8px; }
-  .time-hero span { display: inline-flex; margin-top: 12px; padding: 4px 8px; color: var(--accent); font-size: 13px; border-radius: 5px; background: var(--accent-soft); }
+  .time-hero span { display: inline-flex; margin-top: 12px; padding: 4px 8px; color: var(--accent); font-size: var(--fs-xs); border-radius: 5px; background: var(--accent-soft); }
   .value-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
   .value-grid article { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
-  .value-grid small { display: block; font-size: 13px; }
+  .value-grid small { display: block; font-size: var(--fs-xs); }
   .value-grid b { overflow-wrap: anywhere; font: 550 13px/1.55 'Cascadia Code', monospace; }
   .time-grid article:first-child { grid-column: 1 / -1; }
-  .copy-btn { align-self: flex-start; height: 24px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 5px; background: transparent; }
+  .copy-btn { align-self: flex-start; height: 24px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 5px; background: transparent; }
   .copy-btn:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
   .copy-btn.block { display: block; margin-top: 10.5px; }
   .jwt-overview { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
-  .jwt-overview > span { padding: 4px 8px; color: var(--blue); font-size: 13px; border-radius: 5px; background: color-mix(in srgb, var(--blue) 10%, transparent); }
+  .jwt-overview > span { padding: 4px 8px; color: var(--blue); font-size: var(--fs-xs); border-radius: 5px; background: color-mix(in srgb, var(--blue) 10%, transparent); }
   .jwt-overview > span.good { color: var(--accent); background: var(--accent-soft); }
   .jwt-overview > span.bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
   .jwt-overview b { font: 600 13px 'Cascadia Code', monospace; }
-  .jwt-overview small { margin-left: auto; font-size: 13px; }
+  .jwt-overview small { margin-left: auto; font-size: var(--fs-xs); }
   .jwt-sections { display: grid; grid-template-columns: minmax(190px, .72fr) minmax(260px, 1.28fr); gap: 10px; }
   .jwt-sections article { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
   .jwt-sections header { display: flex; align-items: center; justify-content: space-between; padding: 10.5px 11px; border-bottom: 1px solid var(--line); }
   .jwt-sections header span { color: var(--accent); font: 650 12px 'Cascadia Code', monospace; }
-  .jwt-sections header small { font-size: 13.5px; }
+  .jwt-sections header small { font-size: var(--fs-sm); }
   .jwt-sections pre { max-height: 310px; margin: 0; padding: 13px; overflow: auto; color: var(--text); font: 450 13px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
   .raw-details { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
-  .raw-details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
-  .raw-details code { display: block; margin-top: 10.5px; overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; }
+  .raw-details summary { cursor: pointer; color: var(--muted); font-size: var(--fs-xs); }
+  .raw-details code { display: block; margin-top: 10.5px; overflow-wrap: anywhere; font-size: var(--fs-xs); line-height: 1.6; }
   .raw-details pre { margin: 10.5px 0 0; padding: 11px; overflow: auto; font: 450 13px/1.6 'Cascadia Code', monospace; border-radius: 6px; background: var(--bg); }
   .http-overview { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .http-overview > span { width: 50px; height: 42px; display: grid; place-items: center; flex: 0 0 auto; color: var(--blue); font: 700 16px 'Cascadia Code', monospace; border-radius: 7px; background: color-mix(in srgb, var(--blue) 10%, transparent); }
   .http-overview > span.good { color: var(--accent); background: var(--accent-soft); }.http-overview > span.bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
-  .http-overview > div { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 4px; }.http-overview > div b { font-size: 13px; }.http-overview > div small { overflow: hidden; font: 12px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
-  .http-overview aside { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }.http-overview aside b { color: var(--accent); font: 600 13px 'Cascadia Code', monospace; }.http-overview aside small { font-size: 13.5px; }
+  .http-overview > div { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 4px; }.http-overview > div b { font-size: var(--fs-xs); }.http-overview > div small { overflow: hidden; font: 12px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
+  .http-overview aside { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }.http-overview aside b { color: var(--accent); font: 600 13px 'Cascadia Code', monospace; }.http-overview aside small { font-size: var(--fs-sm); }
   .http-response { overflow: hidden; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
-  .http-response > header { display: flex; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line); }.http-response header span { font-size: 13px; font-weight: 700; }.http-response header small { font-size: 13.5px; }
+  .http-response > header { display: flex; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line); }.http-response header span { font-size: var(--fs-xs); font-weight: 700; }.http-response header small { font-size: var(--fs-sm); }
   .http-response > pre { max-height: 430px; margin: 0; padding: 15px; overflow: auto; color: var(--text); font: 450 13px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; word-break: break-word; }
   .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   .stats-grid article { min-height: 94px; display: flex; flex-direction: column; justify-content: center; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .stats-grid strong { color: var(--accent); font: 650 24px 'Cascadia Code', monospace; }
-  .stats-grid span { margin-top: 7px; color: var(--muted); font-size: 13px; }
+  .stats-grid span { margin-top: 7px; color: var(--muted); font-size: var(--fs-xs); }
   .match-list, .result-list { display: flex; flex-direction: column; gap: 8px; }
   .match-list article, .result-list article { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
   .match-index, .result-list article > span { flex: 0 0 auto; color: var(--accent); font: 600 12px 'Cascadia Code', monospace; }
   .match-list code, .result-list code { min-width: 0; flex: 1; overflow-wrap: anywhere; color: var(--text); font: 500 13px/1.55 'Cascadia Code', monospace; }
-  .match-list article > small { flex: 0 0 auto; font-size: 13.5px; }
+  .match-list article > small { flex: 0 0 auto; font-size: var(--fs-sm); }
   .match-list pre { width: 100%; margin: 8px 0 0; padding: 8px; font: 13px/1.5 'Cascadia Code', monospace; border-radius: 5px; background: var(--bg); }
   .hash-card { overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
   .hash-card > div { display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid var(--line); }
   .hash-card > div small { color: var(--accent); font: 650 13px 'Cascadia Code', monospace; }
-  .hash-card > div span { color: var(--muted); font-size: 13px; }
+  .hash-card > div span { color: var(--muted); font-size: var(--fs-xs); }
   .hash-card > code { display: block; padding: 22px; overflow-wrap: anywhere; color: var(--text); font: 550 15px/1.8 'Cascadia Code', monospace; letter-spacing: .4px; }
   .hash-copy { padding: 10px 15px; border-top: 1px solid var(--line); }
   .structured-empty { min-height: 180px; display: grid; place-content: center; justify-items: center; gap: 6px; color: var(--muted); text-align: center; border: 1px dashed var(--line-2); border-radius: 10px; }
-  .structured-empty > span { color: var(--accent); font-size: 28px; }.structured-empty b { color: var(--text); font-size: 13px; }.structured-empty small { font-size: 13px; }
+  .structured-empty > span { color: var(--accent); font-size: 28px; }.structured-empty b { color: var(--text); font-size: var(--fs-xs); }.structured-empty small { font-size: var(--fs-xs); }
 
   .sql-view { display: flex; flex-direction: column; gap: 12px; min-height: 100%; }
   .sql-bar { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .sql-bar > span { padding: 3px 8px; color: var(--blue); font: 700 12.5px 'Cascadia Code', monospace; letter-spacing: .5px; border-radius: 5px; background: color-mix(in srgb, var(--blue) 12%, transparent); }
   .sql-bar > span.write { color: var(--accent); background: var(--accent-soft); }
-  .sql-bar b { font-size: 13px; }
+  .sql-bar b { font-size: var(--fs-xs); }
   .sql-bar small { font: 500 12px 'Cascadia Code', monospace; }
   .sql-bar .copy-btn { margin-left: auto; }
-  .sql-truncated { padding: 3px 8px; color: var(--warn); font-size: 13.5px; font-style: normal; border-radius: 5px; background: var(--warn-soft); }
+  .sql-truncated { padding: 3px 8px; color: var(--warn); font-size: var(--fs-sm); font-style: normal; border-radius: 5px; background: var(--warn-soft); }
   .sql-table-wrap { max-height: 540px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .sql-table { width: 100%; border-collapse: collapse; font: 450 13.5px/1.5 'Cascadia Code', monospace; }
-  .sql-table th { position: sticky; top: 0; z-index: 1; padding: 10.5px 12px; text-align: left; color: var(--accent); font-size: 13px; font-weight: 650; white-space: nowrap; border-bottom: 1px solid var(--line); background: var(--panel-2); }
+  .sql-table th { position: sticky; top: 0; z-index: 1; padding: 10.5px 12px; text-align: left; color: var(--accent); font-size: var(--fs-xs); font-weight: 650; white-space: nowrap; border-bottom: 1px solid var(--line); background: var(--panel-2); }
   .sql-table td { max-width: 340px; padding: 8px 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--line); }
   .sql-table tbody tr:last-child td { border-bottom: 0; }
   .sql-table tbody tr:hover td { background: var(--hover); }
@@ -380,20 +380,20 @@
   .log-view { display: flex; flex-direction: column; gap: 12px; min-height: 100%; }
   .log-overview { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .log-format { padding: 3px 8px; color: var(--blue); font: 700 12.5px 'Cascadia Code', monospace; border-radius: 5px; background: color-mix(in srgb, var(--blue) 12%, transparent); }
-  .log-overview b { font-size: 13px; }
-  .log-errors { padding: 3px 8px; color: var(--danger); font-size: 13.5px; font-style: normal; border-radius: 5px; background: color-mix(in srgb, var(--danger) 12%, transparent); }
+  .log-overview b { font-size: var(--fs-xs); }
+  .log-errors { padding: 3px 8px; color: var(--danger); font-size: var(--fs-sm); font-style: normal; border-radius: 5px; background: color-mix(in srgb, var(--danger) 12%, transparent); }
   .log-overview .copy-btn { margin-left: auto; }
   .log-root-cause { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--danger) 6%, var(--panel)); }
   .log-root-cause > span { flex: 0 0 auto; padding: 3px 7px; color: var(--danger); font: 700 12.5px 'Cascadia Code', monospace; border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); border-radius: 5px; }
   .log-root-cause code { min-width: 0; flex: 1; overflow-wrap: anywhere; color: var(--text); font: 500 13.5px/1.6 'Cascadia Code', monospace; }
   .log-filters { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-  .log-filters button { height: 25px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 6px; background: transparent; }
+  .log-filters button { height: 25px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 6px; background: transparent; }
   .log-filters button span { color: var(--muted-2); font: 500 12px 'Cascadia Code', monospace; }
   .log-filters button.active { color: var(--text); border-color: var(--line-2); background: var(--hover); }
   :global(.log-filters button.lvl-error.active), :global(.log-filters button.lvl-fatal.active) { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); background: color-mix(in srgb, var(--danger) 9%, transparent); }
   :global(.log-filters button.lvl-warn.active) { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); background: var(--warn-soft); }
   :global(.log-filters button.lvl-info.active) { color: var(--blue); border-color: color-mix(in srgb, var(--blue) 45%, var(--line)); background: color-mix(in srgb, var(--blue) 9%, transparent); }
-  .log-filters .log-search { min-width: 160px; height: 25px; flex: 1; padding: 0 10.5px; color: var(--text); font-size: 13.5px; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--panel); }
+  .log-filters .log-search { min-width: 160px; height: 25px; flex: 1; padding: 0 10.5px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--panel); }
   .log-filters .log-search:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
   .log-list { display: flex; flex-direction: column; gap: 7px; }
   .log-entry { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); align-items: baseline; gap: 4px 10.5px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
@@ -408,7 +408,7 @@
   .log-source { min-width: 0; overflow: hidden; color: var(--muted); font: 450 13px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .log-entry p { min-width: 0; grid-column: 1 / -1; margin: 2px 0 0; color: var(--text); font: 450 13.5px/1.6 'Cascadia Code', monospace; overflow-wrap: anywhere; white-space: pre-wrap; }
   .log-stack { grid-column: 1 / -1; margin-top: 4px; padding-top: 7px; border-top: 1px dashed var(--line); }
-  .log-stack summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .log-stack summary { cursor: pointer; color: var(--muted); font-size: var(--fs-xs); }
   .log-stack pre { margin: 7px 0 0; padding: 10px; overflow: auto; color: var(--muted); font: 450 13.5px/1.6 'Cascadia Code', monospace; white-space: pre-wrap; border-radius: 7px; background: var(--bg); }
   :global(.log-stack .stack-cause) { color: var(--danger); font-weight: 650; }
   :global(.log-stack .stack-error) { color: var(--danger); }

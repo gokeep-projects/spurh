@@ -255,21 +255,21 @@
 
   .cron-config { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
   .cron-sec-title { display: flex; align-items: baseline; gap: 8px; }
-  .cron-sec-title b { color: var(--muted); font-size: 13px; letter-spacing: 1.5px; }
-  .cron-sec-title small { color: var(--muted-2); font-size: 13px; }
+  .cron-sec-title b { color: var(--muted); font-size: var(--fs-xs); letter-spacing: 1.5px; }
+  .cron-sec-title small { color: var(--muted-2); font-size: var(--fs-xs); }
 
   .cron-types { display: flex; flex-direction: column; gap: 7px; padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .cron-type-group { display: flex; align-items: center; gap: 10px; }
-  .cron-type-group > small { flex: 0 0 auto; width: 50px; color: var(--muted-2); font-size: 13px; }
+  .cron-type-group > small { flex: 0 0 auto; width: 50px; color: var(--muted-2); font-size: var(--fs-xs); }
   .cron-type-btns { display: flex; gap: 5px; flex-wrap: wrap; }
-  .cron-type-btns button { height: 30px; min-width: 44px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
+  .cron-type-btns button { height: 30px; min-width: 44px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
   .cron-type-btns button:hover { color: var(--text); background: var(--hover); border-color: var(--line-2); }
   .cron-type-btns button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 22%, transparent); }
 
   .cron-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .cron-controls label { display: flex; align-items: center; gap: 6px; }
-  .cron-controls label > span { color: var(--muted); font-size: 13px; white-space: nowrap; }
-  .cron-controls select { height: 30px; padding: 0 8px; color: var(--text); font-size: 13px; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--bg); }
+  .cron-controls label > span { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; }
+  .cron-controls select { height: 30px; padding: 0 8px; color: var(--text); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--bg); }
   .cron-controls select:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
   .cron-controls select.clock { width: 56px; text-align: center; }
   .cron-controls .colon { color: var(--muted-2); font-style: normal; }
@@ -278,35 +278,35 @@
   .cron-controls .custom-expr input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
 
   .weekday-chips { display: flex; gap: 4px; }
-  .weekday-chips button { width: 28px; height: 28px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 50%; background: transparent; transition: all .15s ease; }
+  .weekday-chips button { width: 28px; height: 28px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 50%; background: transparent; transition: all .15s ease; }
   .weekday-chips button:hover { color: var(--text); border-color: var(--line-2); }
   .weekday-chips button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
 
   .cron-preview-panel { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
   .cron-preview { padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .cron-preview.error { border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
-  .preview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; color: var(--muted); font-size: 13px; letter-spacing: 1.5px; }
-  .preview-head button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: 13px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 6px; background: var(--accent-soft); }
+  .preview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; color: var(--muted); font-size: var(--fs-xs); letter-spacing: 1.5px; }
+  .preview-head button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 6px; background: var(--accent-soft); }
   .cron-preview code { display: block; padding: 8px 10px; color: var(--accent); font: 600 13px 'Cascadia Code', monospace; word-break: break-all; border: 1px dashed var(--line-2); border-radius: 7px; background: var(--bg); }
-  .preview-explain { margin: 8px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.6; }
-  .preview-error { margin: 0; color: var(--danger); font-size: 13px; }
-  .preview-empty { margin: 0; color: var(--muted-2); font-size: 13px; }
+  .preview-explain { margin: 8px 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.6; }
+  .preview-error { margin: 0; color: var(--danger); font-size: var(--fs-xs); }
+  .preview-empty { margin: 0; color: var(--muted-2); font-size: var(--fs-xs); }
   .preview-runs { display: flex; flex-wrap: wrap; gap: 5px; }
-  .preview-runs span { padding: 4px 8px; color: var(--text); font-size: 13px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  .preview-runs span { padding: 4px 8px; color: var(--text); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 
   .cron-actions { display: flex; gap: 4px; align-items: center; }
-  .cron-actions button { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 6px; background: transparent; }
+  .cron-actions button { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 6px; background: transparent; }
   .cron-actions button.primary { color: #fff; background: var(--btn-gradient); border-color: transparent; }
   .cron-actions button.primary.active { box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .cron-actions button.active:not(.primary) { color: var(--text); background: var(--panel-2); border-color: var(--line-2); }
   .cron-actions button:hover { background: var(--hover); }
   .cron-actions button.primary:hover { filter: brightness(1.08); }
-  .cron-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid transparent; border-radius: 6px; background: transparent; }
+  .cron-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid transparent; border-radius: 6px; background: transparent; }
   .cron-clear:hover { color: var(--text); border-color: var(--line); }
   .control-spacer { flex: 1; }
   .cron-examples { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 0 2px; }
-  .cron-examples > span { color: var(--muted-2); font-size: 13px; }
-  .cron-examples button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px dashed var(--line-2); border-radius: 12px; background: transparent; white-space: nowrap; }
+  .cron-examples > span { color: var(--muted-2); font-size: var(--fs-xs); }
+  .cron-examples button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px dashed var(--line-2); border-radius: 12px; background: transparent; white-space: nowrap; }
   .cron-examples button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
   .cron-examples button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
 </style>

@@ -298,16 +298,16 @@
 <style>
   .json-tree { height: 100%; display: flex; flex-direction: column; background: var(--panel-2); }
   .jv-toolbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); }
-  .jv-count { color: var(--muted-2); font-size: 13px; }
+  .jv-count { color: var(--muted-2); font-size: var(--fs-xs); }
   .jv-tools { display: flex; gap: 2px; }
-  .jv-tools button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 13px; border: 0; border-radius: 4px; background: transparent; }
+  .jv-tools button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 0; border-radius: 4px; background: transparent; }
   .jv-tools button:hover { color: var(--accent); background: var(--hover); }
   .jv-tools button.copied { color: var(--accent); }
   .jv-search { display: flex; align-items: center; gap: 3px; margin-left: auto; margin-right: 8px; }
-  .jv-search input { width: 150px; height: 22px; padding: 0 8px; color: var(--text); font-size: 13.5px; border: 1px solid var(--line); border-radius: 5px; outline: 0; background: var(--bg); }
+  .jv-search input { width: 150px; height: 22px; padding: 0 8px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line); border-radius: 5px; outline: 0; background: var(--bg); }
   .jv-search input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
   .jv-search input::placeholder { color: var(--muted-2); }
-  .jv-search button { height: 22px; min-width: 22px; padding: 0 6px; cursor: pointer; color: var(--muted); font-size: 13.5px; border: 0; border-radius: 4px; background: transparent; }
+  .jv-search button { height: 22px; min-width: 22px; padding: 0 6px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 0; border-radius: 4px; background: transparent; }
   .jv-search button:hover { color: var(--accent); background: var(--hover); }
   .jv-search-count { color: var(--accent); font: 500 9.6px 'Cascadia Code', monospace; white-space: nowrap; }
   .jv-row.match { background: color-mix(in srgb, var(--warn) 16%, transparent); }
@@ -330,8 +330,8 @@
   :global(.app.light) .jv-null { color: #6b7681; }
   .jv-colon { color: var(--muted-2); }
   .jv-bracket { color: var(--muted-2); }
-  .jv-ellipsis { color: var(--muted); font-style: italic; margin: 0 5px; font-size: 13px; }
-  .jv-preview { margin-left: 8px; color: var(--muted-2); font-size: 13px; opacity: .8; }
-  .jv-len { color: var(--muted); font-size: 13.5px; font-style: normal; margin-left: 5px; }
+  .jv-ellipsis { color: var(--muted); font-style: italic; margin: 0 5px; font-size: var(--fs-xs); }
+  .jv-preview { margin-left: 8px; color: var(--muted-2); font-size: var(--fs-xs); opacity: .8; }
+  .jv-len { color: var(--muted); font-size: var(--fs-sm); font-style: normal; margin-left: 5px; }
   .jv-error { color: var(--danger); padding: 20px; display: block; }
 </style>

@@ -1760,9 +1760,9 @@
   .sql-bar-ico { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
   :global(.sql-bar-ico svg) { width: 15px; height: 15px; }
   .sql-bar-id > div { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  .sql-bar-id b { overflow: hidden; font-size: 15px; letter-spacing: -.2px; text-overflow: ellipsis; white-space: nowrap; }
+  .sql-bar-id b { overflow: hidden; font-size: var(--fs-lg); letter-spacing: -.2px; text-overflow: ellipsis; white-space: nowrap; }
   .sql-bar-id small { overflow: hidden; color: var(--muted); font: 500 10.4px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
-  .sql-bar-status { display: flex; align-items: center; gap: 7px; padding: 5px 11px; color: var(--muted); font-size: 10.9px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); white-space: nowrap; }
+  .sql-bar-status { display: flex; align-items: center; gap: 7px; padding: 5px 11px; color: var(--muted); font-size: var(--fs-tiny); border: 1px solid var(--line); border-radius: 999px; background: var(--bg); white-space: nowrap; }
   .sql-bar-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-2); }
   .sql-bar-status.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); background: var(--accent-soft); }
   .sql-bar-status.on i { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
@@ -1771,7 +1771,7 @@
   .sql-bar-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 
   /* ── 按钮 ── */
-  .sql-btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; cursor: pointer; font-size: 13.5px; border-radius: 7px; white-space: nowrap; transition: all .15s ease; }
+  .sql-btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; cursor: pointer; font-size: var(--fs-sm); border-radius: 7px; white-space: nowrap; transition: all .15s ease; }
   :global(.sql-btn svg) { width: 12px; height: 12px; }
   .sql-btn.ghost { color: var(--muted); border: 1px solid var(--line); background: var(--bg); }
   .sql-btn.ghost:hover:not(:disabled) { color: var(--text); border-color: var(--line-2); background: var(--hover); }
@@ -1779,13 +1779,13 @@
   .sql-btn.primary { color: #fff; font-weight: 700; border: 0; background: var(--btn-gradient); box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 22%, transparent); }
   .sql-btn.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 7px 18px color-mix(in srgb, var(--accent) 32%, transparent); }
   .sql-btn:disabled { cursor: default; opacity: .4; }
-  .sql-btn.big { height: 34px; padding: 0 18px; font-size: 13.5px; }
+  .sql-btn.big { height: 34px; padding: 0 18px; font-size: var(--fs-sm); }
   .sql-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
 
   /* ── 主体布局 ── */
   .sql-body { min-width: 0; min-height: 0; flex: 1; display: grid; grid-template-columns: 252px minmax(0, 1fr); }
   .sql-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); }
-  .sql-side-head { height: 36px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 13px; color: var(--muted-2); font-size: 10.4px; font-weight: 700; letter-spacing: 1px; border-bottom: 1px solid var(--line); }
+  .sql-side-head { height: 36px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 13px; color: var(--muted-2); font-size: var(--fs-tiny); font-weight: 700; letter-spacing: 1px; border-bottom: 1px solid var(--line); }
   .sql-side-add { width: 22px; height: 22px; display: grid; place-items: center; cursor: pointer; color: var(--muted); border: 0; border-radius: 5px; background: transparent; }
   :global(.sql-side-add svg) { width: 12px; height: 12px; }
   .sql-side-add:hover { color: var(--accent); background: var(--hover); }
@@ -1801,7 +1801,7 @@
   .sql-conn-ico { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
   :global(.sql-conn-ico svg) { width: 13px; height: 13px; }
   .sql-conn-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
-  .sql-conn-copy b { overflow: hidden; font-size: 13.5px; text-overflow: ellipsis; white-space: nowrap; }
+  .sql-conn-copy b { overflow: hidden; font-size: var(--fs-sm); text-overflow: ellipsis; white-space: nowrap; }
   .sql-conn-copy small { overflow: hidden; color: var(--muted); font: 500 9.8px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .sql-conn-dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--muted-2); }
   .sql-conn-dot.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
@@ -1810,15 +1810,15 @@
   .sql-conn-ops button { width: 20px; height: 20px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); border: 0; border-radius: 5px; background: transparent; }
   :global(.sql-conn-ops button svg) { width: 11px; height: 11px; }
   .sql-conn-ops button:hover { color: var(--text); background: var(--panel-2); }
-  .sql-conn-ops button.confirm { color: #fff; background: var(--danger); font-size: 10.4px; }
-  .sql-conns-empty { padding: 16px 10px; color: var(--muted-2); font-size: 10.9px; line-height: 1.8; text-align: center; }
+  .sql-conn-ops button.confirm { color: #fff; background: var(--danger); font-size: var(--fs-tiny); }
+  .sql-conns-empty { padding: 16px 10px; color: var(--muted-2); font-size: var(--fs-tiny); line-height: 1.8; text-align: center; }
   .sql-quick-conns { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 4px 0 12px; }
   .sql-quick-conn { display: flex; align-items: center; gap: 10.5px; padding: 10.5px 13px; cursor: pointer; color: var(--text); text-align: left; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel-2); transition: border-color .15s ease, transform .12s ease, box-shadow .15s ease; }
   .sql-quick-conn:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 12%, transparent); transform: translateY(-1px); }
   .sql-quick-conn .sql-quick-copy { display: flex; flex-direction: column; gap: 2px; }
-  .sql-quick-conn b { font-size: 13.5px; }
-  .sql-quick-conn small { color: var(--muted-2); font-size: 9.8px; }
-  .sql-quick-conn i { color: var(--accent); font-size: 10.4px; font-style: normal; }
+  .sql-quick-conn b { font-size: var(--fs-sm); }
+  .sql-quick-conn small { color: var(--muted-2); font-size: var(--fs-tiny); }
+  .sql-quick-conn i { color: var(--accent); font-size: var(--fs-tiny); font-style: normal; }
 
   /* ── 库表树 ── */
   .sql-tree { min-height: 0; flex: 1; padding: 6px; overflow-y: auto; scrollbar-width: none; }
@@ -1829,26 +1829,26 @@
   .sql-db-row { width: 100%; height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 8px; cursor: pointer; text-align: left; color: var(--text); border: 0; border-radius: 6px; background: transparent; }
   .sql-ctx-backdrop { position: fixed; z-index: 40; inset: 0; background: transparent; }
   .sql-ctx { position: fixed; z-index: 41; width: 190px; display: flex; flex-direction: column; gap: 2px; padding: 6px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel-2); box-shadow: 0 16px 48px rgba(0, 0, 0, .5); animation: fade-in .1s ease-out; }
-  .sql-ctx > b { padding: 4px 8px 7px; overflow: hidden; color: var(--muted); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--line); }
-  .sql-ctx > button { height: 28px; padding: 0 10.5px; cursor: pointer; text-align: left; color: var(--text); font-size: 13px; border: 0; border-radius: 7px; background: transparent; transition: background .12s ease; }
+  .sql-ctx > b { padding: 4px 8px 7px; overflow: hidden; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  .sql-ctx > button { height: 28px; padding: 0 10.5px; cursor: pointer; text-align: left; color: var(--text); font-size: var(--fs-xs); border: 0; border-radius: 7px; background: transparent; transition: background .12s ease; }
   .sql-ctx > button:hover:not(:disabled) { background: var(--hover); }
   .sql-ctx > button:disabled { opacity: .45; cursor: default; }
-  .sql-ctx > small { padding: 5px 8px 2px; color: var(--accent); font-size: 13px; }
+  .sql-ctx > small { padding: 5px 8px 2px; color: var(--accent); font-size: var(--fs-xs); }
   .sql-ctx > small.err { color: var(--danger); }
   .sql-cell-menu { position: fixed; z-index: 41; width: 190px; display: flex; flex-direction: column; gap: 2px; padding: 6px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel-2); box-shadow: 0 16px 48px rgba(0, 0, 0, .5); animation: fade-in .1s ease-out; }
-  .sql-cell-menu b { padding: 4px 8px 7px; color: var(--muted); font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--line); }
-  .sql-cell-menu button { height: 28px; padding: 0 10.5px; cursor: pointer; text-align: left; color: var(--text); font-size: 13px; border: 0; border-radius: 7px; background: transparent; transition: background .12s ease; }
+  .sql-cell-menu b { padding: 4px 8px 7px; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border-bottom: 1px solid var(--line); }
+  .sql-cell-menu button { height: 28px; padding: 0 10.5px; cursor: pointer; text-align: left; color: var(--text); font-size: var(--fs-xs); border: 0; border-radius: 7px; background: transparent; transition: background .12s ease; }
   .sql-cell-menu button:hover { background: var(--hover); }
-  .sql-export-note { position: fixed; z-index: 42; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 14px; color: var(--accent); font-size: 13px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 36px rgba(0, 0, 0, .45); animation: fade-in .15s ease-out; }
+  .sql-export-note { position: fixed; z-index: 42; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 14px; color: var(--accent); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 36px rgba(0, 0, 0, .45); animation: fade-in .15s ease-out; }
   .sql-export-note.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
-  .sql-export-note button { width: 20px; height: 20px; cursor: pointer; color: var(--muted); font-size: 13px; border: 0; border-radius: 5px; background: transparent; }
+  .sql-export-note button { width: 20px; height: 20px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 0; border-radius: 5px; background: transparent; }
   .sql-export-note button:hover { color: var(--text); background: var(--hover); }
   .sql-db-row:hover { background: var(--hover); }
-  .chev { width: 12px; flex: 0 0 auto; color: var(--muted-2); font-size: 10.4px; transition: transform .15s ease; }
+  .chev { width: 12px; flex: 0 0 auto; color: var(--muted-2); font-size: var(--fs-tiny); transition: transform .15s ease; }
   .chev.open { transform: rotate(90deg); color: var(--muted); }
   .sql-db-ico { display: inline-flex; flex: 0 0 auto; color: var(--warn); }
   :global(.sql-db-ico svg) { width: 13px; height: 13px; }
-  .sql-db-row b { min-width: 0; flex: 1; overflow: hidden; font-size: 13.5px; text-overflow: ellipsis; white-space: nowrap; }
+  .sql-db-row b { min-width: 0; flex: 1; overflow: hidden; font-size: var(--fs-sm); text-overflow: ellipsis; white-space: nowrap; }
   .sql-db-row small { color: var(--muted-2); font: 500 9.8px 'Cascadia Code', monospace; }
   .sql-tables { display: flex; flex-direction: column; gap: 1px; padding: 1px 0 4px 18px; }
   .sql-table-row { width: 100%; height: 25px; display: flex; align-items: center; gap: 7px; padding: 0 8px; cursor: pointer; text-align: left; color: var(--muted); border: 1px solid transparent; border-radius: 6px; background: transparent; transition: all .13s ease; }
@@ -1858,51 +1858,51 @@
   :global(.tbl-ico svg) { width: 12px; height: 12px; }
   .tbl-ico.big { width: 26px; height: 26px; display: grid; place-items: center; color: var(--accent); border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
   :global(.tbl-ico.big svg) { width: 13px; height: 13px; }
-  .sql-table-row b { min-width: 0; flex: 1; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-  .sql-table-row em { padding: 1px 5px; color: var(--muted-2); font-size: 9.2px; font-style: normal; border: 1px solid var(--line); border-radius: 4px; }
-  .sql-tree-loading { padding: 14px 10px; color: var(--muted-2); font-size: 10.9px; text-align: center; }
+  .sql-table-row b { min-width: 0; flex: 1; overflow: hidden; font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
+  .sql-table-row em { padding: 1px 5px; color: var(--muted-2); font-size: var(--fs-tiny); font-style: normal; border: 1px solid var(--line); border-radius: 4px; }
+  .sql-tree-loading { padding: 14px 10px; color: var(--muted-2); font-size: var(--fs-tiny); text-align: center; }
 
   /* ── 主区 ── */
   .sql-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
   .sql-tabs { height: 40px; flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-tabs-group { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  .sql-tabs-group button { height: 24px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: 13.5px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
+  .sql-tabs-group button { height: 24px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
   .sql-tabs-group button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .sql-tabs-group button.active { color: #fff; font-weight: 700; background: var(--btn-gradient); box-shadow: 0 3px 10.5px color-mix(in srgb, var(--accent) 25%, transparent); }
   .sql-tabs-info { display: flex; align-items: center; gap: 10.5px; margin-left: auto; min-width: 0; }
-  .sql-tabs-info .sql-db-select { height: 27px; max-width: 190px; padding: 0 8px; color: var(--text); font-size: 13px; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--panel); }
+  .sql-tabs-info .sql-db-select { height: 27px; max-width: 190px; padding: 0 8px; color: var(--text); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--panel); }
   .sql-tabs-info .sql-ver { overflow: hidden; max-width: 220px; color: var(--muted); font: 500 9.8px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
-  .sql-tabs-info em { overflow: hidden; max-width: 200px; padding: 3px 8px; color: var(--accent); font-size: 10.4px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); border-radius: 5px; background: var(--accent-soft); }
+  .sql-tabs-info em { overflow: hidden; max-width: 200px; padding: 3px 8px; color: var(--accent); font-size: var(--fs-tiny); font-style: normal; text-overflow: ellipsis; white-space: nowrap; border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); border-radius: 5px; background: var(--accent-soft); }
 
   .sql-empty { flex: 1; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 20px; color: var(--muted); text-align: center; }
   .sql-empty.small { min-height: 260px; }
   .sql-empty-tile { width: 52px; height: 52px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 14px; background: var(--accent-soft); }
   :global(.sql-empty-tile svg) { width: 26px; height: 26px; }
-  .sql-empty b { color: var(--text); font-size: 15px; }
-  .sql-empty p { margin: 0; font-size: 13.5px; }
+  .sql-empty b { color: var(--text); font-size: var(--fs-lg); }
+  .sql-empty p { margin: 0; font-size: var(--fs-sm); }
   .sql-empty .sql-btn { margin-top: 6px; }
-  .sql-loading { flex: 1; display: grid; place-content: center; justify-items: center; gap: 10.5px; color: var(--muted); font-size: 13px; }
+  .sql-loading { flex: 1; display: grid; place-content: center; justify-items: center; gap: 10.5px; color: var(--muted); font-size: var(--fs-xs); }
 
-  .sql-error { display: flex; align-items: flex-start; gap: 8px; margin: 10.5px 12px 0; padding: 8px 12px; color: var(--danger); font-size: 13px; line-height: 1.5; border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
+  .sql-error { display: flex; align-items: flex-start; gap: 8px; margin: 10.5px 12px 0; padding: 8px 12px; color: var(--danger); font-size: var(--fs-xs); line-height: 1.5; border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
   .sql-error i { width: 6px; height: 6px; flex: 0 0 auto; margin-top: 4px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }
-  .sql-ok { display: flex; align-items: center; gap: 8px; margin: 10.5px 12px 0; padding: 7px 12px; color: var(--accent); font-size: 13px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
+  .sql-ok { display: flex; align-items: center; gap: 8px; margin: 10.5px 12px 0; padding: 7px 12px; color: var(--accent); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
   .sql-ok i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 
   /* ── 表数据视图 ── */
   .sql-data { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; }
   .sql-data-bar { min-height: 46px; flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-data-title { min-width: 0; display: flex; align-items: center; gap: 8px; }
-  .sql-data-title b { overflow: hidden; font-size: 13.8px; text-overflow: ellipsis; white-space: nowrap; }
-  .sql-data-title em { padding: 2px 6px; color: var(--muted); font-size: 9.8px; font-style: normal; border: 1px solid var(--line); border-radius: 4px; }
+  .sql-data-title b { overflow: hidden; font-size: var(--fs-sm); text-overflow: ellipsis; white-space: nowrap; }
+  .sql-data-title em { padding: 2px 6px; color: var(--muted); font-size: var(--fs-tiny); font-style: normal; border: 1px solid var(--line); border-radius: 4px; }
   .sql-data-title small { color: var(--muted-2); font: 500 10.4px 'Cascadia Code', monospace; white-space: nowrap; }
   .sql-data-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 
   .sql-grid-wrap { min-height: 0; flex: 1; overflow: auto; }
   .sql-grid { width: 100%; border-collapse: collapse; font: 450 13.6px/1.45 'Cascadia Code', monospace; }
   .sql-grid th { position: sticky; top: 0; z-index: 2; padding: 7px 10px; text-align: left; font-weight: 600; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--panel-2); white-space: nowrap; }
-  .sql-grid th .col-name { color: var(--text); font-size: 13px; }
-  .sql-grid th small { margin-left: 5px; color: var(--muted-2); font-size: 9.2px; font-weight: 400; }
-  .sql-grid th .pk { margin-left: 5px; padding: 1px 4px; color: var(--warn); font-size: 8.6px; font-style: normal; border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); border-radius: 3px; background: var(--warn-soft); }
+  .sql-grid th .col-name { color: var(--text); font-size: var(--fs-xs); }
+  .sql-grid th small { margin-left: 5px; color: var(--muted-2); font-size: var(--fs-tiny); font-weight: 400; }
+  .sql-grid th .pk { margin-left: 5px; padding: 1px 4px; color: var(--warn); font-size: var(--fs-tiny); font-style: normal; border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); border-radius: 3px; background: var(--warn-soft); }
   .sql-grid th.chk, .sql-grid td.chk { width: 34px; padding: 0 8px; text-align: center; }
   .sql-grid td { max-width: 260px; padding: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-grid tbody tr:hover td { background: var(--hover); }
@@ -1913,26 +1913,26 @@
   .sql-grid td.cell.null { color: var(--muted-2); font-style: italic; }
   .cell-view { width: 100%; height: 28px; display: block; padding: 0 10px; cursor: text; text-align: left; color: inherit; border: 0; background: transparent; }
   .cell-view:hover { color: var(--accent); }
-  .null-tag { color: var(--muted-2); font-style: italic; font-size: 10.9px; }
+  .null-tag { color: var(--muted-2); font-style: italic; font-size: var(--fs-tiny); }
   .cell-edit { position: relative; display: flex; align-items: center; }
   .cell-edit input { width: 100%; height: 28px; padding: 0 52px 0 10px; color: var(--text); font: 450 12.6px 'Cascadia Code', monospace; border: 0; outline: 0; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); box-shadow: inset 0 0 0 2px var(--accent); }
   .cell-null { position: absolute; right: 4px; height: 19px; padding: 0 6px; cursor: pointer; color: var(--muted); font: 600 9.2px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); }
   .cell-null:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
-  .badge-new { display: inline-block; padding: 1px 5px; color: #fff; font-size: 8.6px; border-radius: 3px; background: linear-gradient(135deg, var(--blue), var(--accent)); }
+  .badge-new { display: inline-block; padding: 1px 5px; color: #fff; font-size: var(--fs-tiny); border-radius: 3px; background: linear-gradient(135deg, var(--blue), var(--accent)); }
   .sql-grid td.idx, .sql-grid th.idx { width: 42px; padding: 0 8px; color: var(--muted-2); text-align: right; }
-  .sql-grid td.grid-empty { padding: 22px 14px; color: var(--muted-2); font-size: 13px; text-align: center; }
+  .sql-grid td.grid-empty { padding: 22px 14px; color: var(--muted-2); font-size: var(--fs-xs); text-align: center; }
   .sql-grid.readonly td { cursor: default; }
   .sql-grid.readonly td.cell { padding: 0 10px; height: 28px; line-height: 28px; }
 
   .sql-pager { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 12px; border-top: 1px solid var(--line); background: var(--panel); }
   .sql-pager > span { color: var(--muted); font: 500 10.4px 'Cascadia Code', monospace; }
   .sql-pager > div { display: flex; align-items: center; gap: 8px; }
-  .sql-pager button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 10.9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  .sql-pager button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-tiny); border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
   .sql-pager button:hover:not(:disabled) { color: var(--text); border-color: var(--line-2); }
   .sql-pager button:disabled { cursor: default; opacity: .35; }
-  .sql-pager span { color: var(--muted); font-size: 10.9px; }
-  .sql-pager .sql-page-size { height: 24px; padding: 0 6px; color: var(--muted); font-size: 10.4px; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--bg); cursor: pointer; }
-  .sql-filter { width: 180px; height: 25px; padding: 0 10.5px; color: var(--text); font-size: 13px; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
+  .sql-pager span { color: var(--muted); font-size: var(--fs-tiny); }
+  .sql-pager .sql-page-size { height: 24px; padding: 0 6px; color: var(--muted); font-size: var(--fs-tiny); border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--bg); cursor: pointer; }
+  .sql-filter { width: 180px; height: 25px; padding: 0 10.5px; color: var(--text); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .sql-filter:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .sql-filter::placeholder { color: var(--muted-2); }
   .sql-where { display: flex; align-items: center; gap: 5px; height: 25px; padding: 0 4px 0 0; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
@@ -1941,40 +1941,40 @@
   .sql-where-tag { height: 100%; display: grid; place-items: center; padding: 0 6px; color: var(--muted-2); font: 600 9.6px 'Cascadia Code', monospace; border-right: 1px solid var(--line); background: var(--panel-2); border-radius: 6px 0 0 6px; }
   .sql-where input { min-width: 150px; width: 150px; color: var(--text); font: 500 10.6px 'Cascadia Code', monospace; border: 0; outline: 0; background: transparent; }
   .sql-where input::placeholder { color: var(--muted-2); }
-  .sql-where-clear { width: 18px; height: 18px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); font-size: 13px; border: 0; border-radius: 4px; background: transparent; }
+  .sql-where-clear { width: 18px; height: 18px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); font-size: var(--fs-xs); border: 0; border-radius: 4px; background: transparent; }
   .sql-where-clear:hover { color: var(--danger); background: var(--hover); }
   .sql-result-pager { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 7px 12px; border-top: 1px solid var(--line); background: var(--panel); }
-  .sql-result-pager button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: 10.9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  .sql-result-pager button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-tiny); border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
   .sql-result-pager button:hover:not(:disabled) { color: var(--text); border-color: var(--line-2); }
   .sql-result-pager button:disabled { cursor: default; opacity: .35; }
   .sql-result-pager span { color: var(--muted); font: 500 10.4px 'Cascadia Code', monospace; }
-  .sql-filter-hint { padding: 2px 8px; color: var(--blue); font-size: 10.2px; font-style: normal; border: 1px solid color-mix(in srgb, var(--blue) 35%, var(--line)); border-radius: 5px; background: color-mix(in srgb, var(--blue) 8%, transparent); }
+  .sql-filter-hint { padding: 2px 8px; color: var(--blue); font-size: var(--fs-tiny); font-style: normal; border: 1px solid color-mix(in srgb, var(--blue) 35%, var(--line)); border-radius: 5px; background: color-mix(in srgb, var(--blue) 8%, transparent); }
   .cell-view.read { cursor: default; }
   .cell-view.read:hover { color: inherit; }
   .sql-history-wrap { position: relative; }
   .sql-history { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 360px; max-height: 260px; padding: 5px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
-  .sql-history button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; color: var(--text); font-size: 13px; text-align: left; border: 0; border-radius: 6px; background: transparent; }
+  .sql-history button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; color: var(--text); font-size: var(--fs-xs); text-align: left; border: 0; border-radius: 6px; background: transparent; }
   .sql-history button:hover { background: var(--hover); }
   .sql-history button span { flex: 0 0 auto; color: var(--muted-2); font: 500 9.6px 'Cascadia Code', monospace; }
   .sql-history button code { min-width: 0; overflow: hidden; color: var(--muted); font: 400 11.6px/1.5 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
-  .sql-history-empty { padding: 14px; color: var(--muted-2); font-size: 10.9px; text-align: center; }
+  .sql-history-empty { padding: 14px; color: var(--muted-2); font-size: var(--fs-tiny); text-align: center; }
   .sql-help-wrap { position: relative; }
   .sql-help { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 300px; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
-  .sql-help b { display: block; margin-bottom: 6px; color: var(--muted); font-size: 13px; letter-spacing: .5px; }
-  .sql-help span { display: flex; align-items: center; gap: 6px; padding: 3px 0; color: var(--text); font-size: 10.8px; }
+  .sql-help b { display: block; margin-bottom: 6px; color: var(--muted); font-size: var(--fs-xs); letter-spacing: .5px; }
+  .sql-help span { display: flex; align-items: center; gap: 6px; padding: 3px 0; color: var(--text); font-size: var(--fs-tiny); }
   .sql-help kbd { margin: 0; }
 
   .sql-ddl { flex: 0 0 auto; margin: 10.5px 12px 12px; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); overflow: hidden; }
-  .sql-ddl summary { padding: 8px 12px; cursor: pointer; color: var(--muted); font-size: 13.5px; user-select: none; }
+  .sql-ddl summary { padding: 8px 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); user-select: none; }
   .sql-ddl summary:hover { color: var(--text); }
   .sql-ddl pre { margin: 0; padding: 10px 12px; overflow: auto; color: var(--text); font: 450 13.1px/1.6 'Cascadia Code', monospace; border-top: 1px solid var(--line); background: var(--bg); white-space: pre-wrap; }
-  .sql-ddl-note { flex: 0 0 auto; margin: 10.5px 12px 12px; padding: 8px 12px; color: var(--muted-2); font-size: 10.9px; border: 1px dashed var(--line-2); border-radius: 8px; }
+  .sql-ddl-note { flex: 0 0 auto; margin: 10.5px 12px 12px; padding: 8px 12px; color: var(--muted-2); font-size: var(--fs-tiny); border: 1px dashed var(--line-2); border-radius: 8px; }
 
   /* ── SQL 编辑器 ── */
   .sql-editor { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; }
   .sql-editor-bar { min-height: 44px; flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-editor-bar kbd { margin: 0; }
-  .sql-editor-note { color: var(--muted-2); font-size: 10.4px; }
+  .sql-editor-note { color: var(--muted-2); font-size: var(--fs-tiny); }
   .flex-spacer { flex: 1; }
   .sql-editor-area { position: relative; min-height: 120px; flex: 0 0 auto; resize: vertical; overflow: hidden; border: 0; border-bottom: 1px solid var(--line); background: var(--bg); }
   .sql-editor-area pre.sql-editor-hl { position: absolute; inset: 0; z-index: 0; margin: 0; padding: 12px 14px; overflow: hidden; pointer-events: none; color: var(--text); font: 450 13.8px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; word-break: break-word; }
@@ -1987,7 +1987,7 @@
   :global(.sql-hl-number) { color: #ff9e64; }
   :global(.sql-hl-comment) { color: #565f89; font-style: italic; }
   .sql-completion { position: absolute; top: 6px; right: 10px; z-index: 30; width: 240px; max-height: 260px; padding: 5px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
-  .sql-completion small { display: block; padding: 4px 8px 5px; color: var(--muted-2); font-size: 9.2px; letter-spacing: .5px; }
+  .sql-completion small { display: block; padding: 4px 8px 5px; color: var(--muted-2); font-size: var(--fs-tiny); letter-spacing: .5px; }
   .sql-completion button { width: 100%; padding: 6px 8px; cursor: pointer; color: var(--text); text-align: left; border: 0; border-radius: 6px; background: transparent; }
   .sql-completion button:hover { background: var(--hover); }
   .sql-completion button.active { background: var(--accent-soft); }
@@ -1995,25 +1995,25 @@
   .sql-result-bar { flex: 0 0 auto; display: flex; align-items: center; gap: 10.5px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-result-chip { padding: 2px 7px; color: var(--blue); font: 700 9.8px 'Cascadia Code', monospace; border-radius: 4px; background: color-mix(in srgb, var(--blue) 12%, transparent); }
   .sql-result-chip.query { color: var(--accent); background: var(--accent-soft); }
-  .sql-result-bar b { font-size: 13.5px; }
+  .sql-result-bar b { font-size: var(--fs-sm); }
   .sql-result-bar small { color: var(--muted); font: 500 10.4px 'Cascadia Code', monospace; }
-  .sql-truncated { padding: 2px 7px; color: var(--warn); font-size: 10.4px; font-style: normal; border-radius: 4px; background: var(--warn-soft); }
+  .sql-truncated { padding: 2px 7px; color: var(--warn); font-size: var(--fs-tiny); font-style: normal; border-radius: 4px; background: var(--warn-soft); }
   .sql-result-grid { flex: 1; }
 
   /* ── 连接表单 ── */
   .sql-modal-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(2, 4, 6, .5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); animation: fade-in .14s ease-out; }
   .sql-modal { width: min(520px, 100%); max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel-2); box-shadow: 0 30px 90px rgba(0, 0, 0, .45); animation: palette-in .18s cubic-bezier(.2, .9, .3, 1.2); }
   .sql-modal > header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .sql-modal > header b { font-size: 15px; }
-  .sql-modal > header small { display: block; margin-top: 2px; color: var(--muted-2); font-size: 10.4px; }
+  .sql-modal > header b { font-size: var(--fs-lg); }
+  .sql-modal > header small { display: block; margin-top: 2px; color: var(--muted-2); font-size: var(--fs-tiny); }
   .sql-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; overflow-y: auto; }
   .sql-form .full { grid-column: 1 / -1; }
   .sql-form label, .sql-form > div { display: flex; flex-direction: column; gap: 6px; }
-  .sql-form label > span { color: var(--muted); font-size: 13.5px; }
+  .sql-form label > span { color: var(--muted); font-size: var(--fs-sm); }
   .sql-form input { height: 32px; padding: 0 11px; color: var(--text); font: 500 12.6px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .sql-form input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .sql-kind-chips { display: inline-flex; gap: 2px; align-self: flex-start; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  .sql-kind-chips button { height: 26px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: 13.5px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
+  .sql-kind-chips button { height: 26px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
   .sql-kind-chips button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .sql-kind-chips button.active { color: #fff; font-weight: 700; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .sql-secret { position: relative; display: flex; align-items: center; }
@@ -2022,7 +2022,7 @@
   :global(.sql-secret-toggle svg) { width: 13px; height: 13px; }
   .sql-secret-toggle:hover { color: var(--text); background: var(--hover); }
   .sql-modal > footer { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); }
-  .sql-form-hint { flex: 1; color: var(--muted-2); font-size: 10.4px; }
+  .sql-form-hint { flex: 1; color: var(--muted-2); font-size: var(--fs-tiny); }
   .sql-db-picker { display: flex; align-items: center; gap: 8px; }
   .sql-db-picker input { min-width: 0; flex: 1; }
   .sql-db-picker .sql-btn { flex: 0 0 auto; height: 32px; }
@@ -2030,7 +2030,7 @@
   .port-ssl input { width: 100%; }
   .ssl-inline { display: inline-flex; flex-direction: row; align-items: center; gap: 5px; white-space: nowrap; cursor: pointer; }
   .ssl-inline input { width: auto; }
-  .ssl-inline span { color: var(--muted); font-size: 13.5px; }
+  .ssl-inline span { color: var(--muted); font-size: var(--fs-sm); }
 
   @media (max-width: 900px) {
     .sql-body { grid-template-columns: 210px minmax(0, 1fr); }
@@ -2056,12 +2056,12 @@
   .sql-grid.design .dg-comment { min-width: 150px; }
   .sql-grid.design .dg-ops { width: 78px; white-space: nowrap; }
   .sql-grid.design td.dg-ops { padding: 0 6px; }
-  .sql-design-move, .sql-design-del { width: 22px; height: 22px; display: inline-grid; place-items: center; cursor: pointer; font-size: 13.5px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); transition: all .15s ease; }
+  .sql-design-move, .sql-design-del { width: 22px; height: 22px; display: inline-grid; place-items: center; cursor: pointer; font-size: var(--fs-sm); border: 1px solid var(--line); border-radius: 5px; background: var(--panel); transition: all .15s ease; }
   .sql-design-move { color: var(--muted); }
   .sql-design-move:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
   .sql-design-del { color: var(--danger); margin-left: 4px; }
   .sql-design-del:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
-  .sql-design-note { display: flex; align-items: center; gap: 8px; padding: 8px 11px; color: var(--muted-2); font-size: 10.4px; border: 1px dashed var(--line-2); border-radius: 7px; background: var(--panel); }
+  .sql-design-note { display: flex; align-items: center; gap: 8px; padding: 8px 11px; color: var(--muted-2); font-size: var(--fs-tiny); border: 1px dashed var(--line-2); border-radius: 7px; background: var(--panel); }
   .sql-design-note span { color: var(--muted); font-weight: 700; }
 
 </style>

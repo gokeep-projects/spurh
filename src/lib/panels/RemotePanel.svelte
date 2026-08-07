@@ -506,7 +506,7 @@
   .remote-panel { min-width: 0; min-height: 0; flex: 1; display: grid; grid-template-columns: 232px minmax(0, 1fr); overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
   .remote-side { min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); }
   .remote-side-head { height: 44px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 14px; border-bottom: 1px solid var(--line); }
-  .remote-side-head b { font-size: 13px; letter-spacing: .2px; }
+  .remote-side-head b { font-size: var(--fs-xs); letter-spacing: .2px; }
   .remote-add { width: 26px; height: 26px; display: grid; place-items: center; cursor: pointer; color: var(--muted); border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
   .remote-add span { display: inline-flex; }
   :global(.remote-add span svg) { width: 12px; height: 12px; }
@@ -514,7 +514,7 @@
   .remote-search { height: 32px; flex: 0 0 auto; display: flex; align-items: center; gap: 6px; margin: 8px 8px 0; padding: 0 10.5px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   :global(.remote-search svg) { width: 12px; height: 12px; color: var(--muted-2); }
   .remote-search:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .remote-search input { min-width: 0; flex: 1; color: var(--text); font-size: 13px; border: 0; outline: 0; background: transparent; }
+  .remote-search input { min-width: 0; flex: 1; color: var(--text); font-size: var(--fs-xs); border: 0; outline: 0; background: transparent; }
   .remote-search input::placeholder { color: var(--muted-2); }
   .remote-sessions { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; padding: 8px; overflow-y: auto; }
   .remote-session { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10.5px; padding: 7px 10.5px; cursor: pointer; text-align: left; color: var(--text); border: 1px solid transparent; border-radius: 10.5px; background: transparent; transition: background .15s ease, border-color .15s ease, box-shadow .15s ease; }
@@ -523,20 +523,20 @@
   .rs-icon { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   :global(.rs-icon svg) { width: 16px; height: 16px; }
   .rs-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
-  .rs-copy b { overflow: hidden; font-size: 13.5px; text-overflow: ellipsis; white-space: nowrap; }
+  .rs-copy b { overflow: hidden; font-size: var(--fs-sm); text-overflow: ellipsis; white-space: nowrap; }
   .rs-copy small { overflow: hidden; color: var(--muted); font: 500 12px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .rs-dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--muted-2); transition: background .2s ease, box-shadow .2s ease; }
   .rs-dot.connected { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   .rs-dot.busy { background: var(--blue); box-shadow: 0 0 8px var(--blue); animation: rem-pulse 1s ease-in-out infinite; }
   @keyframes rem-pulse { 50% { opacity: .35; } }
-  .rs-empty { padding: 26px 10px; color: var(--muted-2); font-size: 13px; line-height: 1.8; text-align: center; }
+  .rs-empty { padding: 26px 10px; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.8; text-align: center; }
   .remote-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
   .remote-toolbar { min-height: 54px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 8px 13px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .rt-identity { min-width: 0; display: flex; align-items: center; gap: 10px; }
   .rt-identity > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .rt-identity b { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+  .rt-identity b { overflow: hidden; font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
   .rt-identity small { color: var(--muted); font: 500 12.5px 'Cascadia Code', monospace; }
-  .rt-status { display: flex; align-items: center; gap: 7px; padding: 5px 10px; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .2s ease; }
+  .rt-status { display: flex; align-items: center; gap: 7px; padding: 5px 10px; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .2s ease; }
   .rt-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-2); }
   .rt-status.connected { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); background: var(--accent-soft); }
   .rt-status.connected i { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
@@ -545,84 +545,84 @@
   .rt-status.error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); background: color-mix(in srgb, var(--danger) 7%, transparent); }
   .rt-status.error i { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
   .rt-actions { display: flex; gap: 6px; margin-left: auto; }
-  .rt-connect { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: 13.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease; }
+  .rt-connect { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: var(--fs-sm); font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease; }
   .rt-connect:hover { transform: translateY(-1px); box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 30%, transparent); }
   .rt-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
-  .rt-quiet { height: 30px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
+  .rt-quiet { height: 30px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
   .rt-quiet:hover { color: var(--text); border-color: var(--line-2); background: var(--hover); }
   .rt-quiet.danger:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 6%, transparent); }
   .remote-tabs { flex: 0 0 auto; display: flex; gap: 4px; padding: 7px 10px 0; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .remote-tab { position: relative; height: 31px; display: flex; align-items: center; gap: 7px; padding: 0 8px 0 11px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 8px 8px 0 0; border-bottom: 0; background: var(--bg); transition: color .15s ease, background .15s ease; }
+  .remote-tab { position: relative; height: 31px; display: flex; align-items: center; gap: 7px; padding: 0 8px 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px 8px 0 0; border-bottom: 0; background: var(--bg); transition: color .15s ease, background .15s ease; }
   .remote-tab:hover { color: var(--text); }
   .remote-tab.active { color: var(--text); background: var(--panel-2); box-shadow: inset 0 2px 0 color-mix(in srgb, var(--accent) 85%, transparent); }
   .remote-tab i { width: 5px; height: 5px; border-radius: 50%; background: var(--muted-2); }
   .remote-tab i.connected { background: var(--accent); box-shadow: 0 0 7px var(--accent); }
   .remote-tab i.error { background: var(--danger); box-shadow: 0 0 7px var(--danger); }
   .remote-tab b { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
-  .tab-close { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; cursor: pointer; color: var(--muted-2); font-size: 13px; line-height: 1; border: 0; border-radius: 4px; background: transparent; }
+  .tab-close { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; cursor: pointer; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1; border: 0; border-radius: 4px; background: transparent; }
   .tab-close:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
   .remote-terminal { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; }
   .rt-empty { flex: 1; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--muted); text-align: center; }
   .rt-empty > span { width: 46px; height: 46px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 13px; background: var(--accent-soft); }
   :global(.rt-empty > span svg) { width: 22px; height: 22px; }
-  .rt-empty b { color: var(--text); font-size: 13.5px; }
-  .rt-empty p { margin: 0; font-size: 13px; }
+  .rt-empty b { color: var(--text); font-size: var(--fs-sm); }
+  .rt-empty p { margin: 0; font-size: var(--fs-xs); }
   .rt-empty.main > button { margin-top: 8px; }
   .remote-form { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: auto; }
   .remote-form > header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .remote-form > header b { font-size: 13.5px; }
+  .remote-form > header b { font-size: var(--fs-sm); }
   .form-close { width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; color: var(--muted); border: 0; border-radius: 7px; background: transparent; }
   .form-close:hover { color: var(--text); background: var(--hover); }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; padding: 18px; }
   .form-grid label { display: flex; flex-direction: column; gap: 6px; }
-  .form-grid label > span { color: var(--muted); font-size: 13px; }
+  .form-grid label > span { color: var(--muted); font-size: var(--fs-xs); }
   .form-grid input { height: 33px; padding: 0 11px; color: var(--text); font: 500 13px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .form-grid input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .form-grid .form-port input { max-width: 130px; }
   .form-grid .form-full { grid-column: 1 / -1; }
   .secret-wrap { position: relative; display: flex; align-items: center; }
   .secret-wrap input { width: 100%; padding-right: 34px; }
-  .secret-toggle { position: absolute; right: 5px; width: 24px; height: 24px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); font-size: 13px; border: 0; border-radius: 5px; background: transparent; }
+  .secret-toggle { position: absolute; right: 5px; width: 24px; height: 24px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); font-size: var(--fs-xs); border: 0; border-radius: 5px; background: transparent; }
   :global(.secret-toggle svg) { width: 13px; height: 13px; }
   .secret-toggle:hover { color: var(--text); background: var(--hover); }
   .form-auth { display: flex; flex-direction: column; gap: 6px; }
-  .form-auth > span { color: var(--muted); font-size: 13px; }
+  .form-auth > span { color: var(--muted); font-size: var(--fs-xs); }
   .auth-chips { display: inline-flex; gap: 2px; align-self: flex-start; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  .auth-chips button { height: 26px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: 13px; border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
+  .auth-chips button { height: 26px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
   .auth-chips button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .auth-chips button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .remote-form > footer { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); }
-  .form-hint { flex: 1; color: var(--muted-2); font-size: 13px; }
-  .form-test { color: var(--danger); font-size: 13px; white-space: nowrap; }
+  .form-hint { flex: 1; color: var(--muted-2); font-size: var(--fs-xs); }
+  .form-test { color: var(--danger); font-size: var(--fs-xs); white-space: nowrap; }
   .form-test.ok { color: var(--accent); }
-  .form-cancel { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
+  .form-cancel { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
   .form-cancel:hover { color: var(--text); border-color: var(--line-2); }
-  .form-save { height: 30px; padding: 0 16px; cursor: pointer; color: #fff; font-size: 13.5px; font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
+  .form-save { height: 30px; padding: 0 16px; cursor: pointer; color: #fff; font-size: var(--fs-sm); font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
   .form-save:hover:not(:disabled) { transform: translateY(-1px); }
   .form-save:disabled { cursor: default; opacity: .4; }
   .rt-quiet:disabled { opacity: .4; cursor: default; }
   .rt-modal-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(4, 6, 10, .68); backdrop-filter: blur(12px); animation: fade-in .14s ease-out; }
   .rt-modal { width: min(560px, 100%); overflow: hidden; border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel-2); box-shadow: 0 30px 100px rgba(0, 0, 0, .55); }
   .rt-modal > header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); }
-  .rt-modal > header b { font-size: 13px; }
+  .rt-modal > header b { font-size: var(--fs-xs); }
   .rt-modal > header button { width: 28px; height: 28px; cursor: pointer; color: var(--muted); font-size: 17px; border: 0; border-radius: 7px; background: transparent; }
   .rt-modal > header button:hover { color: var(--text); background: var(--hover); }
   .rt-modal-body { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; max-height: 60vh; overflow-y: auto; }
   .rt-modal-body pre.sys-info { margin: 0; padding: 11px 13px; overflow: auto; color: var(--text); font: 450 13.5px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; border: 1px solid var(--line); border-radius: 10.5px; background: var(--bg); }
-  .rt-modal-loading { display: flex; align-items: center; gap: 8px; padding: 18px; color: var(--muted); font-size: 13px; }
+  .rt-modal-loading { display: flex; align-items: center; gap: 8px; padding: 18px; color: var(--muted); font-size: var(--fs-xs); }
   .rt-modal > footer { display: flex; justify-content: flex-end; gap: 6px; padding: 11px 16px; border-top: 1px solid var(--line); }
   .rt-file-row { display: flex; align-items: center; gap: 10.5px; }
-  .rt-file-row > span { flex: 0 0 auto; width: 82px; color: var(--muted); font-size: 13.5px; }
+  .rt-file-row > span { flex: 0 0 auto; width: 82px; color: var(--muted); font-size: var(--fs-sm); }
   .rt-file-row input[type='text'], .rt-file-row input:not([type]) { min-width: 0; flex: 1; height: 32px; padding: 0 10.5px; color: var(--text); font: 500 13.5px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); }
   .rt-file-row input:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .rt-file-row input[type='file'] { font-size: 13.5px; }
-  .rt-file-size { min-width: 0; flex: 1; overflow: hidden; color: var(--muted); font-size: 10.2px; text-overflow: ellipsis; white-space: nowrap; }
-  .rt-transfer-status { margin: 0; color: var(--accent); font-size: 13px; }
-  .rt-file-note { color: var(--muted-2); font-size: 13px; line-height: 1.6; }
+  .rt-file-row input[type='file'] { font-size: var(--fs-sm); }
+  .rt-file-size { min-width: 0; flex: 1; overflow: hidden; color: var(--muted); font-size: var(--fs-tiny); text-overflow: ellipsis; white-space: nowrap; }
+  .rt-transfer-status { margin: 0; color: var(--accent); font-size: var(--fs-xs); }
+  .rt-file-note { color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.6; }
   .rt-quick-wrap { position: relative; }
   .rt-quick { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 250px; padding: 5px; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
   .rt-quick button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10.5px; cursor: pointer; text-align: left; border: 0; border-radius: 6px; background: transparent; }
   .rt-quick button:hover { background: var(--hover); }
   .rt-quick code { color: var(--text); font: 500 13px 'Cascadia Code', monospace; }
-  .rt-quick small { color: var(--muted-2); font-size: 9.6px; }
+  .rt-quick small { color: var(--muted-2); font-size: var(--fs-tiny); }
 </style>

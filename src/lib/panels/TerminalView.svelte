@@ -262,7 +262,7 @@
   .term-pane { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; }
   .term-pane.inactive { display: none; }
   .term-toolbar { height: 30px; flex: 0 0 auto; display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .term-toolbar button { height: 21px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 10.6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
+  .term-toolbar button { height: 21px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-tiny); border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
   .term-toolbar button:hover { color: var(--text); border-color: var(--line-2); }
   .term-toolbar i { width: 1px; height: 14px; margin: 0 3px; background: var(--line); }
   .term-toolbar .term-font { min-width: 22px; color: var(--muted-2); font: 500 12px 'Cascadia Code', monospace; text-align: center; }

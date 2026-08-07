@@ -66,7 +66,7 @@
     const fallback: AppSettings = {
       theme: 'dark', trayEnabled: true, contextMenuEnabled: true, clipboardWatch: true, dispatchHotkey: 'ctrl+shift+space',
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
-      fontSize: 14, fontFamily: '系统默认',
+      fontSize: 15, fontFamily: '系统默认',
       sidebarShortcuts: false,
       sidebarOpen: true,
       hiddenTools: [],
@@ -78,7 +78,7 @@
         ...fallback,
         ...parsed,
         hiddenTools: Array.isArray(parsed.hiddenTools) ? parsed.hiddenTools : fallback.hiddenTools,
-        fontSize: typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : fallback.fontSize,
+        fontSize: typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 && parsed.fontSize !== 14 ? parsed.fontSize : fallback.fontSize,
         fontFamily: FONT_STACKS[parsed.fontFamily] ? parsed.fontFamily : '系统默认',
       };
     } catch {

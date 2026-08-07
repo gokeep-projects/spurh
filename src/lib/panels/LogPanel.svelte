@@ -300,50 +300,50 @@
   .log-panel { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
   .log-bar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10.5px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
   .log-bar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .log-btn { height: 31px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 8px; background: transparent; transition: all .15s ease; }
+  .log-btn { height: 31px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: transparent; transition: all .15s ease; }
   .log-btn:hover:not(:disabled) { color: var(--text); border-color: var(--line-2); background: var(--hover); }
   .log-btn.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); background: var(--accent-soft); }
   .log-btn:disabled { opacity: .4; cursor: default; }
-  .log-btn span { display: inline-flex; font-size: 13px; line-height: 1; }
-  .log-status { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13.5px; white-space: nowrap; }
+  .log-btn span { display: inline-flex; font-size: var(--fs-xs); line-height: 1; }
+  .log-status { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: var(--fs-sm); white-space: nowrap; }
   .log-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line-2); }
   .log-status-dot.ok { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-  .log-file-error { color: var(--danger); font-size: 13.5px; }
+  .log-file-error { color: var(--danger); font-size: var(--fs-sm); }
   .log-ai-btn:disabled { opacity: .4; cursor: default; }
   .log-ai-btn .btn-ai { display: inline-flex; color: var(--accent); }
 
   .log-ai-card { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; padding: 12px 13px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--panel)), color-mix(in srgb, var(--c-cyan) 5%, var(--panel))); box-shadow: inset 0 0 24px color-mix(in srgb, var(--accent) 5%, transparent); }
   .log-ai-head { display: flex; align-items: center; gap: 7px; }
   .log-ai-head > .btn-ai { display: inline-flex; color: var(--accent); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 65%, transparent)); }
-  .log-ai-head b { font-size: 13.5px; }
-  .log-ai-head small { color: var(--muted-2); font-size: 13px; }
+  .log-ai-head b { font-size: var(--fs-sm); }
+  .log-ai-head small { color: var(--muted-2); font-size: var(--fs-xs); }
   .log-ai-actions { margin-left: auto; display: flex; gap: 6px; }
-  .log-ai-reasoning { padding: 8px 10px; color: var(--muted); font-size: 13px; border: 1px dashed var(--line-2); border-radius: 8px; background: color-mix(in srgb, var(--bg) 60%, transparent); }
-  .log-ai-reasoning small { display: block; margin-bottom: 4px; color: var(--muted-2); font-size: 13px; }
+  .log-ai-reasoning { padding: 8px 10px; color: var(--muted); font-size: var(--fs-xs); border: 1px dashed var(--line-2); border-radius: 8px; background: color-mix(in srgb, var(--bg) 60%, transparent); }
+  .log-ai-reasoning small { display: block; margin-bottom: 4px; color: var(--muted-2); font-size: var(--fs-xs); }
   .log-ai-reasoning p { margin: 0; line-height: 1.55; white-space: pre-wrap; }
-  .log-ai-error { padding: 9px 11px; color: var(--danger); font-size: 13.5px; border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
+  .log-ai-error { padding: 9px 11px; color: var(--danger); font-size: var(--fs-sm); border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
   .log-ai-output { padding: 11px 13px; color: var(--text); font: 450 13.5px/1.7 'Cascadia Code', 'Microsoft YaHei', monospace; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
-  .log-ai-wait { display: flex; align-items: center; gap: 8px; padding: 8px 10px; color: var(--muted); font-size: 13px; }
+  .log-ai-wait { display: flex; align-items: center; gap: 8px; padding: 8px 10px; color: var(--muted); font-size: var(--fs-xs); }
 
   .log-input { flex: 0 0 auto; display: flex; flex-direction: column; gap: 5px; }
   .log-input textarea { width: 100%; height: 170px; padding: 12px 14px; resize: vertical; color: var(--text); font: 450 13.5px/1.6 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 10px; outline: 0; background: var(--panel); }
   .log-input textarea:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .log-input small { color: var(--muted-2); font-size: 13px; }
+  .log-input small { color: var(--muted-2); font-size: var(--fs-xs); }
 
-  .log-error { padding: 12px; color: var(--danger); font-size: 13px; border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
+  .log-error { padding: 12px; color: var(--danger); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
   .log-loading { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 20px; color: var(--muted); }
-  .log-loading p { margin: 0; font-size: 13px; }
+  .log-loading p { margin: 0; font-size: var(--fs-xs); }
 
   .log-stats { flex: 0 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
   .log-stat { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .log-stat b { font-size: 17px; font-weight: 700; color: var(--lv, var(--text)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .log-stat small { color: var(--muted); font-size: 13px; }
+  .log-stat small { color: var(--muted); font-size: var(--fs-xs); }
   .log-stat-wide { min-width: 150px; }
-  .log-stat-wide b { font-size: 13px; font-weight: 600; }
+  .log-stat-wide b { font-size: var(--fs-xs); font-weight: 600; }
 
   .log-section-title { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; }
-  .log-section-title b { font-size: 13px; }
-  .log-section-title small { color: var(--muted-2); font-size: 13px; }
+  .log-section-title b { font-size: var(--fs-xs); }
+  .log-section-title small { color: var(--muted-2); font-size: var(--fs-xs); }
 
   .log-entries { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 4px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); }
   .log-entry { display: flex; gap: 10px; padding: 10.5px 11px; cursor: pointer; text-align: left; width: 100%; color: var(--text); font: inherit; border: 0; border-radius: 8px; background: transparent; transition: background .15s ease; }
@@ -354,12 +354,12 @@
   .log-entry-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
   .log-entry-head b { color: var(--lv, var(--text)); font: 600 12px 'Cascadia Code', monospace; }
   .log-entry.error .log-entry-head b { color: var(--danger); }
-  .log-entry-head small { color: var(--muted-2); font-size: 13px; }
+  .log-entry-head small { color: var(--muted-2); font-size: var(--fs-xs); }
   .log-entry p { margin: 0; color: var(--text); font: 450 13.5px/1.5 'Cascadia Code', monospace; word-break: break-word; }
   .log-entry pre { margin: 6px 0 0; padding: 8px 10px; overflow: auto; color: var(--muted); font: 400 13.5px/1.5 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); white-space: pre-wrap; }
-  .log-more { color: var(--muted-2); font-size: 13px; }
+  .log-more { color: var(--muted-2); font-size: var(--fs-xs); }
 
   .log-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10.5px; flex: 1; color: var(--muted); text-align: center; }
-  .log-empty b { font-size: 14px; }
-  .log-empty p { margin: 0; font-size: 13px; line-height: 1.7; }
+  .log-empty b { font-size: var(--fs); }
+  .log-empty p { margin: 0; font-size: var(--fs-xs); line-height: 1.7; }
 </style>
