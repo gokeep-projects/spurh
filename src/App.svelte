@@ -10,6 +10,7 @@
   import CryptoPanel from './lib/panels/CryptoPanel.svelte';
   import RegexPanel from './lib/panels/RegexPanel.svelte';
   import TimestampPanel from './lib/panels/TimestampPanel.svelte';
+  import { buildExpression } from './lib/plugins/builtin/cron';
   import { runtime, type PluginResult } from './lib/plugins';
   import { setPendingRepo } from './lib/panels/gitStore';
   import { trimImageHistory, type ClipItem } from './lib/clipHistory';
@@ -172,6 +173,22 @@
   let clipElement = $state<HTMLInputElement | undefined>(undefined);
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
+  /* ── 关于页实时动态：会话运行时长 ── */
+  let aboutUptime = $state(0);
+  let aboutTimer: ReturnType<typeof setInterval> | undefined;
+  function formatUptime(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return h > 0 ? `${h} 时 ${m} 分` : m > 0 ? `${m} 分 ${s} 秒` : `${s} 秒`;
+  }
+  $effect(() => {
+    if (settingsTab === 'about') {
+      aboutUptime = 0;
+      aboutTimer = setInterval(() => { aboutUptime += 1; }, 1000);
+      return () => { if (aboutTimer) clearInterval(aboutTimer); };
+    }
+  });
 
   let activePlugin = $derived(plugins.find((plugin) => plugin.id === activePluginId)!);
   let activeSession = $derived(sessions[activePluginId]);
@@ -226,6 +243,8 @@
         : activePluginId === 'spurh.log'
           ? {
               onStatus: (status: { chars: number; summary: string } | null) => (logPanelStatus = status),
+              aiConfig,
+              aiConfigured: isAiConfigured(aiConfig),
               // 路由/拖拽进入日志面板的内容同步到面板输入区，避免“有结果但界面空”的割裂
               externalText: activeSession.input.trim() ? { text: activeSession.input, ts: activeSession.revision } : null,
             }
@@ -637,12 +656,13 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   let hideInputPane = $derived(activePluginId === 'spurh.timestamp');
 
   function changeAction(actionId: string): void {
-    // Cron 面板内配置的表达式（手写/自定义）需同步到共享输入，解析/执行时间才有内容可用
+    // Cron 面板内配置的表达式（手写/构建）需同步到共享输入，解析/执行时间才有内容可用
     if (activePluginId === 'spurh.cron' && (actionId === 'explain' || actionId === 'next')) {
-      const custom = activeSession.options.customExpr?.trim();
-      if (!activeSession.input.trim() && custom) {
-        patchSession(activePluginId, { input: custom });
-      }
+      const type = activeSession.options.type || 'daily';
+      const expr = type === 'custom'
+        ? (activeSession.options.customExpr?.trim() || '*/5 * * * *')
+        : buildExpression(activeSession.options);
+      if (expr) patchSession(activePluginId, { input: expr });
     }
     patchSession(activePluginId, { actionId });
     scheduleProcess(activePluginId, 0);
@@ -1282,7 +1302,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
         <span class="dispatcher-spark">{@html UI_ICONS.sparkle}</span>
         <input bind:this={dispatcherElement} bind:value={dispatcherInput} oninput={(event) => handleDispatcherInput(event.currentTarget.value)} onpaste={handleDispatcherPaste} onkeydown={handleDispatcherKeys} onfocus={() => (dispatcherOpen = true)} onblur={() => (dispatcherOpen = false)} placeholder="粘贴内容，Spurh 自动路由到正确工具…" />
         {#if dispatcherOpen}
-          <div class="dispatch-matches" role="listbox" aria-label="工具候选列表" tabindex="-1" onmousedown={(event) => { if (!(event.target as HTMLElement).closest('button')) dispatcherElement?.blur(); }}>
+          <div class="dispatch-matches" class:passive={!dispatcherInput.trim()} role="listbox" aria-label="工具候选列表" tabindex="-1" onmousedown={(event) => { if (!(event.target as HTMLElement).closest('button')) dispatcherElement?.blur(); }}>
             {#if dispatcherInput.trim()}
               <div class="dispatch-header">
                 <span><i></i>智能路由引擎</span>
@@ -1465,10 +1485,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
           </div>
         </section>
       </div>
-      {/if}
-
-      {#if currentSessionResult()?.meta}
-        <div class="result-meta">{#each Object.entries(currentSessionResult()!.meta!) as [key, value]}<span><small>{key}</small><b>{value}</b></span>{/each}</div>
       {/if}
 
     </main>
@@ -1690,7 +1706,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <div class="about-hero">
                   <span class="brand-mark large about-logo">{@html BRAND_MARK}</span>
                   <div><h3>Spurh</h3><p>AI Native Developer Toolbox</p></div>
-                  <div class="about-version"><b>v0.1.0</b><small>latest</small></div>
+                  <div class="about-version"><b>v0.1.0</b><small>latest</small><i class="about-uptime"><span class="pulse-dot"></span>已运行 {formatUptime(aboutUptime)}</i></div>
                 </div>
                 <div class="about-chips"><span>Svelte 5</span><span>Tauri 2</span><span>Rust</span><span>TypeScript</span><span>AI Native</span><span>本地优先</span></div>
                 <div class="about-grid"><article><small>作者</small><b>xuning</b></article><article><small>版本</small><b>0.1.0</b></article><article><small>内置工具</small><b>14 个面板</b></article><article><small>许可</small><b>MIT</b></article></div>

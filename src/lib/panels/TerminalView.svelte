@@ -265,7 +265,7 @@
   .term-toolbar button { height: 21px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 10.6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
   .term-toolbar button:hover { color: var(--text); border-color: var(--line-2); }
   .term-toolbar i { width: 1px; height: 14px; margin: 0 3px; background: var(--line); }
-  .term-toolbar .term-font { min-width: 22px; color: var(--muted-2); font: 500 10px 'Cascadia Code', monospace; text-align: center; }
+  .term-toolbar .term-font { min-width: 22px; color: var(--muted-2); font: 500 12px 'Cascadia Code', monospace; text-align: center; }
   .term-wrap { min-width: 0; min-height: 0; flex: 1; display: flex; }
   .term-box { min-width: 0; min-height: 0; flex: 1; padding: 8px 10px; overflow: hidden; background: var(--bg); }
   .term-box :global(.xterm) { height: 100%; }

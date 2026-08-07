@@ -80,22 +80,22 @@
   .ts-modes button:hover { color: var(--text); border-color: var(--line-2); background: var(--hover); }
   .ts-modes button.active { color: var(--text); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
   .ts-modes b { font-size: 13px; }
-  .ts-modes small { color: var(--muted-2); font-size: 11px; }
+  .ts-modes small { color: var(--muted-2); font-size: 13px; }
   .ts-modes button.active small { color: var(--muted); }
   .ts-row { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
   .ts-field { display: flex; flex-direction: column; gap: 5px; }
-  .ts-field span { color: var(--muted); font-size: 12.5px; }
+  .ts-field span { color: var(--muted); font-size: 13.5px; }
   .ts-field input, .ts-field select { height: 36px; padding: 0 11px; color: var(--text); font-size: 13px; border: 1px solid var(--line-2); border-radius: 8px; outline: 0; background: var(--panel); }
   .ts-field input:focus, .ts-field select:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .ts-field.ts-narrow select { width: 112px; }
   .ts-row .ts-field:first-child { flex: 1; min-width: 240px; }
   .ts-row .ts-field:first-child input { width: 100%; }
-  .ts-now, .ts-clear { height: 36px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: 12.5px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); transition: all var(--transition); }
+  .ts-now, .ts-clear { height: 36px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: 13.5px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); transition: all var(--transition); }
   .ts-now { display: inline-flex; align-items: center; gap: 6px; }
   .ts-now span { display: inline-flex; }
   :global(.ts-now svg) { width: 13px; height: 13px; }
   .ts-now:hover, .ts-clear:hover { color: var(--text); border-color: var(--line); background: var(--hover); }
-  .ts-tip { margin: 0; color: var(--muted-2); font-size: 12.5px; line-height: 1.6; }
+  .ts-tip { margin: 0; color: var(--muted-2); font-size: 13.5px; line-height: 1.6; }
   .ts-nowrow { align-items: center; }
-  .ts-live-label { color: var(--muted); font-size: 12.5px; }
+  .ts-live-label { color: var(--muted); font-size: 13.5px; }
 </style>

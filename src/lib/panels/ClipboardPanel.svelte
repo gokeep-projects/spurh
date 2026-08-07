@@ -206,19 +206,19 @@
   .clip-search:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .clip-search span { display: inline-flex; }
   :global(.clip-search span svg) { width: 13px; height: 13px; }
-  .clip-search input { min-width: 0; flex: 1; color: var(--text); font-size: 12.5px; border: 0; outline: 0; background: transparent; }
+  .clip-search input { min-width: 0; flex: 1; color: var(--text); font-size: 13.5px; border: 0; outline: 0; background: transparent; }
   .clip-search-x { width: 18px; height: 18px; display: grid; place-items: center; padding: 0; cursor: pointer; color: var(--muted-2); font-size: 13px; line-height: 1; border: 0; border-radius: 4px; background: transparent; }
   .clip-search-x:hover { color: var(--text); background: var(--hover); }
-  .clip-count { color: var(--muted); font: 500 11px 'Cascadia Code', monospace; white-space: nowrap; }
-  .clip-clear { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: all .15s ease; }
+  .clip-count { color: var(--muted); font: 500 13px 'Cascadia Code', monospace; white-space: nowrap; }
+  .clip-clear { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: all .15s ease; }
   .clip-clear span { display: inline-flex; }
   :global(.clip-clear span svg) { width: 12px; height: 12px; }
   .clip-clear:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
   .clip-clear.confirming { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); background: color-mix(in srgb, var(--danger) 8%, transparent); }
-  .clip-loading { display: grid; place-content: center; gap: 10.5px; flex: 1; color: var(--muted); font-size: 11.5px; }
+  .clip-loading { display: grid; place-content: center; gap: 10.5px; flex: 1; color: var(--muted); font-size: 13.5px; }
   .clip-list { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; overflow-y: auto; }
-  .clip-day { display: flex; align-items: center; gap: 7px; padding: 8px 2px 3px; color: var(--muted-2); font-size: 10.5px; font-weight: 700; letter-spacing: .8px; }
-  .clip-day i { padding: 1px 6px; color: var(--muted); font-size: 10px; font-style: normal; border: 1px solid var(--line); border-radius: 8px; }
+  .clip-day { display: flex; align-items: center; gap: 7px; padding: 8px 2px 3px; color: var(--muted-2); font-size: 12.5px; font-weight: 700; letter-spacing: .8px; }
+  .clip-day i { padding: 1px 6px; color: var(--muted); font-size: 12px; font-style: normal; border: 1px solid var(--line); border-radius: 8px; }
   .clip-item { display: flex; align-items: stretch; gap: 0; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); overflow: hidden; transition: border-color .15s ease, box-shadow .15s ease; }
   .clip-item:hover { border-color: var(--line-2); }
   .clip-item.active { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -227,15 +227,15 @@
   .clip-main:hover { background: var(--hover); }
   .clip-main code { display: -webkit-box; overflow: hidden; color: var(--text); font: 450 13px/1.5 'Cascadia Code', monospace; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
   .clip-img { max-width: 220px; max-height: 130px; object-fit: contain; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
-  .clip-main small { color: var(--muted-2); font: 500 11px 'Cascadia Code', monospace; }
+  .clip-main small { color: var(--muted-2); font: 500 13px 'Cascadia Code', monospace; }
   .clip-actions { display: flex; flex-direction: column; gap: 5px; justify-content: center; padding: 8px 10.5px; border-left: 1px solid var(--line); background: var(--panel-2); }
-  .clip-act { height: 24px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 10.5px; white-space: nowrap; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); transition: all .15s ease; }
+  .clip-act { height: 24px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: 12.5px; white-space: nowrap; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); transition: all .15s ease; }
   .clip-act:hover { color: var(--text); border-color: var(--line-2); }
   .clip-act.fill { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 28%, var(--line)); background: var(--accent-soft); }
   .clip-act.fill:hover { color: var(--accent); }
   .clip-empty { display: grid; place-content: center; justify-items: center; gap: 8px; flex: 1; color: var(--muted); text-align: center; }
   .clip-empty-tile { width: 46px; height: 46px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 13px; background: var(--accent-soft); }
   :global(.clip-empty-tile svg) { width: 22px; height: 22px; }
-  .clip-empty b { color: var(--text); font-size: 12.5px; }
-  .clip-empty small { font-size: 11px; }
+  .clip-empty b { color: var(--text); font-size: 13.5px; }
+  .clip-empty small { font-size: 13px; }
 </style>

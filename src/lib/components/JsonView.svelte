@@ -298,22 +298,22 @@
 <style>
   .json-tree { height: 100%; display: flex; flex-direction: column; background: var(--panel-2); }
   .jv-toolbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); }
-  .jv-count { color: var(--muted-2); font-size: 10px; }
+  .jv-count { color: var(--muted-2); font-size: 13px; }
   .jv-tools { display: flex; gap: 2px; }
-  .jv-tools button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 10px; border: 0; border-radius: 4px; background: transparent; }
+  .jv-tools button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: 13px; border: 0; border-radius: 4px; background: transparent; }
   .jv-tools button:hover { color: var(--accent); background: var(--hover); }
   .jv-tools button.copied { color: var(--accent); }
   .jv-search { display: flex; align-items: center; gap: 3px; margin-left: auto; margin-right: 8px; }
-  .jv-search input { width: 150px; height: 22px; padding: 0 8px; color: var(--text); font-size: 11.5px; border: 1px solid var(--line); border-radius: 5px; outline: 0; background: var(--bg); }
+  .jv-search input { width: 150px; height: 22px; padding: 0 8px; color: var(--text); font-size: 13.5px; border: 1px solid var(--line); border-radius: 5px; outline: 0; background: var(--bg); }
   .jv-search input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
   .jv-search input::placeholder { color: var(--muted-2); }
-  .jv-search button { height: 22px; min-width: 22px; padding: 0 6px; cursor: pointer; color: var(--muted); font-size: 11.5px; border: 0; border-radius: 4px; background: transparent; }
+  .jv-search button { height: 22px; min-width: 22px; padding: 0 6px; cursor: pointer; color: var(--muted); font-size: 13.5px; border: 0; border-radius: 4px; background: transparent; }
   .jv-search button:hover { color: var(--accent); background: var(--hover); }
   .jv-search-count { color: var(--accent); font: 500 9.6px 'Cascadia Code', monospace; white-space: nowrap; }
   .jv-row.match { background: color-mix(in srgb, var(--warn) 16%, transparent); }
   .jv-row.current { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
   .jv-scroll { min-height: 0; flex: 1; overflow: auto; padding: 4px 0 14px; }
-  .jv-row { display: flex; align-items: stretch; min-width: max-content; min-height: 21px; padding-right: 18px; font: 450 12px/21px 'Cascadia Code', Consolas, monospace; color: var(--text); }
+  .jv-row { display: flex; align-items: stretch; min-width: max-content; min-height: 21px; padding-right: 18px; font: 450 13px/21px 'Cascadia Code', Consolas, monospace; color: var(--text); }
   .jv-row:hover { background: var(--hover); }
   .jv-fold { flex: 0 0 auto; width: 15px; display: grid; place-items: center; padding: 0; cursor: pointer; color: var(--muted-2); border: 0; background: transparent; }
   .jv-fold svg { width: 10.5px; height: 10.5px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: transform .12s ease; }
@@ -330,8 +330,8 @@
   :global(.app.light) .jv-null { color: #6b7681; }
   .jv-colon { color: var(--muted-2); }
   .jv-bracket { color: var(--muted-2); }
-  .jv-ellipsis { color: var(--muted); font-style: italic; margin: 0 5px; font-size: 10px; }
-  .jv-preview { margin-left: 8px; color: var(--muted-2); font-size: 10px; opacity: .8; }
-  .jv-len { color: var(--muted); font-size: 10.5px; font-style: normal; margin-left: 5px; }
+  .jv-ellipsis { color: var(--muted); font-style: italic; margin: 0 5px; font-size: 13px; }
+  .jv-preview { margin-left: 8px; color: var(--muted-2); font-size: 13px; opacity: .8; }
+  .jv-len { color: var(--muted); font-size: 13.5px; font-style: normal; margin-left: 5px; }
   .jv-error { color: var(--danger); padding: 20px; display: block; }
 </style>
