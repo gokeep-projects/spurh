@@ -143,55 +143,34 @@ jobs:
           } > notes.md
           cat notes.md
 
-      - name: 发布到 GitHub Release (诊断捕获)
-        id: publish
+      - name: 发布到 GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          set +e
-          {
-            echo "===== 环境诊断 ====="
-            echo "gh: $(command -v gh || echo MISSING)"
-            gh --version 2>&1
-            echo "--- env(GH/GITHUB) ---"
-            env | grep -E '^(GH|GITHUB)_' | sed 's/=.*/=<redacted>/'
-            echo "--- gh auth status ---"
-            gh auth status 2>&1
-            echo "--- gh api user ---"
-            gh api user 2>&1
-            echo "--- gh api repo perms ---"
-            gh api "repos/$GITHUB_REPOSITORY" 2>&1 | head -c 600
-            echo ""
-            echo "--- artifacts ---"
-            find artifacts -maxdepth 2 -type f | sort
-            echo ""
-            echo "===== 发布尝试 ====="
-            if [ "${{ github.ref_type }}" = "tag" ]; then
-              TAG="${{ github.ref_name }}"
-              PRERELEASE=""
-              TITLE="Spurh ${{ github.ref_name }}"
-            else
-              TAG="nightly-${GITHUB_SHA:0:8}"
-              PRERELEASE="--prerelease"
-              TITLE="Spurh 每日构建 ${GITHUB_SHA:0:8}"
-            fi
-            echo "TAG=$TAG TITLE=$TITLE REPO=$GITHUB_REPOSITORY"
-            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              echo "release exists, uploading..."
-              gh release upload "$TAG" artifacts/windows-bundle/* artifacts/macos-bundle/* --repo "$GITHUB_REPOSITORY" --clobber 2>&1
-              gh release edit "$TAG" --title "$TITLE" --notes-file notes.md --repo "$GITHUB_REPOSITORY" $PRERELEASE 2>&1
-            elif gh release create "$TAG" artifacts/windows-bundle/* artifacts/macos-bundle/* --title "$TITLE" --notes-file notes.md --repo "$GITHUB_REPOSITORY" $PRERELEASE 2>&1; then
-              echo "release created via gh"
-            else
-              echo "gh release create failed, fallback to gh api..."
-              if [ -n "$PRERELEASE" ]; then PR=true; else PR=false; fi
-              jq -n --arg tag "$TAG" --arg title "$TITLE" --arg body "$(cat notes.md)" --arg pre "$PR" \
-                '{tag_name: $tag, name: $title, body: $body, prerelease: ($pre == "true")}' > release-body.json 2>&1
-              gh api --method POST "repos/$GITHUB_REPOSITORY/releases" --input release-body.json 2>&1
-            fi
-            echo "FINAL: gh release view"
-            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" 2>&1
+          set -euo pipefail
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+            PRERELEASE=""
+            TITLE="Spurh ${{ github.ref_name }}"
+          else
+            TAG="nightly-${GITHUB_SHA:0:8}"
+            PRERELEASE="--prerelease"
+            TITLE="Spurh 每日构建 ${GITHUB_SHA:0:8}"
+          fi
+          echo "TAG=$TAG TITLE=$TITLE REPO=$GITHUB_REPOSITORY"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" artifacts/windows-bundle/* artifacts/macos-bundle/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file notes.md --repo "$GITHUB_REPOSITORY" $PRERELEASE
+          elif gh release create "$TAG" artifacts/windows-bundle/* artifacts/macos-bundle/* --title "$TITLE" --notes-file notes.md --repo "$GITHUB_REPOSITORY" $PRERELEASE; then
+            echo "release created: $TAG"
+          else
+            echo "gh release create failed, fallback to gh api"
+            if [ -n "$PRERELEASE" ]; then PR=true; else PR=false; fi
+            jq -n --arg tag "$TAG" --arg title "$TITLE" --arg body "$(cat notes.md)" --arg pre "$PR" '{tag_name: $tag, name: $title, body: $body, prerelease: ($pre == "true")}' > release-body.json
+            gh api --method POST "repos/$GITHUB_REPOSITORY/releases" --input release-body.json
+          fi
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" 2>&1
             rc=$?
             echo "PUBLISH_RC=$rc"
           } > publish.log 2>&1
@@ -200,15 +179,4 @@ jobs:
           echo "PUBLISH_RC=${rc:-1}" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-diag
-          path: publish.log
-          if-no-files-found: warn
-
-      - name: 检查发布结果
-        if: steps.publish.outputs.PUBLISH_RC != '0'
-        run: |
-          echo "publish failed (rc=${{ steps.publish.outputs.PUBLISH_RC }}), see release-diag artifact"
-          exit 1
 
