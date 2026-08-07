@@ -1,7 +1,7 @@
 name: Build & Release
 
-# 每次推送到 main 自动打包 Windows + macOS 便携压缩包并发布；
-# 推送 v* 标签时发布正式 Release（非 prerelease）。
+# 每次推送 master 自动打包并发布 nightly；推送 v* 标签时发布正式 Release。
+# 发布说明自动读取 changelog/<版本号>.md 的最新内容。
 on:
   push:
     branches: [master]
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   build-windows:
-    name: Windows 打包 (安装包 + 便携版)
+    name: Windows 打包 (x64 安装包 + 便携版)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,21 +36,22 @@ jobs:
       - name: 安装前端依赖
         run: npm ci
 
-      - name: 构建 Tauri 应用 (MSI + NSIS)
+      - name: 构建 Tauri 应用 (NSIS + MSI)
         run: npm run tauri build
 
-      - name: 打包 Windows 便携压缩包
+      - name: 归集产物并按规范命名
         shell: pwsh
         run: |
           $stamp = "${{ github.sha }}".Substring(0, 8)
-          $stamp = if ('${{ github.ref_type }}' -eq 'tag') { '${{ github.ref_name }}'.TrimStart('v') } else { $stamp }
-          New-Item -ItemType Directory -Force -Path portable-tmp, release-artifacts | Out-Null
+          if ('${{ github.ref_type }}' -eq 'tag') { $stamp = '${{ github.ref_name }}'.TrimStart('v') }
+          New-Item -ItemType Directory -Force -Path release-artifacts, portable-tmp | Out-Null
           Copy-Item src-tauri/target/release/spurh.exe portable-tmp/Spurh.exe
-          Set-Content -Path portable-tmp/README.txt -Value "Spurh 便携版`r`n无需安装，双击 Spurh.exe 即可运行（需 Windows 10/11 自带 WebView2）。`r`n`r`nSHA: ${{ github.sha }}`r`n时间: ${{ github.event.head_commit.timestamp }}" -Encoding UTF8
-          Set-Content -Path release-artifacts/README-Windows.txt -Value "Spurh Windows 安装包 / 便携版，详见构建提交 ${{ github.sha }}" -Encoding UTF8
-          Compress-Archive -Path portable-tmp/* -DestinationPath "release-artifacts/Spurh-Windows-x64-$stamp-portable.zip" -Force
-          Copy-Item src-tauri/target/release/bundle/nsis/*.exe release-artifacts/ -Force
-          Copy-Item src-tauri/target/release/bundle/msi/*.msi release-artifacts/ -Force
+          Set-Content -Path portable-tmp/README.txt -Value "Spurh 便携版`r`n无需安装，双击 Spurh.exe 即可运行（需 Windows 10/11 自带 WebView2）。`r`n`r`nSHA: ${{ github.sha }}" -Encoding UTF8
+          Compress-Archive -Path portable-tmp/* -DestinationPath "release-artifacts/spurh-windows-x64-portable.zip" -Force
+          $nsis = Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
+          Copy-Item $nsis.FullName "release-artifacts/spurh-windows-x64.exe" -Force
+          $msi = Get-ChildItem src-tauri/target/release/bundle/msi/*.msi | Select-Object -First 1
+          Copy-Item $msi.FullName "release-artifacts/spurh-windows-x64.msi" -Force
           Get-ChildItem release-artifacts | Select-Object Name, Length
 
       - uses: actions/upload-artifact@v4
@@ -60,7 +61,7 @@ jobs:
           if-no-files-found: error
 
   build-macos:
-    name: macOS 打包 (dmg + .app 便携压缩包)
+    name: macOS 打包 (Intel + ARM 安装包)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,21 +77,28 @@ jobs:
         with:
           workspaces: src-tauri
 
+      - name: 添加双平台编译目标
+        run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
+
       - name: 安装前端依赖
         run: npm ci
 
-      - name: 构建 Tauri 应用 (dmg + app)
-        run: npm run tauri build
+      - name: 构建 ARM (aarch64)
+        run: npm run tauri build -- --target aarch64-apple-darwin
 
-      - name: 打包 macOS 便携压缩包
+      - name: 构建 Intel (x86_64)
+        run: npm run tauri build -- --target x86_64-apple-darwin
+
+      - name: 归集产物并按规范命名
         shell: bash
         run: |
-          stamp="${GITHUB_SHA:0:8}"
-          if [ "${{ github.ref_type }}" = "tag" ]; then stamp="${{ github.ref_name }}"; stamp="${stamp#v}"; fi
           mkdir -p release-artifacts
-          ditto -c -k --sequesterRsrc --keepParent "src-tauri/target/release/bundle/macos/Spurh.app" "release-artifacts/Spurh-macOS-$stamp-portable.app.zip"
-          cp src-tauri/target/release/bundle/dmg/*.dmg release-artifacts/ 2>/dev/null || true
-          printf 'Spurh 便携版\n无需安装，解压后直接运行 Spurh.app。\nSHA: %s\n' "$GITHUB_SHA" > release-artifacts/README-macOS.txt
+          arm=$(ls src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg 2>/dev/null | head -1)
+          intel=$(ls src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg 2>/dev/null | head -1)
+          test -n "$arm" || { echo "ARM dmg 不存在"; exit 1; }
+          test -n "$intel" || { echo "Intel dmg 不存在"; exit 1; }
+          cp "$arm" release-artifacts/spurh-macos-arm.dmg
+          cp "$intel" release-artifacts/spurh-macos-intel.dmg
           ls -la release-artifacts
 
       - uses: actions/upload-artifact@v4
@@ -100,7 +108,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: 生成维护说明并发布 Release
+    name: 生成发布说明并发布 Release
     needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
@@ -112,34 +120,34 @@ jobs:
         with:
           path: artifacts
 
-      - name: 检查产物
-        shell: bash
-        run: |
-          find artifacts -maxdepth 2 -type f | sort
-          wcount=$(find artifacts/windows-bundle -type f 2>/dev/null | wc -l)
-          mcount=$(find artifacts/macos-bundle -type f 2>/dev/null | wc -l)
-          echo "windows files: $wcount, macos files: $mcount"
-          test "$wcount" -gt 0 || { echo 'windows artifacts missing'; exit 1; }
-          test "$mcount" -gt 0 || { echo 'macos artifacts missing'; exit 1; }
-
-      - name: 生成维护说明
+      - name: 生成发布说明 (自动读取 changelog)
         id: notes
         shell: bash
         run: |
+          set -euo pipefail
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VER="${{ github.ref_name }}"
+            VER="${VER#v}"
+            FILE="changelog/$VER.md"
+            test -f "$FILE" || { echo "缺少 changelog/$VER.md ，请创建后重试"; exit 1; }
+          else
+            VER=$(ls changelog/*.md 2>/dev/null | sed 's#changelog/##; s#\.md$##' | sort -V | tail -1)
+            test -n "$VER" || { echo "changelog 目录为空"; exit 1; }
+            FILE="changelog/$VER.md"
+          fi
+          echo "VERSION=$VER" >> "$GITHUB_OUTPUT"
           {
-            echo "## 维护说明"
+            echo "## Spurh v$VER"
             echo ""
-            echo "本次自动构建包含以下维护内容："
-            echo ""
-            if [ "${{ github.ref_type }}" = "tag" ]; then
-              git log --oneline --no-merges "${{ github.ref_name }}" -20 | sed 's/^/- /' || true
-            else
-              git log --oneline --no-merges -20 | sed 's/^/- /' || true
+            cat "$FILE"
+            if [ "${{ github.ref_type }}" != "tag" ]; then
+              echo ""
+              echo "---"
+              echo ""
+              echo "### 本次构建提交"
+              echo ""
+              git log --oneline --no-merges -15 | sed 's/^/- /' || true
             fi
-            echo ""
-            echo "- 构建产物：Windows 安装包 (NSIS/MSI) + 便携压缩包；macOS dmg + .app 压缩包"
-            echo "- 构建提交：${{ github.sha }}"
-            echo "- 由 GitHub Actions 自动打包并发布"
           } > notes.md
           cat notes.md
 
@@ -152,11 +160,11 @@ jobs:
           if [ "${{ github.ref_type }}" = "tag" ]; then
             TAG="${{ github.ref_name }}"
             PRERELEASE=""
-            TITLE="Spurh ${{ github.ref_name }}"
+            TITLE="Spurh v${{ steps.notes.outputs.VERSION }}"
           else
             TAG="nightly-${GITHUB_SHA:0:8}"
             PRERELEASE="--prerelease"
-            TITLE="Spurh 每日构建 ${GITHUB_SHA:0:8}"
+            TITLE="Spurh v${{ steps.notes.outputs.VERSION }} 每日构建 ${GITHUB_SHA:0:8}"
           fi
           echo "TAG=$TAG TITLE=$TITLE REPO=$GITHUB_REPOSITORY"
           if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq ".html_url" >/dev/null 2>&1; then
