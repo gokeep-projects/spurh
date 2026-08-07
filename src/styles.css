@@ -3016,7 +3016,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
   color: var(--c-cyan);
 }
 .sql-conn-ico svg { width: 15px; height: 15px; }
-.sql-conn-main { flex: 1; min-width: 0; align-items: flex-start; flex-direction: column; gap: 2px; }
+
 .sql-conn-main b { font-size: var(--fs-sm); }
 .sql-conn-main small { font-size: var(--fs-xs); color: var(--muted-2); font-family: ui-monospace, Consolas, monospace; }
 .sql-conn-ops { display: flex; gap: 4px; opacity: 0; transition: opacity var(--transition); }
