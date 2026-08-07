@@ -140,7 +140,8 @@
   let copied = $state(false);
   const initialSettings = loadAppSettings();
   let appSettings = $state(initialSettings);
-  let sidebarOpen = $state(true);
+  // 窄窗口（≤850px）侧栏默认收起，避免覆盖工作区
+  let sidebarOpen = $state(typeof window !== 'undefined' ? window.innerWidth > 850 : true);
   const initialAiStore = loadAiProfileStore();
   let aiStore = $state(initialAiStore);
   let aiDraft = $state<AiProfile>(initialAiStore.profiles.find((profile) => profile.id === initialAiStore.activeId) ?? createAiProfile());
