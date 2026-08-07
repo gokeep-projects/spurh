@@ -165,6 +165,21 @@ button { cursor: pointer; border: 0; background: none; }
     radial-gradient(58vw 44vh at 82% -8%, rgba(139, 92, 246, .1), transparent 62%),
     radial-gradient(52vw 40vh at 6% 108%, rgba(34, 211, 238, .09), transparent 60%),
     var(--bg0);
+
+  --c-cyan: #0e7490;
+  --c-violet: #6d28d9;
+  --c-magenta: #c026d3;
+  --c-blue: #1d4ed8;
+  --c-green: #047857;
+  --c-amber: #b45309;
+  --c-red: #dc2626;
+  --accent: #4f46e5;
+  --accent-soft: rgba(79, 70, 229, .14);
+  --grad-main: linear-gradient(120deg, #0e7490, #5b21b6 48%, #be185d);
+  --grad-soft: linear-gradient(120deg, rgba(14, 116, 144, .14), rgba(91, 33, 182, .16) 48%, rgba(190, 24, 93, .13));
+  --grad-line: linear-gradient(90deg, transparent, rgba(14, 116, 144, .55), rgba(190, 24, 93, .55), transparent);
+  --shadow-pop: 0 24px 80px rgba(37, 48, 100, .25), 0 0 40px rgba(99, 102, 241, .1);
+  --transition: .2s cubic-bezier(.4, 0, .2, 1);
 }
 .app.light::before { display: none; }
 
@@ -202,6 +217,26 @@ button { cursor: pointer; border: 0; background: none; }
 .app.light .editor-pane header button {
   color: #3d4671;
 }
+
+.app.light .tool-list button.active {
+  background: var(--grad-main);
+  border-color: transparent;
+  box-shadow: 0 6px 24px rgba(79, 70, 229, .28), 0 0 18px rgba(79, 70, 229, .16);
+}
+.app.light .tool-list button.active .tool-name b {
+  background: linear-gradient(92deg, #f0f9ff, #e0e7ff 55%, #fce7f3);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 14px rgba(255, 255, 255, .35);
+}
+.app.light .tool-list button.active .tool-icon {
+  box-shadow: 0 5px 18px rgba(79, 70, 229, .4);
+}
+.app.light .dispatch-matches {
+  box-shadow: 0 18px 60px rgba(37, 48, 100, .3), 0 0 40px rgba(99, 102, 241, .12);
+}
+
 
 /* ── 顶栏 ── */
 
@@ -2785,12 +2820,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 
 /* ── 加解密面板 ── */
 .crypto-panel { gap: 12px; }
-.crypto-group {
-  padding: 13px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+
 .crypto-key-row input { flex: 1; min-width: 160px; }
 .crypto-groups { padding: 0 2px; }
 .crypto-note { padding: 0 3px; }
@@ -2813,7 +2843,6 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 .cron-panel { gap: 12px; }
 .cron-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 12px; min-height: 0; flex: 1; }
 .cron-types { padding: 0 2px; }
-.cron-type-group { display: flex; flex-direction: column; gap: 8px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--w-025); }
 .cron-type-btns { display: flex; gap: 5px; flex-wrap: wrap; }
 .cron-type-btns button {
   min-width: 34px;
@@ -3287,9 +3316,6 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 }
 .net-head button:hover { color: var(--c-cyan); border-color: rgba(34, 211, 238, .45); }
 .net-head button.active { color: #fff; background: var(--grad-main); border-color: transparent; box-shadow: 0 4px 16px rgba(129, 140, 248, .4); }
-.net-field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 160px; }
-.net-field small { font-size: var(--fs-xs); color: var(--muted-2); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
-.net-field input { width: 100%; height: 34px; }
 .net-tools { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
 .net-common-ports { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0 0; }
 .net-common-ports button {
@@ -3883,6 +3909,32 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
     radial-gradient(54vw 42vh at 4% 110%, rgba(96, 165, 250, .16), transparent 60%),
     radial-gradient(40vw 34vh at 50% 52%, rgba(217, 70, 239, .1), transparent 66%),
     var(--bg0);
+
+  --c-cyan: #67e8f9;
+  --c-violet: #a78bfa;
+  --c-magenta: #f0abfc;
+  --c-blue: #93c5fd;
+  --c-green: #6ee7b7;
+  --c-amber: #fcd34d;
+  --c-red: #fda4af;
+  --accent: #818cf8;
+  --accent-soft: rgba(129, 140, 248, .16);
+  --w-02: rgba(255, 255, 255, .02);
+  --w-025: rgba(255, 255, 255, .025);
+  --w-03: rgba(255, 255, 255, .03);
+  --w-035: rgba(255, 255, 255, .035);
+  --w-04: rgba(255, 255, 255, .04);
+  --w-045: rgba(255, 255, 255, .045);
+  --w-05: rgba(255, 255, 255, .05);
+  --w-055: rgba(255, 255, 255, .055);
+  --w-06: rgba(255, 255, 255, .06);
+  --w-07: rgba(255, 255, 255, .07);
+  --w-08: rgba(255, 255, 255, .08);
+  --w-09: rgba(255, 255, 255, .09);
+  --w-12: rgba(255, 255, 255, .12);
+  --w-14: rgba(255, 255, 255, .14);
+  --shadow-pop: 0 24px 80px rgba(0, 0, 0, .6), 0 0 40px rgba(139, 92, 246, .15);
+  --transition: .2s cubic-bezier(.4, 0, .2, 1);
 }
 
 /* ===== 多主题：护眼森林 (Forest) ===== */
@@ -3913,6 +3965,25 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
     radial-gradient(52vw 40vh at 6% 108%, rgba(45, 212, 191, .1), transparent 60%),
     radial-gradient(36vw 30vh at 50% 50%, rgba(163, 230, 53, .05), transparent 65%),
     var(--bg0);
+
+  --accent: #34d399;
+  --accent-soft: rgba(52, 211, 153, .16);
+  --w-02: rgba(255, 255, 255, .02);
+  --w-025: rgba(255, 255, 255, .025);
+  --w-03: rgba(255, 255, 255, .03);
+  --w-035: rgba(255, 255, 255, .035);
+  --w-04: rgba(255, 255, 255, .04);
+  --w-045: rgba(255, 255, 255, .045);
+  --w-05: rgba(255, 255, 255, .05);
+  --w-055: rgba(255, 255, 255, .055);
+  --w-06: rgba(255, 255, 255, .06);
+  --w-07: rgba(255, 255, 255, .07);
+  --w-08: rgba(255, 255, 255, .08);
+  --w-09: rgba(255, 255, 255, .09);
+  --w-12: rgba(255, 255, 255, .12);
+  --w-14: rgba(255, 255, 255, .14);
+  --shadow-pop: 0 24px 80px rgba(0, 0, 0, .55), 0 0 40px rgba(52, 211, 153, .1);
+  --transition: .2s cubic-bezier(.4, 0, .2, 1);
 }
 
 
