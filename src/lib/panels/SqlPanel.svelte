@@ -3,6 +3,7 @@
   import { safeInvoke } from '../env';
   import { TOOL_ICONS, UI_ICONS, iconHtml } from '../icons';
   import AiAssist from './AiAssist.svelte';
+  import SqlUsersPanel from './SqlUsersPanel.svelte';
   import type { AiConfig } from '../ai';
   import { deleteSecret, getSecret, setSecret } from '../secrets';
   import { highlightSql } from '../sqlHighlight';
@@ -204,7 +205,7 @@
   const hasPending = $derived(draftCount > 0 || newRowDrafts.length > 0 || pendingDeletes.length > 0);
 
   /* ── SQL 编辑器 ── */
-  let tab = $state<'data' | 'sql' | 'design'>('data');
+  let tab = $state<'data' | 'sql' | 'design' | 'users'>('data');
   let sqlText = $state('');
   let sqlRunning = $state(false);
   let sqlResult = $state<ExecResult | null>(null);
@@ -1183,6 +1184,7 @@
   function ddlDisplay(): string {
     return ddl || '';
   }
+
 </script>
 
 <svelte:window onkeydown={handlePanelKeys} />
@@ -1350,6 +1352,9 @@
           <div class="sql-tabs-group">
             <button class:active={tab === 'data'} onclick={() => (tab = 'data')}>表数据</button>
             <button class:active={tab === 'sql'} onclick={() => (tab = 'sql')}>SQL 查询</button>
+            {#if activeConn.kind !== 'sqlite'}
+              <button class:active={tab === 'users'} onclick={() => { tab = 'users' }} title="用户管理与权限设置（MySQL / PostgreSQL）">用户管理</button>
+            {/if}
           </div>
           <div class="sql-tabs-info">
             {#if databases.length > 0}
@@ -1493,7 +1498,9 @@
               <button class="sql-btn primary big" onclick={openNewTable}>＋ 新建表</button>
             </div>
           {/if}
-        {:else if tab === 'sql'}
+        {/if}
+
+        {#if tab === 'sql'}
           <div class="sql-editor">
             <div class="sql-editor-bar">
               <button class="sql-btn primary" disabled={sqlRunning || !sqlText.trim()} onclick={runSql}><span class="sql-dot"></span>{sqlRunning ? '执行中…' : '运行 SQL'}</button>
@@ -1676,6 +1683,10 @@
             </div>
           </div>
         {/if}
+      {/if}
+
+        {#if tab === 'users'}
+        <SqlUsersPanel conn={activeConn} databases={databases} />
       {/if}
     </main>
   </div>

@@ -1727,3 +1727,304 @@ pub async fn sql_table_ddl(profile: SqlProfile, database: String, table: String)
     let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询建表语句超过 15 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
     joined.map_err(|error| format!("数据库任务失败：{error}"))?
 }
+
+/* ── 用户管理与权限（MySQL / PostgreSQL；SQLite 无用户概念） ── */
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SqlUserInfo {
+    pub name: String,
+    pub host: Option<String>,
+    pub attributes: Vec<SqlUserAttr>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SqlUserAttr {
+    pub key: String,
+    pub value: String,
+}
+
+/// 校验用户名：仅字母 / 数字 / 下划线 / $，最长 32 字符（与 MySQL 一致）
+fn valid_user_ident(name: &str) -> bool {
+    !name.is_empty() && name.len() <= 32 && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+}
+
+fn valid_mysql_host(host: &str) -> bool {
+    !host.is_empty() && host.len() <= 64 && host.chars().all(|c| c.is_ascii_alphanumeric() || "-_.:%".contains(c))
+}
+
+/// 字符串字面量：转义单引号（PG 双写引号；MySQL 同时转义反斜杠）
+fn sql_literal(value: &str) -> String {
+    format!("'{}'", value.replace('\\', "\\\\").replace('\'', "''"))
+}
+
+const GRANTABLE_PRIVS: [&str; 7] = ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALL PRIVILEGES"];
+
+pub fn build_create_user_sql(kind: &str, name: &str, host: &str, password: &str) -> Result<String, String> {
+    if !valid_user_ident(name) { return Err("用户名只能包含字母、数字、下划线和 $，最长 32 字符".into()); }
+    match kind {
+        "mysql" => {
+            if !valid_mysql_host(host) { return Err("MySQL 主机只能包含字母、数字、. - _ : %".into()); }
+            Ok(format!("CREATE USER {}@{} IDENTIFIED BY {}", quote_ident("mysql", name), sql_literal(host), sql_literal(password)))
+        }
+        "postgres" => Ok(format!("CREATE ROLE {} LOGIN PASSWORD {}", quote_ident("postgres", name), sql_literal(password))),
+        _ => Err("SQLite 不包含用户概念，无需用户管理".into()),
+    }
+}
+
+pub fn build_drop_user_sql(kind: &str, name: &str, host: &str) -> Result<String, String> {
+    if !valid_user_ident(name) { return Err("非法的用户名".into()); }
+    match kind {
+        "mysql" => {
+            if !valid_mysql_host(host) { return Err("MySQL 主机只能包含字母、数字、. - _ : %".into()); }
+            Ok(format!("DROP USER {}@{}", quote_ident("mysql", name), sql_literal(host)))
+        }
+        "postgres" => Ok(format!("DROP ROLE {}", quote_ident("postgres", name))),
+        _ => Err("SQLite 不包含用户概念，无需用户管理".into()),
+    }
+}
+
+pub fn build_set_password_sql(kind: &str, name: &str, host: &str, password: &str) -> Result<String, String> {
+    if !valid_user_ident(name) { return Err("非法的用户名".into()); }
+    match kind {
+        "mysql" => {
+            if !valid_mysql_host(host) { return Err("MySQL 主机只能包含字母、数字、. - _ : %".into()); }
+            Ok(format!("ALTER USER {}@{} IDENTIFIED BY {}", quote_ident("mysql", name), sql_literal(host), sql_literal(password)))
+        }
+        "postgres" => Ok(format!("ALTER ROLE {} WITH PASSWORD {}", quote_ident("postgres", name), sql_literal(password))),
+        _ => Err("SQLite 不包含用户概念，无需用户管理".into()),
+    }
+}
+
+/// 生成授权 / 回收语句。database 为空表示全部库（MySQL `*.*`；PG 使用 public schema）。
+pub fn build_grant_sql(kind: &str, name: &str, host: &str, database: &str, privileges: &[String], grant: bool) -> Result<Vec<String>, String> {
+    if !valid_user_ident(name) { return Err("非法的用户名".into()); }
+    for priv_name in privileges {
+        if !GRANTABLE_PRIVS.contains(&priv_name.as_str()) {
+            return Err(format!("不支持的权限：{priv_name}"));
+        }
+    }
+    if privileges.is_empty() { return Ok(vec![]); }
+    let mut out = Vec::new();
+    match kind {
+        "mysql" => {
+            if !valid_mysql_host(host) { return Err("MySQL 主机只能包含字母、数字、. - _ : %".into()); }
+            let db = if database.trim().is_empty() || database == "*" { "*".to_string() } else { quote_ident("mysql", database) };
+            let target = format!("{}@{}", quote_ident("mysql", name), sql_literal(host));
+            let op = if grant { "GRANT" } else { "REVOKE" };
+            let to_from = if grant { "TO" } else { "FROM" };
+            for priv_name in privileges {
+                out.push(format!("{op} {priv_name} ON {db}.* {to_from} {target}"));
+            }
+        }
+        "postgres" => {
+            let role = quote_ident("postgres", name);
+            if grant {
+                out.push(format!("GRANT USAGE ON SCHEMA public TO {role}"));
+            }
+            let op = if grant { "GRANT" } else { "REVOKE" };
+            let to_from = if grant { "TO" } else { "FROM" };
+            for priv_name in privileges {
+                let priv_name = if priv_name == "ALL PRIVILEGES" { "ALL" } else { priv_name.as_str() };
+                out.push(format!("{op} {priv_name} ON ALL TABLES IN SCHEMA public {to_from} {role}"));
+            }
+        }
+        _ => return Err("SQLite 不包含用户概念，无需用户管理".into()),
+    }
+    Ok(out)
+}
+
+fn run_users(profile: &SqlProfile) -> Result<Vec<SqlUserInfo>, String> {
+    match profile.kind.as_str() {
+        "mysql" => {
+            use mysql::prelude::*;
+            with_mysql(profile, None, |conn| {
+                let rows: Vec<(String, String, String, String, String)> = conn
+                    .exec("SELECT user, host, plugin, account_locked, password_expired FROM mysql.user ORDER BY user, host", ())
+                    .map_err(|error| format!("读取用户列表失败：{error}（当前账号可能需要 mysql.user 表权限）"))?;
+                Ok(rows.into_iter().map(|(name, host, plugin, locked, expired)| SqlUserInfo {
+                    name,
+                    host: Some(host),
+                    attributes: vec![
+                        SqlUserAttr { key: "认证插件".into(), value: plugin },
+                        SqlUserAttr { key: "账号锁定".into(), value: if locked == "Y" { "是".into() } else { "否".into() } },
+                        SqlUserAttr { key: "密码过期".into(), value: if expired == "Y" { "是".into() } else { "否".into() } },
+                    ],
+                }).collect())
+            })
+        }
+        "postgres" => {
+            with_pg(profile, None, |client| {
+                let rows = client
+                    .query("SELECT rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin, rolconnlimit, rolreplication FROM pg_roles ORDER BY rolname", &[])
+                    .map_err(|error| format!("读取角色列表失败：{error}"))?;
+                Ok(rows.iter().map(|row| {
+                    let name: String = row.get(0);
+                    let attributes = vec![
+                        SqlUserAttr { key: "超级用户".into(), value: if row.get::<_, bool>(1) { "是" } else { "否" }.into() },
+                        SqlUserAttr { key: "可登录".into(), value: if row.get::<_, bool>(5) { "是" } else { "否" }.into() },
+                        SqlUserAttr { key: "可建角色".into(), value: if row.get::<_, bool>(3) { "是" } else { "否" }.into() },
+                        SqlUserAttr { key: "可建库".into(), value: if row.get::<_, bool>(4) { "是" } else { "否" }.into() },
+                        SqlUserAttr { key: "连接数限制".into(), value: row.get::<_, i64>(6).to_string() },
+                    ];
+                    SqlUserInfo { name, host: None, attributes }
+                }).collect())
+            })
+        }
+        _ => Ok(vec![]),
+    }
+}
+
+fn run_user_grants(profile: &SqlProfile, name: &str, host: Option<&str>) -> Result<Vec<String>, String> {
+    if !valid_user_ident(name) { return Err("非法的用户名".into()); }
+    match profile.kind.as_str() {
+        "mysql" => {
+            use mysql::prelude::*;
+            with_mysql(profile, None, |conn| {
+                let target = format!("{}@{}", quote_ident("mysql", name), sql_literal(host.unwrap_or("%")));
+                let rows: Vec<String> = conn
+                    .exec(format!("SHOW GRANTS FOR {target}"), ())
+                    .map_err(|error| format!("读取 {name} 的权限失败：{error}（当前账号可能缺少 SHOW GRANTS 权限）"))?;
+                Ok(rows)
+            })
+        }
+        "postgres" => {
+            with_pg(profile, None, |client| {
+                let mut lines = Vec::new();
+                let table_rows = client
+                    .query("SELECT privilege_type, table_schema, table_name FROM information_schema.role_table_grants WHERE grantee = $1 ORDER BY table_schema, table_name, privilege_type", &[&name])
+                    .map_err(|error| format!("读取 {name} 的表权限失败：{error}"))?;
+                for row in table_rows {
+                    let priv_name: String = row.get(0);
+                    let schema: String = row.get(1);
+                    let table: String = row.get(2);
+                    lines.push(format!("GRANT {priv_name} ON {schema}.{table} TO {name}"));
+                }
+                let usage_rows = client
+                    .query("SELECT privilege_type, table_schema FROM information_schema.role_usage_grants WHERE grantee = $1 ORDER BY table_schema", &[&name])
+                    .map_err(|error| format!("读取 {name} 的 schema 权限失败：{error}"))?;
+                for row in usage_rows {
+                    let priv_name: String = row.get(0);
+                    let schema: String = row.get(1);
+                    lines.push(format!("GRANT {priv_name} ON SCHEMA {schema} TO {name}"));
+                }
+                Ok(lines)
+            })
+        }
+        _ => Ok(vec![]),
+    }
+}
+
+fn run_statements(profile: &SqlProfile, statements: Vec<String>) -> Result<Vec<String>, String> {
+    let mut executed = Vec::new();
+    for stmt in statements {
+        run_sql(profile, &stmt)?;
+        executed.push(stmt);
+    }
+    Ok(executed)
+}
+
+#[tauri::command]
+pub async fn sql_users(profile: SqlProfile) -> Result<Vec<SqlUserInfo>, String> {
+    let task = tauri::async_runtime::spawn_blocking(move || run_users(&profile));
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "读取用户列表超过 15 秒未返回，已超时".to_string())?;
+    joined.map_err(|error| format!("数据库任务失败：{error}"))?
+}
+
+#[tauri::command]
+pub async fn sql_user_grants(profile: SqlProfile, name: String, host: Option<String>) -> Result<Vec<String>, String> {
+    let task = tauri::async_runtime::spawn_blocking(move || run_user_grants(&profile, &name, host.as_deref()));
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "读取权限超过 15 秒未返回，已超时".to_string())?;
+    joined.map_err(|error| format!("数据库任务失败：{error}"))?
+}
+
+#[tauri::command]
+pub async fn sql_create_user(profile: SqlProfile, name: String, host: String, password: String) -> Result<String, String> {
+    let stmt = build_create_user_sql(&profile.kind, &name, &host, &password)?;
+    let sql = stmt.clone();
+    let task = tauri::async_runtime::spawn_blocking(move || run_sql(&profile, &sql));
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "创建用户超过 15 秒未返回，已超时".to_string())?;
+    let _ = joined.map_err(|error| format!("创建用户失败：{error}"))?;
+    Ok(stmt)
+}
+
+#[tauri::command]
+pub async fn sql_drop_user(profile: SqlProfile, name: String, host: String) -> Result<String, String> {
+    let stmt = build_drop_user_sql(&profile.kind, &name, &host)?;
+    let sql = stmt.clone();
+    let task = tauri::async_runtime::spawn_blocking(move || run_sql(&profile, &sql));
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "删除用户超过 15 秒未返回，已超时".to_string())?;
+    let _ = joined.map_err(|error| format!("删除用户失败：{error}"))?;
+    Ok(stmt)
+}
+
+#[tauri::command]
+pub async fn sql_set_password(profile: SqlProfile, name: String, host: String, password: String) -> Result<String, String> {
+    let stmt = build_set_password_sql(&profile.kind, &name, &host, &password)?;
+    let sql = stmt.clone();
+    let task = tauri::async_runtime::spawn_blocking(move || run_sql(&profile, &sql));
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "修改密码超过 15 秒未返回，已超时".to_string())?;
+    let _ = joined.map_err(|error| format!("修改密码失败：{error}"))?;
+    Ok(stmt)
+}
+
+#[tauri::command]
+pub async fn sql_grant_privileges(
+    profile: SqlProfile,
+    name: String,
+    host: String,
+    database: String,
+    privileges: Vec<String>,
+    grant: bool,
+) -> Result<Vec<String>, String> {
+    let statements = build_grant_sql(&profile.kind, &name, &host, &database, &privileges, grant)?;
+    if statements.is_empty() { return Ok(vec![]); }
+    let sql_list = statements.clone();
+    let task = tauri::async_runtime::spawn_blocking(move || run_statements(&profile, sql_list));
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "授权操作超过 30 秒未返回，已超时".to_string())?;
+    joined.map_err(|error| format!("授权操作失败：{error}"))?
+}
+
+#[cfg(test)]
+mod user_tests {
+    use super::*;
+
+    fn v(list: &[&str]) -> Vec<String> { list.iter().map(|s| s.to_string()).collect() }
+
+    #[test]
+    fn create_user_sql_dialects_and_validation() {
+        assert_eq!(build_create_user_sql("mysql", "alice", "%", "s3cret").unwrap(), "CREATE USER `alice`@'%' IDENTIFIED BY 's3cret'");
+        assert_eq!(build_create_user_sql("mysql", "alice", "localhost", "it's").unwrap(), "CREATE USER `alice`@'localhost' IDENTIFIED BY 'it''s'");
+        assert_eq!(build_create_user_sql("postgres", "alice", "", "p@ss").unwrap(), "CREATE ROLE \"alice\" LOGIN PASSWORD 'p@ss'");
+        assert!(build_create_user_sql("mysql", "bad;name", "%", "x").is_err());
+        assert!(build_create_user_sql("mysql", "alice", "bad host", "x").is_err());
+        assert!(build_create_user_sql("sqlite", "alice", "%", "x").is_err());
+        assert!(build_create_user_sql("mysql", "", "%", "x").is_err());
+        assert_eq!(build_create_user_sql("mysql", "a_b$1", "10.0.0.1", "x").unwrap(), "CREATE USER `a_b$1`@'10.0.0.1' IDENTIFIED BY 'x'");
+    }
+
+    #[test]
+    fn drop_and_password_sql() {
+        assert_eq!(build_drop_user_sql("mysql", "bob", "%").unwrap(), "DROP USER `bob`@'%'");
+        assert_eq!(build_drop_user_sql("postgres", "bob", "").unwrap(), "DROP ROLE \"bob\"");
+        assert_eq!(build_set_password_sql("mysql", "bob", "%", "n3w").unwrap(), "ALTER USER `bob`@'%' IDENTIFIED BY 'n3w'");
+        assert_eq!(build_set_password_sql("postgres", "bob", "", "n3w").unwrap(), "ALTER ROLE \"bob\" WITH PASSWORD 'n3w'");
+    }
+
+    #[test]
+    fn grant_sql_mysql_and_pg() {
+        let g = build_grant_sql("mysql", "alice", "%", "app", &v(&["SELECT", "INSERT"]), true).unwrap();
+        assert_eq!(g, vec!["GRANT SELECT ON `app`.* TO `alice`@'%'", "GRANT INSERT ON `app`.* TO `alice`@'%'"]);
+        let r = build_grant_sql("mysql", "alice", "%", "", &v(&["SELECT"]), false).unwrap();
+        assert_eq!(r, vec!["REVOKE SELECT ON *.* FROM `alice`@'%'"]);
+        let p = build_grant_sql("postgres", "alice", "", "app", &v(&["SELECT", "ALL PRIVILEGES"]), true).unwrap();
+        assert_eq!(p, vec![
+            "GRANT USAGE ON SCHEMA public TO \"alice\"",
+            "GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"alice\"",
+            "GRANT ALL ON ALL TABLES IN SCHEMA public TO \"alice\"",
+        ]);
+        assert!(build_grant_sql("mysql", "alice", "%", "app", &v(&["SUPER"]), true).is_err());
+        assert!(build_grant_sql("sqlite", "alice", "%", "app", &v(&["SELECT"]), true).is_err());
+    }
+}

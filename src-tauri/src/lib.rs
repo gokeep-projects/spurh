@@ -716,7 +716,9 @@ pub fn run(cli_args: Vec<String>) {
 
             // 剪贴板历史：独立线程轮询，文本变化时记录并推送事件（开关默认开启，前端设置同步）
             let history = app.state::<Arc<clipboard::ClipboardHistory>>().inner().clone();
-            let watch = Arc::new(clipboard::ClipboardWatch(AtomicBool::new(true)));            app.manage(watch.clone());            clipboard::start_watcher(app.handle().clone(), history, watch);
+            let watch = Arc::new(clipboard::ClipboardWatch(AtomicBool::new(true)));
+            app.manage(watch.clone());
+            clipboard::start_watcher(app.handle().clone(), history, watch);
 
             // Always available: show the window from anywhere.
             let toggle = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
@@ -763,7 +765,8 @@ pub fn run(cli_args: Vec<String>) {
             clipboard::read_clipboard,
             clipboard::clipboard_write_text,
             clipboard::clipboard_history,
-            clipboard::clipboard_clear_history,            clipboard::set_clipboard_watch,
+            clipboard::clipboard_clear_history,
+            clipboard::set_clipboard_watch,
             secrets::secret_set,
             secrets::secret_get,
             secrets::secret_delete,
@@ -781,6 +784,12 @@ sql::sql_disconnect,
             sql::sql_export_table,
 sql::sql_create_table,
 sql::sql_alter_table,
+            sql::sql_users,
+            sql::sql_user_grants,
+            sql::sql_create_user,
+            sql::sql_drop_user,
+            sql::sql_set_password,
+            sql::sql_grant_privileges,
             net::net_port_scan,
             net::net_dns_lookup,
             net::net_tcp_send,
