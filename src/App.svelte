@@ -687,7 +687,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   }
 
   /** 面板型插件：自带完整界面，不接受输入→输出的实时路由 */
-  const SELF_CONTAINED_PANELS = new Set(['spurh.sql', 'spurh.network', 'spurh.remote', 'spurh.clipboard']);
+  const SELF_CONTAINED_PANELS = new Set(['spurh.sql', 'spurh.network', 'spurh.remote', 'spurh.clipboard', 'spurh.git']);
 
   function fillFromClipboard(text: string): void {
     const match = runtime.dispatch(text).selected;
@@ -1364,7 +1364,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     </aside>
 
     <main class="workspace">
-      {#if activePluginId === 'spurh.network' || activePluginId === 'spurh.log' || activePluginId === 'spurh.clipboard' || activePluginId === 'spurh.remote' || activePluginId === 'spurh.sql'}
+      {#if activePluginId === 'spurh.network' || activePluginId === 'spurh.log' || activePluginId === 'spurh.clipboard' || activePluginId === 'spurh.remote' || activePluginId === 'spurh.sql' || activePluginId === 'spurh.git'}
         {#if !isTauri && activePluginId !== 'spurh.log' && activePluginId !== 'spurh.network'}
           <div class="browser-note"><span>{@html UI_ICONS.info}</span>浏览器预览模式:{activePlugin.name} 需要桌面能力,请运行 <code>npm run tauri dev</code> 获得完整功能</div>
         {/if}
