@@ -2650,7 +2650,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 .ts-panel { gap: 12px; }
 .ts-modes { padding: 2px 2px 0; }
 .ts-row { padding: 0 2px; }
-.ts-row input { flex: 1; min-width: 200px; }
+.ts-row input { flex: 1; min-width: 200px; max-width: 420px; }
 .ts-live-label {
   display: inline-flex;
   align-items: center;
@@ -2664,9 +2664,16 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 }
 .ts-now {
   font-size: 13px;
-  color: var(--muted);
-  padding: 0 2px;
+  font-weight: 600;
+  color: var(--c-cyan);
+  height: 29px;
+  padding: 0 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, .35);
+  background: rgba(34, 211, 238, .07);
+  transition: all var(--transition);
 }
+.ts-now:hover { color: var(--c-cyan); background: rgba(34, 211, 238, .14); }
 .ts-nowrow { display: flex; align-items: center; gap: 10px; }
 .ts-tip, .cron-config .hint, .crypto-note, .regex-row .hint, .sql-export-note, .rt-file-note {
   font-size: 13px;
