@@ -188,6 +188,87 @@
     const week = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())} 星期${week}`;
   }
+  let aboutCanvas = $state<HTMLCanvasElement | undefined>(undefined);
+  let aboutTagline = $state('');
+  let aboutPanelsShown = $state(0);
+  const aboutPhrases = ['AI Native Developer Toolbox', '本地优先 · 数据不出设备', '粘贴即用 · 一步完成', '14 个工具 · 一个入口'];
+
+  function startAboutCanvas(canvas: HTMLCanvasElement, stage: HTMLElement): () => void {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return () => {};
+    const g = ctx;
+    const colors = ['rgba(34,211,238,', 'rgba(139,92,246,', 'rgba(232,121,249,'];
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let raf = 0, w = 0, h = 0;
+    const mouse = { x: -9999, y: -9999 };
+    let parts: { x: number; y: number; vx: number; vy: number; r: number; c: number }[] = [];
+    function size() {
+      w = stage.clientWidth; h = stage.clientHeight;
+      canvas.width = Math.max(1, Math.round(w * dpr));
+      canvas.height = Math.max(1, Math.round(h * dpr));
+      canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const n = Math.max(36, Math.min(90, Math.round((w * h) / 9000)));
+      parts = Array.from({ length: n }, () => ({
+        x: Math.random() * w, y: Math.random() * h,
+        vx: (Math.random() - .5) * .45, vy: (Math.random() - .5) * .45,
+        r: .8 + Math.random() * 1.2, c: Math.floor(Math.random() * colors.length)
+      }));
+    }
+    const ro = new ResizeObserver(() => size());
+    ro.observe(stage);
+    size();
+    function onMove(e: PointerEvent) {
+      const r = stage.getBoundingClientRect();
+      mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+    }
+    function onLeave() { mouse.x = -9999; mouse.y = -9999; }
+    stage.addEventListener('pointermove', onMove, { passive: true });
+    stage.addEventListener('pointerleave', onLeave, { passive: true });
+    function frame() {
+      g.clearRect(0, 0, w, h);
+      for (const p of parts) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < -12) p.x = w + 12; else if (p.x > w + 12) p.x = -12;
+        if (p.y < -12) p.y = h + 12; else if (p.y > h + 12) p.y = -12;
+        const dx = p.x - mouse.x, dy = p.y - mouse.y, d2 = dx * dx + dy * dy;
+        if (d2 < 14400 && d2 > .01) { const d = Math.sqrt(d2); p.x += (dx / d) * .55; p.y += (dy / d) * .55; }
+        g.beginPath();
+        g.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        g.fillStyle = colors[p.c] + '.65)'; g.fill();
+      }
+      for (let i = 0; i < parts.length; i++) {
+        const a = parts[i];
+        for (let j = i + 1; j < parts.length; j++) {
+          const b = parts[j];
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < 12100) {
+            const alpha = (1 - Math.sqrt(d2) / 110) * .22;
+            g.strokeStyle = colors[a.c] + alpha + ')';
+            g.lineWidth = 1;
+            g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+          }
+        }
+        const mdx = a.x - mouse.x, mdy = a.y - mouse.y, md2 = mdx * mdx + mdy * mdy;
+        if (md2 < 25600) {
+          const alpha = (1 - Math.sqrt(md2) / 160) * .3;
+          g.strokeStyle = colors[a.c] + alpha + ')';
+          g.lineWidth = 1;
+          g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(mouse.x, mouse.y); g.stroke();
+        }
+      }
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      stage.removeEventListener('pointermove', onMove);
+      stage.removeEventListener('pointerleave', onLeave);
+    };
+  }
+
   $effect(() => {
     if (settingsTab === 'about') {
       aboutUptime = 0;
@@ -196,7 +277,37 @@
         aboutUptime += 1;
         aboutClock = formatClock(new Date());
       }, 1000);
-      return () => { if (aboutTimer) clearInterval(aboutTimer); };
+      /* 打字机标语 */
+      let phrase = 0, char = 0, deleting = false;
+      const typeTimer = setInterval(() => {
+        const cur = aboutPhrases[phrase];
+        if (!deleting) {
+          char += 1;
+          aboutTagline = cur.slice(0, char);
+          if (char >= cur.length) { deleting = true; }
+        } else {
+          char -= 1;
+          aboutTagline = cur.slice(0, char);
+          if (char <= 0) { deleting = false; phrase = (phrase + 1) % aboutPhrases.length; }
+        }
+      }, 90);
+      /* 统计数字滚动 */
+      aboutPanelsShown = 0;
+      const countTimer = setInterval(() => {
+        aboutPanelsShown += 1;
+        if (aboutPanelsShown >= 14) clearInterval(countTimer);
+      }, 45);
+      /* 粒子网络画布 */
+      let disposeCanvas: (() => void) | undefined;
+      if (aboutCanvas && aboutCanvas.parentElement) {
+        disposeCanvas = startAboutCanvas(aboutCanvas, aboutCanvas.parentElement);
+      }
+      return () => {
+        if (aboutTimer) clearInterval(aboutTimer);
+        clearInterval(typeTimer);
+        clearInterval(countTimer);
+        if (disposeCanvas) disposeCanvas();
+      };
     }
   });
 
@@ -1713,13 +1824,14 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <div class="about-orb about-orb-a" aria-hidden="true"></div>
                 <div class="about-orb about-orb-b" aria-hidden="true"></div>
                 <div class="about-particles" aria-hidden="true"><i style="--px:12%;--pd:.0s;--ps:9px"></i><i style="--px:26%;--pd:1.3s;--ps:5px"></i><i style="--px:42%;--pd:.6s;--ps:7px"></i><i style="--px:58%;--pd:2s;--ps:6px"></i><i style="--px:72%;--pd:.9s;--ps:8px"></i><i style="--px:86%;--pd:1.7s;--ps:5px"></i><i style="--px:34%;--pd:2.6s;--ps:4px"></i><i style="--px:64%;--pd:3.1s;--ps:6px"></i><i style="--px:18%;--pd:3.8s;--ps:5px"></i><i style="--px:80%;--pd:2.3s;--ps:7px"></i></div>
+                <canvas bind:this={aboutCanvas} class="about-canvas" aria-hidden="true"></canvas>
                 <div class="about-hero">
                   <span class="brand-mark large about-logo">{@html BRAND_MARK}</span>
-                  <div><h3>Spurh</h3><p>AI Native Developer Toolbox</p></div>
+                  <div><h3>Spurh</h3><p class="about-type">{aboutTagline}<span class="about-caret" aria-hidden="true"></span></p></div>
                   <div class="about-version"><b>v0.1.0</b><small>latest</small><i class="about-uptime"><span class="pulse-dot"></span>已运行 {formatUptime(aboutUptime)}</i><i class="about-clock">{aboutClock}</i></div>
                 </div>
                 <div class="about-chips"><span>Svelte 5</span><span>Tauri 2</span><span>Rust</span><span>TypeScript</span><span>AI Native</span><span>本地优先</span></div>
-                <div class="about-grid"><article><small>作者</small><b>xuning</b></article><article><small>版本</small><b>0.1.0</b></article><article><small>内置工具</small><b>14 个面板</b></article><article><small>许可</small><b>MIT</b></article></div>
+                <div class="about-grid"><article><small>作者</small><b>xuning</b></article><article><small>版本</small><b>0.1.0</b></article><article><small>内置工具</small><b>{aboutPanelsShown} 个面板</b></article><article><small>许可</small><b>MIT</b></article></div>
                 <div class="about-note"><b>本地优先 · AI 增强</b><p>所有工具在本地运行，数据不出设备；AI 能力按需接入，帮助生成、解释、修复与提炼，让重复工作一步完成。</p></div>
                 <div class="about-actions">
                   <a href="https://github.com/gokeep-projects/spurh" target="_blank" rel="noreferrer">{@html UI_ICONS.shield}<span>GitHub 仓库</span></a>
