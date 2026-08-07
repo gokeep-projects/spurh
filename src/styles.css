@@ -2301,15 +2301,26 @@ kbd {
 }
 .output-actions button:hover { color: var(--c-cyan); border-color: rgba(34, 211, 238, .4); }
 .output-empty {
-  padding: 40px 20px;
+  padding: 14px 12px;
   text-align: center;
   color: var(--muted-2);
   font-size: 13px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 5px;
+  height: 100%;
+  min-height: 0;
 }
+.output-empty .tool-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+}
+.output-empty .tool-icon svg { width: 14px; height: 14px; }
+.output-empty b { font-size: 13px; line-height: 1.3; }
+.output-empty p { margin: 0; font-size: 12px; line-height: 1.3; }
 .output-empty::before {
   content: "";
   width: 44px;
@@ -2320,7 +2331,24 @@ kbd {
   background-image: radial-gradient(circle at center, var(--muted-2) 2.5px, transparent 3px);
   background-size: 14px 14px;
   opacity: .7;
+  display: none;
 }
+/* custom panel action bars stay visible when tool-controls scrolls */
+.cron-actions, .regex-actions {
+  position: sticky;
+  bottom: 6px;
+  z-index: 5;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 9px;
+  margin-top: 2px;
+  background: var(--glass-strong);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+}
+
 .result-raw {
   padding: 14px;
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
@@ -3707,7 +3735,8 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
   .model-switcher select { max-width: 130px; }
 }
 @media (max-width: 980px) {
-  .editor-grid { grid-template-columns: minmax(0, 1fr); }
+  .editor-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+  .editor-grid.single { grid-template-rows: minmax(0, 1fr); }
   .editor-pane + .editor-pane { border-left: 0; border-top: 1px solid var(--line); }
   .sql-layout { grid-template-columns: 210px minmax(0, 1fr); }
   .remote-main { grid-template-columns: 230px minmax(0, 1fr); }

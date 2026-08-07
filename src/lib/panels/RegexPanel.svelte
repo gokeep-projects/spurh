@@ -175,14 +175,14 @@
     {/if}
     {#if sampleError}<small class="sample-error">{sampleError}</small>{/if}
   </div>
+</div>
 
-  <div class="regex-actions">
-    <button class="primary" class:active={session.actionId === 'test'} onclick={() => onChangeAction('test')}>测试匹配</button>
-    <button class:active={session.actionId === 'replace'} onclick={() => onChangeAction('replace')}>替换</button>
-    <button class:active={session.actionId === 'explain'} onclick={() => onChangeAction('explain')}>解释</button>
-    <div class="control-spacer"></div>
-    <button class="regex-clear" onclick={onClear}>清空</button>
-  </div>
+<div class="regex-actions">
+  <button class="primary" class:active={session.actionId === 'test'} onclick={() => onChangeAction('test')}>测试匹配</button>
+  <button class:active={session.actionId === 'replace'} onclick={() => onChangeAction('replace')}>替换</button>
+  <button class:active={session.actionId === 'explain'} onclick={() => onChangeAction('explain')}>解释</button>
+  <div class="control-spacer"></div>
+  <button class="regex-clear" onclick={onClear}>清空</button>
 </div>
 
 <style>

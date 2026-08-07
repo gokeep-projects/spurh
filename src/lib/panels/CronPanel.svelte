@@ -238,14 +238,14 @@
       {/if}
     </aside>
   </div>
+</div>
 
-  <div class="cron-actions">
-    <button class="primary" class:active={session.actionId === 'generate'} onclick={() => onChangeAction('generate')}>生成</button>
-    <button class:active={session.actionId === 'next'} onclick={() => onChangeAction('next')}>执行时间</button>
-    <button class:active={session.actionId === 'explain'} onclick={() => onChangeAction('explain')}>解析</button>
-    <div class="control-spacer"></div>
-    <button class="cron-clear" onclick={onClear}>清空</button>
-  </div>
+<div class="cron-actions">
+  <button class="primary" class:active={session.actionId === 'generate'} onclick={() => onChangeAction('generate')}>生成</button>
+  <button class:active={session.actionId === 'next'} onclick={() => onChangeAction('next')}>执行时间</button>
+  <button class:active={session.actionId === 'explain'} onclick={() => onChangeAction('explain')}>解析</button>
+  <div class="control-spacer"></div>
+  <button class="cron-clear" onclick={onClear}>清空</button>
 </div>
 
 <style>
