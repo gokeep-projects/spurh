@@ -61,28 +61,6 @@ button { cursor: pointer; border: 0; background: none; }
 
 /* ── 应用背景：深空 + 极光光斑 ── */
 
-.app::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(1px 1px at 12% 22%, rgba(255, 255, 255, .55), transparent 100%),
-    radial-gradient(1px 1px at 28% 64%, rgba(125, 211, 252, .7), transparent 100%),
-    radial-gradient(1.5px 1.5px at 41% 12%, rgba(255, 255, 255, .4), transparent 100%),
-    radial-gradient(1px 1px at 56% 78%, rgba(167, 139, 250, .7), transparent 100%),
-    radial-gradient(1.5px 1.5px at 68% 34%, rgba(255, 255, 255, .45), transparent 100%),
-    radial-gradient(1px 1px at 83% 66%, rgba(232, 121, 249, .55), transparent 100%),
-    radial-gradient(1px 1px at 91% 18%, rgba(125, 211, 252, .5), transparent 100%),
-    radial-gradient(1.5px 1.5px at 8% 82%, rgba(232, 121, 249, .45), transparent 100%),
-    radial-gradient(1px 1px at 35% 88%, rgba(255, 255, 255, .3), transparent 100%),
-    radial-gradient(1px 1px at 74% 8%, rgba(255, 255, 255, .35), transparent 100%),
-    radial-gradient(1.5px 1.5px at 49% 44%, rgba(125, 211, 252, .4), transparent 100%),
-    radial-gradient(1px 1px at 62% 54%, rgba(255, 255, 255, .3), transparent 100%);
-  opacity: .5;
-  animation: star-twinkle 8s ease-in-out infinite alternate;
-}
 @keyframes star-twinkle {
   0% { opacity: .28; }
   100% { opacity: .8; }
@@ -105,13 +83,29 @@ button { cursor: pointer; border: 0; background: none; }
   content: "";
   position: fixed;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
   background-image:
     linear-gradient(rgba(140, 158, 255, .045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(140, 158, 255, .045) 1px, transparent 1px);
-  background-size: 44px 44px;
+    linear-gradient(90deg, rgba(140, 158, 255, .045) 1px, transparent 1px),
+    radial-gradient(1px 1px at 12% 22%, rgba(255, 255, 255, .5), transparent 100%),
+    radial-gradient(1px 1px at 28% 64%, rgba(125, 211, 252, .65), transparent 100%),
+    radial-gradient(1.5px 1.5px at 41% 12%, rgba(255, 255, 255, .38), transparent 100%),
+    radial-gradient(1px 1px at 56% 78%, rgba(167, 139, 250, .65), transparent 100%),
+    radial-gradient(1.5px 1.5px at 68% 34%, rgba(255, 255, 255, .42), transparent 100%),
+    radial-gradient(1px 1px at 83% 66%, rgba(232, 121, 249, .5), transparent 100%),
+    radial-gradient(1px 1px at 91% 18%, rgba(125, 211, 252, .45), transparent 100%),
+    radial-gradient(1.5px 1.5px at 8% 82%, rgba(232, 121, 249, .4), transparent 100%),
+    radial-gradient(1px 1px at 35% 88%, rgba(255, 255, 255, .28), transparent 100%),
+    radial-gradient(1px 1px at 74% 8%, rgba(255, 255, 255, .32), transparent 100%),
+    radial-gradient(1.5px 1.5px at 49% 44%, rgba(125, 211, 252, .38), transparent 100%),
+    radial-gradient(1px 1px at 62% 54%, rgba(255, 255, 255, .28), transparent 100%);
+  background-size: 44px 44px, 44px 44px, 1px 1px, 1px 1px, 1px 1px, 1px 1px, 1px 1px, 1px 1px, 1px 1px, 1px 1px, 1px 1px, 1px 1px, 1px 1px, 1px 1px;
+  background-repeat: repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat;
   mask-image: radial-gradient(ellipse at 50% 0%, black 30%, transparent 78%);
   -webkit-mask-image: radial-gradient(ellipse at 50% 0%, black 30%, transparent 78%);
+  opacity: .6;
+  animation: star-twinkle 8s ease-in-out infinite alternate;
 }
 .app.light {
   --bg0: #eef1fa;
@@ -132,7 +126,7 @@ button { cursor: pointer; border: 0; background: none; }
 }
 .app.light::before { display: none; }
 
-/* 鈹€鈹€ 椤舵爮 鈹€鈹€ */
+/* ── 顶栏 ── */
 
 .app-bar::after {
   content: "";
@@ -175,6 +169,23 @@ button { cursor: pointer; border: 0; background: none; }
   opacity: .7;
   pointer-events: none;
 }
+.brand { position: relative; }
+.brand-mark { position: relative; }
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 15px;
+  background: radial-gradient(circle, rgba(129, 140, 248, .45), transparent 70%);
+  opacity: 0;
+  transition: opacity .35s ease;
+  pointer-events: none;
+}
+.brand:hover .brand-mark {
+  transform: rotate(8deg) scale(1.08);
+  box-shadow: 0 8px 30px rgba(129, 140, 248, .7), 0 0 24px rgba(34, 211, 238, .35);
+}
+.brand:hover .brand-mark::after { opacity: 1; }
 .brand {
   display: flex;
   align-items: center;
@@ -207,7 +218,7 @@ button { cursor: pointer; border: 0; background: none; }
   color: transparent;
 }
 
-/* 鈹€鈹€ 鑱氱劍妗嗭細鏋佸厜鍛戒护闈㈡澘 鈹€鈹€ */
+/* ── 聚焦框：极光命令面板 ── */
 .dispatcher {
   position: relative;
   flex: 1;
@@ -625,7 +636,7 @@ kbd {
 .model-switcher { position: relative; display: inline-flex; align-items: center; }
 .model-switcher .ai-spin { position: absolute; right: 9px; pointer-events: none; }
 
-/* 鈹€鈹€ 渚ф爮 鈹€鈹€ */
+/* ── 主框架 ── */
 
 .app-body { position: relative; z-index: 1; }
 .app-body {
@@ -747,9 +758,32 @@ kbd {
   border: 1px solid transparent;
   transition: background var(--transition), transform var(--transition), border-color var(--transition);
 }
+.tool-list button:active, .net-run:active, .actions button:active, .settings-button:active, .category-tabs button:active, .ts-modes button:active, .crypto-groups button:active, .sql-kind-chips button:active {
+  transform: scale(.965);
+}
 .tool-list button:hover {
   background: rgba(255, 255, 255, .045);
   transform: translateX(2px);
+}
+.tool-list button { position: relative; overflow: hidden; }
+.tool-list button.active::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 40%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .12), transparent);
+  animation: tool-shine 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes tool-shine {
+  0% { left: -60%; }
+  55% { left: 120%; }
+  100% { left: 120%; }
+}
+.tool-list button.active {
+  box-shadow: 0 6px 24px rgba(99, 102, 241, .22), 0 0 18px rgba(99, 102, 241, .12);
 }
 .tool-list button.active {
   background:
@@ -757,6 +791,19 @@ kbd {
     var(--grad-line) border-box;
   border: 1px solid transparent;
   box-shadow: 0 6px 24px rgba(99, 102, 241, .18);
+}
+.tool-list button:hover .tool-icon {
+  color: #fff;
+  border-color: rgba(129, 140, 248, .5);
+  background: linear-gradient(135deg, rgba(34, 211, 238, .22), rgba(139, 92, 246, .3));
+  box-shadow: 0 0 14px rgba(129, 140, 248, .35);
+  transform: scale(1.06);
+}
+.tool-list button.active .tool-icon {
+  color: #fff;
+  border-color: transparent;
+  background: var(--grad-main);
+  box-shadow: 0 4px 16px rgba(129, 140, 248, .5), 0 0 18px rgba(34, 211, 238, .3);
 }
 .tool-icon {
   display: grid;
@@ -830,6 +877,15 @@ kbd {
 }
 .tool-identity { display: flex; align-items: center; gap: 11px; }
 .tool-identity > div { display: flex; flex-direction: column; gap: 1px; }
+.tool-identity b {
+  font-size: 16px;
+  font-weight: 850;
+  letter-spacing: .3px;
+  background: linear-gradient(92deg, #e0e7ff, #a5b4fc 60%, #f0abfc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 .tool-identity b { font-size: 15px; font-weight: 750; }
 .tool-identity p { margin: 0; font-size: 11px; color: var(--muted-2); }
 .auto-state {
@@ -1432,7 +1488,7 @@ kbd {
 }
 .delete-model:hover { background: var(--c-red); color: #fff; }
 
-/* 鈹€鈹€ 璁剧疆寮圭獥 鈹€鈹€ */
+/* ── 设置弹窗 ── */
 .settings-modal {
   width: min(820px, 100%);
   height: min(690px, calc(100vh - 48px));
@@ -1632,7 +1688,7 @@ kbd {
 }
 .setting-value input:focus, .setting-value select:focus { border-color: rgba(129, 140, 248, .6); }
 
-/* 鈹€鈹€ AI 璁剧疆 鈹€鈹€ */
+/* ── AI 设置 ── */
 .profile-list { display: flex; flex-direction: column; gap: 8px; }
 .profile-list > button {
   display: flex;
@@ -1787,7 +1843,7 @@ kbd {
 .hk-switch input { display: none; }
 .shortcuts-note { margin-top: 12px; padding: 11px 14px; border-radius: 11px; font-size: 11.5px; color: var(--muted-2); border: 1px dashed var(--line-strong); line-height: 1.6; }
 
-/* 鈹€鈹€ 鍏充簬 鈹€鈹€ */
+/* ── 关于 ── */
 .about-hero {
   display: flex;
   align-items: center;
@@ -1811,7 +1867,7 @@ kbd {
 .about-note b { font-size: 12.5px; }
 .about-note p { margin: 6px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.65; }
 
-/* 鈹€鈹€ 鍙抽敭鑿滃崟 鈹€鈹€ */
+/* ── 右键菜单 ── */
 .context-menu {
   position: fixed;
   z-index: 400;
@@ -1940,7 +1996,7 @@ kbd {
 
 /* ════════════════════ 面板通用组件系统（覆盖全部工具面板） ════════════════════ */
 
-/* 鈹€鈹€ 宸ュ叿鏄剧ず/闅愯棌璁剧疆 鈹€鈹€ */
+/* ── 工具显示/隐藏设置 ── */
 .visibility-actions { display: flex; gap: 10px; margin-bottom: 12px; }
 .visibility-actions button {
   height: 32px;
@@ -1969,7 +2025,7 @@ kbd {
 .visibility-copy b { font-size: 12.5px; font-weight: 650; }
 .visibility-copy small { font-size: 10.5px; color: var(--muted-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* 鈹€鈹€ 閫氱敤闈㈡澘瀹瑰櫒 鈹€鈹€ */
+/* ── 通用面板容器 ── */
 .crypto-panel, .cron-panel, .regex-panel, .network-panel, .log-panel,
 .remote-panel, .clipboard-panel, .ts-panel, .sql-panel, .sql-users,
 .ai-assist, .term-pane {
@@ -2362,7 +2418,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 }
 .secret-toggle:hover { color: var(--c-cyan); }
 
-/* 鈹€鈹€ Cron 闈㈡澘 鈹€鈹€ */
+/* ── Cron 面板 ── */
 .cron-panel { gap: 12px; }
 .cron-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 12px; min-height: 0; flex: 1; }
 .cron-types { padding: 0 2px; }
@@ -2402,7 +2458,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 .cron-examples small { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); }
 .cron-clear { margin-left: auto; }
 
-/* 鈹€鈹€ 姝ｅ垯闈㈡澘 鈹€鈹€ */
+/* ── 正则面板 ── */
 .regex-panel { gap: 12px; }
 .regex-row { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .regex-pat { flex: 1; min-width: 220px; display: flex; gap: 8px; }
@@ -2802,7 +2858,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 .sql-sql-editor { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
 .sql-completion { position: absolute; z-index: 50; }
 
-/* 鈹€鈹€ 缃戠粶闈㈡澘 鈹€鈹€ */
+/* ── 网络面板 ── */
 .network-panel { gap: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 
 .net-browser-note {
@@ -2942,7 +2998,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 .topo-branch { font-size: 10px; }
 .topo-num { font-variant-numeric: tabular-nums; }
 
-/* 鈹€鈹€ 鏃ュ織闈㈡澘 鈹€鈹€ */
+/* ── 日志面板 ── */
 .log-panel { gap: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .log-bar { flex-wrap: wrap; }
 .log-bar-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
@@ -2982,7 +3038,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 .log-dot { box-shadow: 0 0 8px rgba(52, 211, 153, .6); }
 
 
-/* 鈹€鈹€ 杩滅▼杩炴帴闈㈡澘 鈹€鈹€ */
+/* ── 远程连接面板 ── */
 .remote-panel { gap: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .remote-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 268px minmax(0, 1fr); }
 .remote-side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: rgba(0, 0, 0, .14); }
@@ -3128,7 +3184,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 .jv-content { min-width: 0; flex: 1; }
 .jv-len { color: var(--muted-2); font-size: 11px; }
 
-/* 鈹€鈹€ JWT 鈹€鈹€ */
+/* ── JWT ── */
 .jwt-sections { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .jwt-overview { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 9px; }
 .jwt-overview article { padding: 11px 13px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255, 255, 255, .025); }
@@ -3148,7 +3204,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
   word-break: break-word;
 }
 
-/* 鈹€鈹€ 鏉傞」閫氱敤 鈹€鈹€ */
+/* ── 杂项通用 ── */
 .flex-spacer { flex: 1; }
 .grow { flex: 1; min-width: 0; }
 .fill { width: 100%; }
@@ -3362,3 +3418,51 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
   transition: transform var(--transition);
 }
 .visibility-entry:hover .visibility-entry-arrow { transform: translateX(4px); }
+
+/* ===== 下列规则置于文件末尾，确保覆盖同特异性前置规则 ===== */
+
+/* 聚焦框获焦：弧光屏幕扫描线 + 渐变边框曝光 */
+.dispatcher:focus-within {
+  border-color: transparent;
+  background:
+    linear-gradient(rgba(18, 22, 46, .93), rgba(18, 22, 46, .93)) padding-box,
+    linear-gradient(120deg, rgba(34, 211, 238, .85), rgba(129, 140, 248, .85), rgba(232, 121, 249, .75)) border-box;
+  border: 1px solid transparent;
+  box-shadow:
+    0 0 0 1px rgba(129, 140, 248, .28),
+    0 0 22px rgba(129, 140, 248, .4),
+    0 0 48px rgba(34, 211, 238, .22),
+    0 0 80px rgba(139, 92, 246, .18),
+    inset 0 0 16px rgba(129, 140, 248, .1);
+  transform: translateY(-1px);
+}
+.dispatcher:focus-within::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .035) 0 1px, transparent 1px 3px);
+  opacity: .55;
+  pointer-events: none;
+  animation: dispatcher-scan 6s linear infinite;
+}
+@keyframes dispatcher-scan {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 24px; }
+}
+
+/* 侧栏工具标题渐变文字 + 主动态发光（尾部覆盖生效） */
+.tool-name b {
+  font-size: 12.5px;
+  font-weight: 650;
+  transition: color .2s ease, text-shadow .2s ease;
+}
+.tool-list button.active .tool-name b {
+  font-weight: 750;
+  background: linear-gradient(92deg, #e0e7ff, #a5b4fc 55%, #f0abfc 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 18px rgba(167, 139, 250, .55);
+}

@@ -110,6 +110,16 @@ jobs:
         with:
           path: artifacts
 
+      - name: 检查产物
+        shell: bash
+        run: |
+          find artifacts -maxdepth 2 -type f | sort
+          wcount=$(find artifacts/windows-bundle -type f 2>/dev/null | wc -l)
+          mcount=$(find artifacts/macos-bundle -type f 2>/dev/null | wc -l)
+          echo "windows files: $wcount, macos files: $mcount"
+          test "$wcount" -gt 0 || { echo 'windows artifacts missing'; exit 1; }
+          test "$mcount" -gt 0 || { echo 'macos artifacts missing'; exit 1; }
+
       - name: 生成维护说明
         id: notes
         shell: bash
@@ -136,6 +146,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
+          set -euo pipefail
+          command -v gh || { echo 'gh not found'; exit 1; }
           if [ "${{ github.ref_type }}" = "tag" ]; then
             TAG="${{ github.ref_name }}"
             PRERELEASE=""
@@ -145,12 +157,16 @@ jobs:
             PRERELEASE="--prerelease"
             TITLE="Spurh 每日构建 ${GITHUB_SHA:0:8}"
           fi
-
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" artifacts/windows-bundle/* artifacts/macos-bundle/* --clobber
-            gh release edit "$TAG" --title "$TITLE" --notes-file notes.md $PRERELEASE
+          echo "TAG=$TAG TITLE=$TITLE REPO=$GITHUB_REPOSITORY"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" artifacts/windows-bundle/* artifacts/macos-bundle/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file notes.md --repo "$GITHUB_REPOSITORY" $PRERELEASE
+          elif gh release create "$TAG" artifacts/windows-bundle/* artifacts/macos-bundle/* --title "$TITLE" --notes-file notes.md --repo "$GITHUB_REPOSITORY" $PRERELEASE; then
+            echo 'release created'
           else
-            gh release create "$TAG" artifacts/windows-bundle/* artifacts/macos-bundle/* \
-              --title "$TITLE" --notes-file notes.md $PRERELEASE
+            echo 'gh release create failed, fallback to gh api'
+            if [ -n "$PRERELEASE" ]; then PR=1; else PR=0; fi
+            jq -n --arg tag "$TAG" --arg title "$TITLE" --arg body "$(cat notes.md)" --argjson pre "$PR"               '{tag_name: $tag, name: $title, body: $body, prerelease: $pre}' > release-body.json
+            gh api --method POST "repos/$GITHUB_REPOSITORY/releases" --input release-body.json
           fi
-          gh release view "$TAG"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
