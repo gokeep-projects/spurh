@@ -52,6 +52,7 @@
     fontSize: number;
     fontFamily: string;
     sidebarShortcuts: boolean;
+    sidebarOpen: boolean;
     hiddenTools: string[];
   };
 
@@ -67,6 +68,7 @@
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
       fontSize: 14, fontFamily: '系统默认',
       sidebarShortcuts: false,
+      sidebarOpen: true,
       hiddenTools: [],
     };
     try {
@@ -140,8 +142,9 @@
   let copied = $state(false);
   const initialSettings = loadAppSettings();
   let appSettings = $state(initialSettings);
-  // 窄窗口（≤850px）侧栏默认收起，避免覆盖工作区
-  let sidebarOpen = $state(typeof window !== 'undefined' ? window.innerWidth > 850 : true);
+  // 窄窗口（≤850px）侧栏默认收起，避免覆盖工作区；用户手动切换会持久化
+  let sidebarOpen = $state(typeof window !== 'undefined' ? (window.innerWidth > 850 && (appSettings.sidebarOpen ?? true)) : true);
+  let sidebarUserNarrowChoice = $state(false); // 窄窗口下用户主动展开过则尊重其选择
   const initialAiStore = loadAiProfileStore();
   let aiStore = $state(initialAiStore);
   let aiDraft = $state<AiProfile>(initialAiStore.profiles.find((profile) => profile.id === initialAiStore.activeId) ?? createAiProfile());
@@ -1057,6 +1060,34 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
   }
 
+  let sidebarAutoCollapsed = false; // 由窗口变窄自动收起（非用户手动），回到宽窗口时恢复
+
+  function handleWindowResize(): void {
+    if (window.innerWidth <= 850) {
+      // 窄窗口下若用户从未主动展开：自动收起侧栏，避免浮层遮挡工作区
+      if (!sidebarUserNarrowChoice && sidebarOpen) {
+        sidebarOpen = false;
+        sidebarAutoCollapsed = true;
+        saveAppSettings({ sidebarOpen });
+      }
+    } else if (window.innerWidth > 850 && sidebarAutoCollapsed) {
+      // 恢复宽窗口：仅当侧栏是被自动收起时重新展开，尊重用户手动选择
+      sidebarAutoCollapsed = false;
+      sidebarUserNarrowChoice = false;
+      sidebarOpen = true;
+      saveAppSettings({ sidebarOpen });
+    } else if (window.innerWidth > 850) {
+      sidebarUserNarrowChoice = false;
+    }
+  }
+
+  function toggleSidebar(): void {
+    sidebarOpen = !sidebarOpen;
+    sidebarAutoCollapsed = false;
+    if (window.innerWidth <= 850 && sidebarOpen) sidebarUserNarrowChoice = true;
+    saveAppSettings({ sidebarOpen });
+  }
+
   function saveDispatchHotkey(hk: string): void {
     const trimmed = hk.trim().toLowerCase();
     const value = trimmed === 'off' ? 'off' : trimmed || 'ctrl+shift+space';
@@ -1417,11 +1448,11 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     applyHotkeys().catch(() => undefined);
   }
 </script>
-<svelte:window onkeydown={handleWindowKeydown} ondragover={handleFileDragOver} ondragleave={handleFileDragLeave} ondrop={handleFileDrop} />
+<svelte:window onkeydown={handleWindowKeydown} ondragover={handleFileDragOver} ondragleave={handleFileDragLeave} ondrop={handleFileDrop} onresize={handleWindowResize} />
 
 <div class:light={lightMode} class:aurora={auroraMode} class:forest={forestMode} class="app" style={`--app-font-size: ${appSettings.fontSize}px; --app-font-family: ${FONT_STACKS[appSettings.fontFamily] ?? FONT_STACKS['系统默认']}`}>
   <header class="app-bar">
-    <button class="brand" onclick={() => (sidebarOpen = !sidebarOpen)} aria-label="Spurh" title="Spurh 工具箱">
+    <button class="brand" onclick={toggleSidebar} aria-label="Spurh" title="Spurh 工具箱">
       <span class="brand-mark">{@html BRAND_MARK}</span>
     </button>
     <div class="dispatcher">

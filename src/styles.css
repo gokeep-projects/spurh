@@ -168,7 +168,7 @@ button { cursor: pointer; border: 0; background: none; }
 }
 .app.light::before { display: none; }
 
-/* 浜槑涓婚涓嬬殑瀵规瘮搴﹁皟鏁达細鎷夐珮鍏抽敭鏂囨湰/杈归槬瀵规瘮搴?*/
+/* 浅色主题下的对比度调整：拉高关键文本/边框对比度 */
 .app.light .ai-button {
   color: #a21caf;
   border-color: rgba(168, 85, 247, .35);
@@ -3317,7 +3317,7 @@ select.ts-field, select.cron-config, select.crypto-key-row, select.sql-form sele
 .dns-card { padding: 14px; margin-bottom: 10px; }
 .dns-copy { margin-left: auto; }
 .dns-table td { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
-/* 鎷撴墤 */
+/* 浅色主题下的对比度调整：拉高关键文本/边框对比度 */
 .topo-wrap { position: relative; min-height: 380px; border: 1px solid var(--line); border-radius: 14px; background: radial-gradient(ellipse at 50% 30%, rgba(34, 211, 238, .08), transparent 60%), var(--w-06); overflow: hidden; }
 .topo-node {
   position: absolute;
