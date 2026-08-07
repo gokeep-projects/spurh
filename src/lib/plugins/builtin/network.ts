@@ -6,7 +6,7 @@ import type { PluginResult, SpurhPlugin } from '../types';
 export const networkPlugin: SpurhPlugin = {
   id: 'spurh.network',
   name: '网络工具',
-  description: '端口探测 · DNS · IP 归属地 · 速查',
+  description: '端口探测 · DNS · 链路追踪 · TCP/UDP · 速查',
   icon: ICONS['spurh.network'],
   version: '0.1.0',
   category: '开发',

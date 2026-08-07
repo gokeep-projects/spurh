@@ -4,13 +4,7 @@
 
   type PortResult = { port: number; open: boolean; elapsedMs: number };
   type DnsRecord = { name: string; ttl: number; data: string };
-  type GeoInfo = {
-    query?: string; status?: string; message?: string | null; country?: string | null; countryCode?: string | null;
-    regionName?: string | null; city?: string | null; isp?: string | null; org?: string | null; asn?: string | null;
-    lat?: number | null; lon?: number | null; timezone?: string | null;
-  };
-
-  type Tab = 'port' | 'dns' | 'tcp' | 'trace' | 'geo' | 'ref';
+  type Tab = 'port' | 'dns' | 'tcp' | 'trace' | 'ref';
   let tab = $state<Tab>('port');
 
   /* ── 端口扫描 ── */
@@ -156,32 +150,31 @@
     tcpSending = false;
   }
 
-  /* ── 主机链路（路由追踪） ── */
+  /* ── 链路追踪（路由追踪） ── */
   type TraceHop = { hop: number; ip: string; ms: number[] };
+  const TRACE_W = 880;
+  const TRACE_HOP = 96;
+  const TRACE_SPINE = TRACE_W / 2;
+  const TRACE_NODE_X = [170, TRACE_W - 170];
+  function traceY(index: number): number { return (index + 1) * TRACE_HOP; }
+  function traceNodeX(index: number): number { return TRACE_NODE_X[index % 2]; }
+  function hopStatus(ms: number[]): 'ok' | 'warn' | 'slow' | 'timeout' {
+    const vals = ms.filter((m) => m > 0);
+    if (vals.length === 0) return 'timeout';
+    const best = Math.min(...vals);
+    if (best <= 80) return 'ok';
+    if (best <= 200) return 'warn';
+    return 'slow';
+  }
+  function hopLabel(ms: number[]): string {
+    const vals = ms.filter((m) => m > 0);
+    return vals.length ? `${Math.min(...vals)}ms` : '超时';
+  }
+
   let traceHost = $state('www.baidu.com');
   let tracing = $state(false);
   let traceHops = $state<TraceHop[]>([]);
   let traceError = $state('');
-
-  /* ── IP 归属地 ── */
-  let geoHost = $state('');
-  let geoLoading = $state(false);
-  let geoInfo = $state<GeoInfo | null>(null);
-  let geoError = $state('');
-
-  async function runGeo(): Promise<void> {
-    if (!geoHost.trim()) { geoError = '请输入 IP 地址或域名'; return; }
-    geoLoading = true;
-    geoError = '';
-    geoInfo = null;
-    try {
-      geoInfo = await safeInvoke<GeoInfo>('net_ip_geo', { target: geoHost.trim() });
-    } catch (cause) {
-      geoError = cause instanceof Error ? cause.message : String(cause);
-    }
-    geoLoading = false;
-  }
-
   async function runTrace(): Promise<void> {
     if (!traceHost.trim()) { traceError = '请输入目标主机'; return; }
     tracing = true;
@@ -239,8 +232,7 @@
       <button class:active={tab === 'port'} role="tab" aria-selected={tab === 'port'} onclick={() => (tab = 'port')}><span>{@html iconHtml(TOOL_ICONS['spurh.network'])}</span>端口扫描</button>
       <button class:active={tab === 'dns'} role="tab" aria-selected={tab === 'dns'} onclick={() => (tab = 'dns')}><span>{@html UI_ICONS.search}</span>DNS 查询</button>
       <button class:active={tab === 'tcp'} role="tab" aria-selected={tab === 'tcp'} onclick={() => (tab = 'tcp')}><span>⇄</span>TCP / UDP</button>
-      <button class:active={tab === 'trace'} role="tab" aria-selected={tab === 'trace'} onclick={() => (tab = 'trace')}><span>◎</span>主机链路</button>
-      <button class:active={tab === 'geo'} role="tab" aria-selected={tab === 'geo'} onclick={() => (tab = 'geo')}><span>🌐</span>IP 归属地</button>
+      <button class:active={tab === 'trace'} role="tab" aria-selected={tab === 'trace'} onclick={() => (tab = 'trace')}><span>◎</span>链路追踪</button>
       <button class:active={tab === 'ref'} role="tab" aria-selected={tab === 'ref'} onclick={() => (tab = 'ref')}><span>{@html UI_ICONS.shield}</span>HTTP / MIME 速查</button>
     </div>
 
@@ -294,14 +286,7 @@
           <span class="net-dot"></span>{tracing ? '追踪中…' : '追踪'}
         </button>
         {#if traceHops.length > 0}<span class="net-summary">{traceHops.length} 跳</span>{/if}
-      {:else if tab === 'geo'}
-        <label class="net-field grow"><span>目标</span><input value={geoHost} oninput={(e) => (geoHost = e.currentTarget.value)} placeholder="8.8.8.8 或域名" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && runGeo()} /></label>
-        <button class="net-run" class:busy={geoLoading} disabled={geoLoading} onclick={runGeo} title="查询 IP 归属地">
-          <span class="net-dot"></span>{geoLoading ? '查询中…' : '查询'}
-        </button>
-        {#if geoInfo}<span class="net-summary">{geoInfo.country ?? ''}{geoInfo.city ? ' · ' + geoInfo.city : ''}</span>{/if}
-        <span class="net-geo-note">第三方免费接口（ip-api.com，明文 HTTP），仅上传 IP 地址</span>
-      {:else}
+            {:else}
         <label class="net-field grow"><span>搜索</span><input value={refSearch} oninput={(e) => (refSearch = e.currentTarget.value)} placeholder="状态码 / MIME / 关键字…" spellcheck="false" /></label>
         <span class="net-summary">{filteredMimes.length} MIME · {filteredStatusGroups.reduce((acc, g) => acc + g.items.length, 0)} 状态码</span>
       {/if}
@@ -394,7 +379,7 @@
           <small>填写主机、端口与协议，发送数据并查看响应与日志</small>
         </div>
       {/if}
-    {:else if tab === 'trace'}
+        {:else if tab === 'trace'}
       {#if traceError}<div class="net-error"><i></i>{traceError}</div>{/if}
       {#if tracing}
         <div class="trace-loading">
@@ -402,52 +387,41 @@
           <p>正在追踪到 {traceHost} 的路由…</p>
         </div>
       {:else if traceHops.length > 0}
-        <div class="net-result-title"><span>到 {traceHost} 的链路</span><small>共 {traceHops.length} 跳 · 红色节点为超时</small></div>
-        <div class="trace-map">
-          <div class="trace-start"><span>本机</span><i>▶</i></div>
-          {#each traceHops as hop, index}
-            <div class="trace-hop" class:timeout={!hop.ip}>
-              <div class="trace-node" title={`${hop.ip || '请求超时'}\n${hop.ms.filter((m) => m > 0).join(' / ') || '超时'} ms`}>
-                <b>{hop.hop}</b>
-                <small>{hop.ip || '超时'}</small>
-                <i>{hop.ms.some((m) => m > 0) ? hop.ms.filter((m) => m > 0)[0] + 'ms' : '—'}</i>
-              </div>
-              {#if index < traceHops.length - 1}<div class="trace-link"><span></span></div>{/if}
-            </div>
-          {/each}
+        <div class="net-result-title">
+          <span>到 {traceHost} 的链路追踪</span>
+          <small>共 {traceHops.length} 跳 · 绿=低延迟 黄=中 橙=高 红=超时</small>
+        </div>
+        <div class="topo-wrap">
+          <svg class="trace-topo" viewBox="0 0 {TRACE_W} {traceHops.length * TRACE_HOP + 50}" role="img" aria-label="链路拓扑图">
+            <path class="topo-spine" d="M {TRACE_SPINE} 30 V {traceHops.length * TRACE_HOP + 20}" />
+            {#each traceHops as hop, index}
+              {@const y = traceY(index)}
+              {@const x = traceNodeX(index)}
+              {@const prevY = index === 0 ? 30 : traceY(index - 1)}
+              <line class="topo-edge" x1={TRACE_SPINE} y1={prevY} x2={TRACE_SPINE} y2={y} />
+              <line class="topo-branch" x1={TRACE_SPINE} y1={y} x2={x} y2={y} />
+              <circle class="topo-packet" r="3.5" style={`offset-path: path('M ${TRACE_SPINE} ${prevY} L ${TRACE_SPINE} ${y}'); animation-delay: ${index * 0.22}s;`} />
+              <g class="topo-node {hopStatus(hop.ms)}" transform={`translate(${x} ${y})`}>
+                <circle r="19" />
+                <text class="topo-num" y="4.5" text-anchor="middle">{hop.hop}</text>
+                <title>{hop.ip || '超时'}{hop.ms.some((m) => m > 0) ? ' · ' + hop.ms.filter((m) => m > 0).join(' / ') + ' ms' : ' · 超时'}</title>
+              </g>
+              <text class="topo-ip" x={x} y={y - 28} text-anchor="middle">{hop.ip || '超时'}</text>
+              <text class="topo-ms" x={x} y={y + 36} text-anchor="middle">{hopLabel(hop.ms)}</text>
+            {/each}
+          </svg>
+        </div>
+        <div class="topo-legend">
+          <span class="lg ok">低延迟 ≤ 80ms</span>
+          <span class="lg warn">中 80–200ms</span>
+          <span class="lg slow">高 &gt; 200ms</span>
+          <span class="lg timeout">超时</span>
         </div>
       {:else if !traceError}
         <div class="net-empty">
-          <span class="net-empty-tile">◎</span>
-          <b>主机链路拓扑</b>
-          <small>追踪本机到目标主机的每一跳（tracert）<br />显示每跳 IP 与延迟，超时节点自动标记</small>
-        </div>
-      {/if}
-    {:else if tab === 'geo'}
-      {#if geoError}<div class="net-error"><i></i>{geoError}</div>{/if}
-      {#if geoLoading}
-        <div class="net-empty">
-          <span class="net-empty-tile">🌐</span>
-          <b>正在查询 {geoHost || '目标'} 的归属地…</b>
-          <small>通过第三方免费接口查询</small>
-        </div>
-      {:else if geoInfo && geoInfo.status === 'success'}
-        <div class="net-result-title"><span>{geoInfo.query || geoHost} 归属地</span><small>第三方接口 ip-api.com · 结果仅供参考</small></div>
-        <div class="geo-grid">
-          <div class="geo-item"><span>国家/地区</span><b>{geoInfo.country ?? '—'}{geoInfo.countryCode ? `（${geoInfo.countryCode}）` : ''}</b></div>
-          <div class="geo-item"><span>省份</span><b>{geoInfo.regionName ?? '—'}</b></div>
-          <div class="geo-item"><span>城市</span><b>{geoInfo.city ?? '—'}</b></div>
-          <div class="geo-item"><span>ISP</span><b>{geoInfo.isp ?? '—'}</b></div>
-          <div class="geo-item"><span>组织</span><b>{geoInfo.org ?? '—'}</b></div>
-          <div class="geo-item"><span>ASN</span><b>{geoInfo.asn ?? '—'}</b></div>
-          <div class="geo-item"><span>坐标</span><b>{geoInfo.lat != null && geoInfo.lon != null ? `${geoInfo.lat.toFixed(3)}, ${geoInfo.lon.toFixed(3)}` : '—'}</b></div>
-          <div class="geo-item"><span>时区</span><b>{geoInfo.timezone ?? '—'}</b></div>
-        </div>
-      {:else if !geoError}
-        <div class="net-empty">
-          <span class="net-empty-tile">🌐</span>
-          <b>IP 归属地查询</b>
-          <small>输入 IP 地址或域名，查询国家、城市、ISP 与 ASN。<br />桌面模式可用（浏览器预览不可调用）</small>
+          <span class="net-empty-tile">◉</span>
+          <b>链路追踪</b>
+          <small>追踪本机到目标主机的每一跳（tracert）<br />实时拓扑图：每跳 IP 与延迟，超时节点自动标记</small>
         </div>
       {/if}
     {:else}
@@ -528,22 +502,24 @@
   .send-response { margin: 0; padding: 10px 12px; overflow: auto; color: var(--text); font: 450 12px/1.6 'Cascadia Code', monospace; white-space: pre-wrap; word-break: break-all; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
   .trace-loading { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 44px 20px; color: var(--muted); }
   .trace-loading p { margin: 0; font-size: 11px; }
-  .trace-map { display: flex; flex-direction: column; gap: 2px; padding: 12px; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-  .trace-start { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
-  .trace-start span { padding: 4px 10px; color: var(--text); border: 1px solid var(--line-2); border-radius: 7px; background: var(--panel-2); }
-  .trace-start i { color: var(--accent); font-style: normal; animation: trace-flow 1.6s ease-in-out infinite; }
-  @keyframes trace-flow { 50% { transform: translateX(6px); opacity: .4; } }
-  .trace-hop { display: flex; flex-direction: column; }
-  .trace-node { display: flex; align-items: center; gap: 10.5px; padding: 6px 10px; border-radius: 8px; transition: background .15s ease; }
-  .trace-node:hover { background: var(--hover); }
-  .trace-node b { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); font: 700 11px 'Cascadia Code', monospace; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 50%; background: var(--accent-soft); }
-  .trace-node small { min-width: 0; flex: 1; overflow: hidden; color: var(--text); font: 500 12px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
-  .trace-node i { color: var(--muted); font: 500 10px 'Cascadia Code', monospace; font-style: normal; }
-  .trace-hop.timeout .trace-node b { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 8%, transparent); }
-  .trace-hop.timeout .trace-node small { color: var(--danger); opacity: .75; }
-  .trace-link { display: flex; justify-content: center; padding: 1px 0; }
-  .trace-link span { width: 2px; height: 16px; border-radius: 1px; background: linear-gradient(180deg, var(--accent), var(--line-2)); animation: trace-drop 1.2s ease-in-out infinite; }
-  @keyframes trace-drop { 50% { opacity: .4; transform: scaleY(.7); } }
+  .topo-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  .trace-topo { display: block; width: 100%; min-width: 620px; }
+  .topo-spine { fill: none; stroke: var(--line-2); stroke-width: 2; stroke-dasharray: 5 5; }
+  .topo-edge, .topo-branch { stroke: var(--line-2); stroke-width: 1.5; }
+  .topo-packet { fill: var(--accent); opacity: .85; animation: topo-flow 1.1s linear infinite; }
+  @keyframes topo-flow { 0% { offset-distance: 0%; opacity: 0; } 12% { opacity: .9; } 88% { opacity: .9; } 100% { offset-distance: 100%; opacity: 0; } }
+  .topo-node circle { fill: color-mix(in srgb, var(--line) 55%, var(--panel)); stroke: var(--muted-2); stroke-width: 1.5; }
+  .topo-num { fill: var(--text); font: 700 10.5px 'Cascadia Code', monospace; }
+  .topo-node.ok circle { fill: color-mix(in srgb, #2fb344 16%, var(--panel)); stroke: #2fb344; }
+  .topo-node.ok .topo-num { fill: #2fb344; }
+  .topo-node.warn circle { fill: color-mix(in srgb, #e0a800 16%, var(--panel)); stroke: #e0a800; }
+  .topo-node.warn .topo-num { fill: #e0a800; }
+  .topo-node.slow circle { fill: color-mix(in srgb, #fd7e14 16%, var(--panel)); stroke: #fd7e14; }
+  .topo-node.slow .topo-num { fill: #fd7e14; }
+  .topo-node.timeout circle { fill: color-mix(in srgb, var(--danger) 14%, var(--panel)); stroke: var(--danger); stroke-dasharray: 4 3; }
+  .topo-node.timeout .topo-num { fill: var(--danger); }
+  .topo-ip { fill: var(--text); font: 500 10.5px 'Cascadia Code', monospace; }
+  .topo-ms { fill: var(--muted); font: 500 9.5px 'Cascadia Code', monospace; }
   .net-body { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px; overflow: auto; }
   .net-error { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--danger); font-size: 11.5px; border: 1px solid color-mix(in srgb, var(--danger) 26%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 5%, transparent); }
   .net-error i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }
@@ -573,11 +549,13 @@
   .net-empty { min-height: 220px; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--muted); text-align: center; border: 1px dashed var(--line-2); border-radius: 12px; background: color-mix(in srgb, var(--panel) 60%, transparent); }
   .net-empty-tile { width: 44px; height: 44px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 12px; background: var(--accent-soft); }
   :global(.net-empty-tile svg) { width: 22px; height: 22px; }
-  .net-geo-note { margin-left: auto; color: var(--muted-2); font-size: 10.5px; white-space: nowrap; }
-  .geo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
-  .geo-item { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
-  .geo-item span { color: var(--muted-2); font-size: 10.5px; }
-  .geo-item b { font-size: 12.5px; font-weight: 650; word-break: break-all; }
+  .topo-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .topo-legend .lg { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10.5px; }
+  .topo-legend .lg::before { content: ''; width: 8px; height: 8px; border-radius: 50%; }
+  .topo-legend .lg.ok::before { background: #2fb344; }
+  .topo-legend .lg.warn::before { background: #e0a800; }
+  .topo-legend .lg.slow::before { background: #fd7e14; }
+  .topo-legend .lg.timeout::before { background: var(--danger); }
   .net-empty b { color: var(--text); font-size: 12.5px; }
   .net-empty small { font-size: 11px; }
   .ref-layout { min-height: 0; flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
