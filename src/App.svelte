@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount, type Component } from 'svelte';
   import { isTauri, safeInvoke, safeListen, copyText, readClipboardText } from './lib/env';
   import { AI_PRESETS, createAiProfile, deleteProfileSecret, fetchAiModels, flushLegacyAiSecrets, hydrateAiSecrets, isAiConfigured, loadAiProfileStore, processWithAi, saveAiProfileStore, saveProfileSecret, testAiConnection, type AiModel, type AiProfile } from './lib/ai';
@@ -416,6 +416,10 @@
     const orbA = stage.querySelector<HTMLElement>('.about-orb-a');
     const orbB = stage.querySelector<HTMLElement>('.about-orb-b');
     let raf = 0;
+    const glow = document.createElement('i');
+    glow.className = 'about-glow';
+    glow.setAttribute('aria-hidden', 'true');
+    stage.appendChild(glow);
     const onMove = (e: PointerEvent) => {
       const r = stage.getBoundingClientRect();
       const nx = ((e.clientX - r.left) / r.width) * 2 - 1;
@@ -426,6 +430,8 @@
         if (aurora) { aurora.style.setProperty('--ax', (nx * 14).toFixed(1) + 'px'); aurora.style.setProperty('--ay', (ny * 10).toFixed(1) + 'px'); }
         if (orbA) { orbA.style.setProperty('--dx', (nx * -18).toFixed(1) + 'px'); orbA.style.setProperty('--dy', (ny * -14).toFixed(1) + 'px'); }
         if (orbB) { orbB.style.setProperty('--dx', (nx * 16).toFixed(1) + 'px'); orbB.style.setProperty('--dy', (ny * 12).toFixed(1) + 'px'); }
+        glow.style.opacity = '1';
+        glow.style.transform = `translate3d(${(e.clientX - r.left - 90).toFixed(1)}px, ${(e.clientY - r.top - 90).toFixed(1)}px, 0)`;
       });
     };
     const onLeave = () => {
@@ -435,6 +441,7 @@
         if (aurora) { aurora.style.removeProperty('--ax'); aurora.style.removeProperty('--ay'); }
         if (orbA) { orbA.style.removeProperty('--dx'); orbA.style.removeProperty('--dy'); }
         if (orbB) { orbB.style.removeProperty('--dx'); orbB.style.removeProperty('--dy'); }
+        glow.style.opacity = '0';
       });
     };
     stage.addEventListener('pointermove', onMove, { passive: true });
@@ -443,6 +450,7 @@
       cancelAnimationFrame(raf);
       stage.removeEventListener('pointermove', onMove);
       stage.removeEventListener('pointerleave', onLeave);
+      glow.remove();
     };
   }
 
@@ -917,6 +925,7 @@
       // 括号深度：光标前未闭合的 { [ (（忽略字符串字面量），决定新行缩进层级
       const openQuote = (beforeCursor.match(/"/g) || []).length % 2 === 1;
       let level = 0;
+      let hasOpener = false;
       if (!openQuote) {
         const depthOf = (src: string): number => {
           let d = 0;
@@ -926,25 +935,24 @@
           }
           return d;
         };
-        const stripStr = (src: string): string => src.replace(/"(\.|[^"\\])*"/g, '');
+        const stripStr = (src: string): string => src.replace(/"(\\.|[^"\\])*"/g, '');
         const dLine = depthOf(stripStr(value.slice(0, lineStart)));
         const dCursor = depthOf(stripStr(value.slice(0, start)));
         level = Math.max(0, dCursor - dLine);
-        // 光标前紧贴左括号（{ [ ( ）：新行再进一层
         const lastChar = beforeCursor.trimEnd().slice(-1);
-        if (lastChar && '{[('.includes(lastChar)) level += 1;
+        hasOpener = !!lastChar && '{[('.includes(lastChar);
       }
-      const newIndent = indent + '  '.repeat(level);
       // 光标后紧跟闭合括号（自动配对场景）：闭合括号单独换行到外层缩进，光标停在中间
       const closeMatch = afterCursor.match(/^\s*([}\])])/);
       if (closeMatch) {
-        const closeChar = closeMatch[1];
+        const newIndent = indent + '  '.repeat(level);
         const afterClose = afterCursor.slice(closeMatch[0].length);
-        const newText = '\n' + newIndent + '\n' + indent + closeChar + afterClose + value.slice(lineEndPos);
+        const newText = '\n' + newIndent + '\n' + indent + closeMatch[1] + afterClose + value.slice(lineEndPos);
         changeInput(value.slice(0, start) + newText);
         requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 1 + newIndent.length; });
         return;
       }
+      const newIndent = indent + '  '.repeat(level + (hasOpener ? 1 : 0));
       // 光标行是纯空白且下一行以闭合括号开头：跳出到闭合括号的缩进
       if (/^[\t ]*$/.test(beforeCursor)) {
         const nextLineEnd = value.indexOf('\n', lineEndPos + 1);
@@ -1999,7 +2007,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <div class="about-frame" aria-hidden="true"></div>
                 <div class="about-orb about-orb-a" aria-hidden="true"></div>
                 <div class="about-orb about-orb-b" aria-hidden="true"></div>
-                <div class="about-particles" aria-hidden="true"><i style="--px:12%;--pd:.0s;--ps:9px"></i><i style="--px:26%;--pd:1.3s;--ps:5px"></i><i style="--px:42%;--pd:.6s;--ps:7px"></i><i style="--px:58%;--pd:2s;--ps:6px"></i><i style="--px:72%;--pd:.9s;--ps:8px"></i><i style="--px:86%;--pd:1.7s;--ps:5px"></i><i style="--px:34%;--pd:2.6s;--ps:4px"></i><i style="--px:64%;--pd:3.1s;--ps:6px"></i><i style="--px:18%;--pd:3.8s;--ps:5px"></i><i style="--px:80%;--pd:2.3s;--ps:7px"></i></div>
+                <div class="about-particles" aria-hidden="true"><i style="--px:16%;--pd:.0s;--ps:8px"></i><i style="--px:38%;--pd:1.1s;--ps:6px"></i><i style="--px:58%;--pd:.5s;--ps:7px"></i><i style="--px:76%;--pd:1.9s;--ps:5px"></i><i style="--px:26%;--pd:2.7s;--ps:4px"></i><i style="--px:68%;--pd:3.4s;--ps:6px"></i></div>
                 <canvas bind:this={aboutCanvas} class="about-canvas" aria-hidden="true"></canvas>
                 <div class="about-cols">
                   <div class="about-col-left">

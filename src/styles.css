@@ -157,12 +157,12 @@ button { cursor: pointer; border: 0; background: none; }
   opacity: .6;
 }
 .app.light {
-  --bg0: #8fa1c8;
-  --bg1: #b3c3e2;
-  --bg2: #f2f6fd;
-  --bg3: #aabdd9;
-  --line: rgba(58, 76, 150, .58);
-  --line-strong: rgba(58, 76, 150, .8);
+  --bg0: #64799f;
+  --bg1: #8ba0c6;
+  --bg2: #e6edf9;
+  --bg3: #8399c0;
+  --line: rgba(42, 60, 128, .6);
+  --line-strong: rgba(42, 60, 128, .82);
   --text: #0b1030;
   --muted: #333e6b;
   --muted-2: #33407a;
@@ -1927,7 +1927,7 @@ kbd {
 .profile-list > button b { font-size: var(--fs-sm); font-weight: 650; }
 .profile-list > button small { font-size: var(--fs-xs); color: var(--muted-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .profile-list > button i { font-style: normal; font-size: var(--fs-xs); color: var(--c-green); }
-.provider-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.provider-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: calc(100vh - 300px); overflow-y: auto; padding-right: 2px; }
 .provider-list button {
   display: flex;
   align-items: center;
@@ -2210,6 +2210,25 @@ kbd {
 }
 .about-col-left, .about-col-right { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .about-type { min-height: 1.5em; display: flex; align-items: center; gap: 2px; }
+.about-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(129, 140, 248, .16), rgba(34, 211, 238, .07) 45%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  mix-blend-mode: screen;
+  transition: opacity .25s ease;
+  will-change: transform, opacity;
+}
+.app.light .about-glow {
+  background: radial-gradient(circle, rgba(79, 70, 229, .14), rgba(14, 116, 144, .06) 45%, transparent 70%);
+  mix-blend-mode: normal;
+}
 .about-caret {
   display: inline-block;
   width: 2px;
@@ -3638,26 +3657,26 @@ kbd {
 
 /* —— 浅色：深蓝灰框架 + 纯白卡片 + 淡蓝输入（告别白蒙，层次分明） —— */
 .app.light {
-  --bg0: #738dbb;
-  --bg1: #98add2;
-  --bg2: #eef3fc;
-  --bg3: #9aafd3;
-  --panel: #e6edfa;
-  --panel-2: #d7e2f3;
-  --bg: #98add2;
-  --hover: rgba(28, 38, 84, .11);
-  --glass: rgba(244, 248, 255, .94);
-  --glass-strong: rgba(248, 251, 255, .98);
-  --line: rgba(35, 58, 122, .6);
+  --bg0: #5b7199;
+  --bg1: #7e94bc;
+  --bg2: #e6edf9;
+  --bg3: #7f96bd;
+  --panel: #dfe8f6;
+  --panel-2: #cfdcf0;
+  --bg: #7e94bc;
+  --hover: rgba(28, 38, 84, .12);
+  --glass: rgba(248, 251, 255, .97);
+  --glass-strong: rgba(252, 253, 255, .99);
+  --line: rgba(35, 58, 122, .62);
   --line-strong: rgba(35, 58, 122, .85);
 }
 .app.light .app-bar {
-  background: linear-gradient(180deg, #dfeafa 0%, #b5c9e7 100%);
+  background: linear-gradient(180deg, #d5e2f4 0%, #9fb6d8 100%);
   border-bottom: 1px solid rgba(35, 58, 122, .45);
   box-shadow: 0 8px 28px rgba(35, 58, 122, .18);
 }
 .app.light .sidebar {
-  background: linear-gradient(180deg, #c2d4ef 0%, #8aa2ce 100%);
+  background: linear-gradient(180deg, #b0c4e4 0%, #7890c0 100%);
   border-right: 1px solid rgba(35, 58, 122, .55);
   box-shadow: 4px 0 22px rgba(35, 58, 122, .1);
 }
@@ -3665,21 +3684,21 @@ kbd {
   background:
     radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .18), transparent 60%),
     radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .18), transparent 58%),
-    #9cb0d2;
+    #8aa1c9;
 }
 .app.light .tool-controls {
-  background: #adbfdf;
+  background: #a3b8d9;
   border-color: rgba(35, 58, 122, .55);
 }
 .app.light .editor-grid {
-  background: #9cb0d2;
+  background: #8aa1c9;
   border-color: rgba(35, 58, 122, .55);
-  box-shadow: 0 16px 44px rgba(35, 58, 122, .24);
+  box-shadow: 0 18px 46px rgba(35, 58, 122, .3);
 }
 .app.light .editor-pane {
   background: #ffffff;
   border: 1px solid rgba(35, 58, 122, .42);
-  box-shadow: 0 10px 30px rgba(35, 58, 122, .12);
+  box-shadow: 0 12px 34px rgba(35, 58, 122, .18);
 }
 .app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .48); }
 .app.light .editor-pane > header {
@@ -3722,7 +3741,8 @@ kbd {
 .app.light .about-status,
 .app.light .about-ring,
 .app.light .about-metrics span {
-  background: rgba(255, 255, 255, .78);
+  background: rgba(255, 255, 255, .92);
+  border-color: rgba(35, 58, 122, .3);
 }
 .app .about-aurora::after { will-change: transform; }
 /* ═══════════ 聚焦框下拉：改为实底，杜绝透过页面内容造成的“重叠错乱” ═══════════ */

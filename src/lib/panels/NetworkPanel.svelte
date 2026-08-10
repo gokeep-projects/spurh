@@ -283,6 +283,29 @@
     traceZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round((traceZoom + delta) * 10) / 10));
   }
 
+  let topoWrapEl = $state<HTMLDivElement | undefined>(undefined);
+  let tracePan = $state({ x: 0, y: 0 });
+  let dragging = false;
+  let dragStart = { x: 0, y: 0, px: 0, py: 0 };
+  function onTopoWheel(event: WheelEvent): void {
+    event.preventDefault();
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round((traceZoom - event.deltaY * 0.001) * 10) / 10));
+    if (next !== traceZoom) {
+      traceZoom = next;
+      if (next === 1) tracePan = { x: 0, y: 0 };
+    }
+  }
+  function onTopoPanStart(event: PointerEvent): void {
+    dragging = true;
+    dragStart = { x: event.clientX, y: event.clientY, px: tracePan.x, py: tracePan.y };
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+  function onTopoPanMove(event: PointerEvent): void {
+    if (!dragging) return;
+    tracePan = { x: dragStart.px + event.clientX - dragStart.x, y: dragStart.py + event.clientY - dragStart.y };
+  }
+  function onTopoPanEnd(): void { dragging = false; }
+
   onMount(() => {
     if (!isTauri) {
       localInfo = { hostname: location.hostname || 'browser', ips: [], gateways: [] };
@@ -456,7 +479,7 @@ const MIME_TYPES: Array<[string, string]> = [
         {#if tcpProtocol === 'tcp' && !tcpConnected && !tcpConnecting}
           <span class="net-tcp-hint"><i></i>请先点击「连接」建立长连接，再发送数据（UDP 无需连接）</span>
         {/if}
-        <label class="net-field grow net-data"><span>数据</span><textarea rows={tcpHexMode ? 2 : 6} value={tcpData} oninput={(e) => (tcpData = e.currentTarget.value)} placeholder="要发送的内容，如 GET / HTTP/1.1" spellcheck="false" onkeydown={(e) => e.ctrlKey && e.key === 'Enter' && sendTcp()}></textarea><small class="net-data-hint">Ctrl+Enter 发送 · 支持多行报文</small></label>
+        <label class="net-field grow net-data"><span>数据</span><textarea rows={tcpHexMode ? 2 : 10} value={tcpData} oninput={(e) => (tcpData = e.currentTarget.value)} placeholder="要发送的内容，如 GET / HTTP/1.1" spellcheck="false" onkeydown={(e) => e.ctrlKey && e.key === 'Enter' && sendTcp()}></textarea><small class="net-data-hint">Ctrl+Enter 发送 · 支持多行报文</small></label>
         <label class="tcp-hex"><input type="checkbox" checked={tcpHexMode} onchange={(e) => (tcpHexMode = e.currentTarget.checked)} />HEX</label>
         <button class="net-run" class:busy={tcpSending} disabled={tcpSending || (tcpProtocol === 'tcp' && !tcpConnected && !tcpConnecting)} onclick={sendTcp} title={tcpProtocol === 'tcp' && !tcpConnected ? '请先点击「连接」建立长连接' : '发送数据并等待响应'}>
           <span class="net-dot"></span>{tcpSending ? '发送中…' : '发送'}
@@ -620,8 +643,8 @@ const MIME_TYPES: Array<[string, string]> = [
             <button onclick={() => (traceZoom = 1)} title="重置缩放" disabled={traceZoom === 1}>⟳</button>
           </span>
         </div>
-        <div class="topo-wrap">
-          <svg class="trace-topo" style={traceZoom !== 1 ? `transform: scale(${traceZoom}); transform-origin: top left;` : ''} viewBox="0 0 {TRACE_W} {traceSvgH}" role="img" aria-label="链路拓扑图">
+        <div class="topo-wrap" bind:this={topoWrapEl} onwheel={onTopoWheel} onpointerdown={onTopoPanStart} onpointermove={onTopoPanMove} onpointerup={onTopoPanEnd} onpointerleave={onTopoPanEnd} class:panning={dragging} style={traceZoom !== 1 || tracePan.x !== 0 || tracePan.y !== 0 ? `transform: translate(${tracePan.x}px, ${tracePan.y}px) scale(${traceZoom});` : ''}>
+          <svg class="trace-topo" viewBox="0 0 {TRACE_W} {traceSvgH}" role="img" aria-label="链路拓扑图">
             <defs>
               <filter id="topo-blur"><feGaussianBlur stdDeviation="4"/></filter>
             </defs>
@@ -820,7 +843,7 @@ const MIME_TYPES: Array<[string, string]> = [
   .tcp-response { display: flex; flex-direction: column; gap: 8px; }
   .tcp-response-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted-2); font-size: var(--fs-xs); }
   .tcp-response-head button { height: 26px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
-  .tcp-response-text { margin: 0; max-height: 220px; overflow: auto; padding: 10px 12px; white-space: pre-wrap; word-break: break-all; color: var(--text); font-family: 'Cascadia Code', Consolas, monospace; font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  .tcp-response-text { margin: 0; max-height: 380px; min-height: 120px; overflow: auto; padding: 10px 12px; white-space: pre-wrap; word-break: break-all; color: var(--text); font-family: 'Cascadia Code', Consolas, monospace; font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   .tcp-response-hex { max-height: 120px; overflow: auto; padding: 8px 12px; color: var(--muted); font-family: 'Cascadia Code', Consolas, monospace; font-size: var(--fs-tiny); word-break: break-all; border: 1px dashed var(--line); border-radius: 8px; background: var(--w-03); }
   /* 链路拓扑 */
   .topo-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: radial-gradient(ellipse 70% 45% at 50% 0%, var(--accent-soft), transparent 65%), var(--bg); }
@@ -909,5 +932,10 @@ const MIME_TYPES: Array<[string, string]> = [
   .topo-zoom b { min-width: 38px; text-align: center; color: var(--muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
   .net-conn-status { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; color: var(--c-green); font-size: var(--fs-xs); font-weight: 600; border: 1px solid color-mix(in srgb, var(--c-green) 35%, var(--line)); border-radius: 999px; background: color-mix(in srgb, var(--c-green) 8%, transparent); white-space: nowrap; }
   .net-conn-status i { width: 7px; height: 7px; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 8px var(--c-green); animation: net-pulse 1.2s ease-in-out infinite; }
-  .trace-topo { max-width: 100%; transition: transform .2s ease; }
+  .topo-wrap { position: relative; overflow: auto; max-height: 52vh; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--bg) 55%, var(--panel)); cursor: grab; user-select: none; touch-action: none; }
+  .topo-wrap.panning { cursor: grabbing; }
+  .trace-topo { display: block; max-width: none; transform-origin: top left; transition: transform .18s ease; }
+  .topo-edge { stroke-dasharray: 7 5; animation: topo-edge-flow .9s linear infinite; }
+  @keyframes topo-edge-flow { to { stroke-dashoffset: -12; } }
+  .topo-wrap:has(.topo-node.pending) .topo-edge { animation-duration: .45s; }
 </style>
