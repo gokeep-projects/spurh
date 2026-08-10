@@ -32,7 +32,7 @@
   type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts' | 'tools';
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Noto Sans SC', system-ui, sans-serif",
+    '系统默认': "'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif",
     '微软雅黑': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'HarmonyOS Sans SC', sans-serif",
     '等线': "'DengXian', 'DengXian Light', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'SimHei', '黑体', 'Microsoft YaHei', sans-serif",
@@ -67,7 +67,7 @@
     const fallback: AppSettings = {
       theme: 'dark', trayEnabled: true, contextMenuEnabled: true, dispatchHotkey: 'ctrl+shift+space',
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
-      fontSize: 15, fontFamily: '系统默认',
+      fontSize: 14, fontFamily: '系统默认',
       sidebarShortcuts: false,
       sidebarOpen: true,
       hiddenTools: [],
@@ -81,8 +81,8 @@
         ...fallback,
         ...parsed,
         hiddenTools: Array.isArray(parsed.hiddenTools) ? parsed.hiddenTools : fallback.hiddenTools,
-        // 字号：旧默认 12/13/14 自动上调到 15（可读性更好）；用户手动档位直接采用
-        fontSize: (() => { const v = parsed.fontSize; if (typeof v === 'number' && v >= 12 && v <= 20) return v <= 14 ? 15 : v; return fallback.fontSize; })(),
+        // 字号：用户手动档位直接采用（默认 14）
+        fontSize: typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : fallback.fontSize,
         fontFamily: FONT_STACKS[parsed.fontFamily] ? parsed.fontFamily : '系统默认',
       };
     } catch {
@@ -909,15 +909,14 @@
       const lineStart = value.lastIndexOf('\n', start - 1) + 1;
       const lineEndIdx = value.indexOf('\n', end);
       const lineEndPos = lineEndIdx < 0 ? value.length : lineEndIdx;
-      const cursorPart = value.slice(lineStart, start);
-      const fullLine = value.slice(lineStart, lineEndPos);
-      // 保持当前行缩进
-      const indentSource = cursorPart.length === 0 ? fullLine : cursorPart;
-      const indentMatch = indentSource.match(/^[\t ]*/);
-      let indent = indentMatch ? indentMatch[0] : '';
-      // 括号深度：光标前未闭合的 { [ ( 数量(忽略字符串字面量)，决定回车后新行缩进层级
-      const openQuote = (cursorPart.match(/"/g) || []).length % 2 === 1;
-      let extra = '';
+      const beforeCursor = value.slice(lineStart, start);
+      const afterCursor = value.slice(end, lineEndPos);
+      // 基础缩进：光标前空白；光标在行首时沿用整行缩进
+      let indent = (beforeCursor.match(/^[\t ]*/) || [''])[0];
+      if (!indent && afterCursor.length > 0) indent = (value.slice(lineStart, lineEndPos).match(/^[\t ]*/) || [''])[0];
+      // 括号深度：光标前未闭合的 { [ (（忽略字符串字面量），决定新行缩进层级
+      const openQuote = (beforeCursor.match(/"/g) || []).length % 2 === 1;
+      let level = 0;
       if (!openQuote) {
         const depthOf = (src: string): number => {
           let d = 0;
@@ -928,37 +927,45 @@
           return d;
         };
         const stripStr = (src: string): string => src.replace(/"(\.|[^"\\])*"/g, '');
-        const dCursor = depthOf(stripStr(value.slice(0, start)));
         const dLine = depthOf(stripStr(value.slice(0, lineStart)));
-        extra = '  '.repeat(Math.max(0, dCursor - dLine));
+        const dCursor = depthOf(stripStr(value.slice(0, start)));
+        level = Math.max(0, dCursor - dLine);
+        // 光标前紧贴左括号（{ [ ( ）：新行再进一层
+        const lastChar = beforeCursor.trimEnd().slice(-1);
+        if (lastChar && '{[('.includes(lastChar)) level += 1;
       }
-      // 光标后紧跟闭合括号（自动配对插入）：闭合括号换行到外层缩进，光标停在中间行
-      const closeAfter = value.slice(end).match(/^[}\])]/);
-      if (closeAfter) {
-        const closeChar = closeAfter[0];
-        const afterClose = value.slice(end + 1);
-        const newText = '\n' + indent + extra + '\n' + indent + closeChar + afterClose;
-        changeInput(value.slice(0, start) + newText + value.slice(end + 1));
-        requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 1 + indent.length + extra.length; });
+      const newIndent = indent + '  '.repeat(level);
+      // 光标后紧跟闭合括号（自动配对场景）：闭合括号单独换行到外层缩进，光标停在中间
+      const closeMatch = afterCursor.match(/^\s*([}\])])/);
+      if (closeMatch) {
+        const closeChar = closeMatch[1];
+        const afterClose = afterCursor.slice(closeMatch[0].length);
+        const newText = '\n' + newIndent + '\n' + indent + closeChar + afterClose + value.slice(lineEndPos);
+        changeInput(value.slice(0, start) + newText);
+        requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 1 + newIndent.length; });
         return;
       }
-      // 对齐闭合括号（} ] )）：仅当光标行是纯空白时跳出到闭合括号缩进，内容行尾 Enter 保持当前缩进
-      const nextLineStart = value.indexOf('\n', end);
-      if (nextLineStart >= 0 && /^[\t ]*$/.test(cursorPart)) {
-        const nextLineEnd = value.indexOf('\n', nextLineStart + 1);
-        const nextLine = value.slice(nextLineStart + 1, nextLineEnd < 0 ? value.length : nextLineEnd);
+      // 光标行是纯空白且下一行以闭合括号开头：跳出到闭合括号的缩进
+      if (/^[\t ]*$/.test(beforeCursor)) {
+        const nextLineEnd = value.indexOf('\n', lineEndPos + 1);
+        const nextLine = value.slice(lineEndPos + 1, nextLineEnd < 0 ? value.length : nextLineEnd);
         const nextIndent = (nextLine.match(/^[\t ]*/) || [''])[0];
-        if (/^[}\])]/.test(nextLine.trim()) && indent.length > nextIndent.length) {
-          indent = nextIndent;
-          extra = '';
+        if (/^[}\])]/.test(nextLine.trim()) && newIndent.length > nextIndent.length) {
+          const insertAlign = '\n' + nextIndent;
+          changeInput(value.slice(0, start) + insertAlign + value.slice(end));
+          requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + insertAlign.length; });
+          return;
         }
       }
-      const insert = '\n' + indent + extra;
-      changeInput(value.slice(0, start) + insert + value.slice(end));
+      // 行中回车：光标后内容整体移到新行并沿用新缩进
+      const suffix = afterCursor.trimStart();
+      const insert = '\n' + newIndent;
+      const prefixText = value.slice(0, start);
+      const suffixText = suffix ? suffix : value.slice(end, lineEndPos);
+      changeInput(prefixText + insert + suffixText + value.slice(lineEndPos));
       requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + insert.length; });
       return;
     }
-
     // 输入闭合括号时自动配对
     const CLOSERS: Record<string, string> = { '}': '{', ']': '[', ')': '(' };
     if (event.key.length === 1 && CLOSERS[event.key]) {

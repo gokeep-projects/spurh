@@ -81,18 +81,14 @@
 </script>
 
 <div class="crypto-panel">
-  <div class="crypto-grid">
+  <div class="crypto-chips">
     {#each GROUPS as group}
-      <div class="crypto-group" class:wide={group.wide}>
-        <span class="crypto-grp-label">{@html group.icon}<b>{group.label}</b></span>
-        <span class="crypto-btns">
-          {#each group.items as item}
-            <button class:active={session.actionId === item.id} title={item.hint} onclick={() => onChangeAction(item.id)}>
-              {item.label}
-            </button>
-          {/each}
-        </span>
-      </div>
+      <span class="crypto-grp">{@html group.icon}<b>{group.label}</b></span>
+      {#each group.items as item}
+        <button class:active={session.actionId === item.id} title={item.hint} onclick={() => onChangeAction(item.id)}>
+          {item.label}
+        </button>
+      {/each}
     {/each}
   </div>
 
@@ -115,20 +111,15 @@
 </div>
 
 <style>
-  .crypto-panel { display: flex; flex-direction: column; gap: 6px; width: 100%; min-width: 0; }
-  .crypto-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; }
-  .crypto-group { min-width: 0; display: flex; flex-direction: row; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--panel) 96%, var(--accent-soft)); transition: border-color .15s ease, box-shadow .15s ease; }
-  .crypto-group:hover { border-color: color-mix(in srgb, var(--accent) 32%, var(--line)); box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 7%, transparent); }
-  .crypto-grp-label { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
+  .crypto-panel { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
+  .crypto-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--panel) 96%, var(--accent-soft)); }
+  .crypto-grp { display: inline-flex; align-items: center; gap: 4px; margin-right: 2px; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
   /* svelte-ignore css_unused_selector */
-  .crypto-grp-label :global(svg) { width: 13px; height: 13px; }
-  .crypto-btns { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; flex: 1; }
-  .crypto-group.wide .crypto-btns { display: flex; flex-wrap: wrap; }
-  .crypto-group button { position: relative; width: auto; min-width: 64px; flex: 0 0 auto; height: 26px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid transparent; border-radius: 7px; background: transparent; white-space: nowrap; transition: all .15s ease; overflow: hidden; text-overflow: ellipsis; }
-  .crypto-group button:hover:not(.active) { color: var(--text); border-color: var(--line); background: var(--hover); }
-  .crypto-group button.active { color: #fff; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); background-size: 180% 100%; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent); animation: cryptoGlow 2.4s ease infinite; }
+  .crypto-grp :global(svg) { width: 12px; height: 12px; }
+  .crypto-chips button { position: relative; width: auto; min-width: 0; flex: 0 0 auto; height: 24px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid var(--line); border-radius: 7px; background: var(--w-03); white-space: nowrap; transition: all .15s ease; }
+  .crypto-chips button:hover:not(.active) { color: var(--text); border-color: var(--line-strong); background: var(--hover); transform: translateY(-1px); }
+  .crypto-chips button.active { color: #fff; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); background-size: 180% 100%; border-color: transparent; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent); animation: cryptoGlow 2.4s ease infinite; }
   @keyframes cryptoGlow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-  @media (max-width: 1100px) { .crypto-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (min-width: 1281px) { .crypto-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
   .crypto-key-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .crypto-key-row label { display: flex; align-items: center; gap: 6px; }

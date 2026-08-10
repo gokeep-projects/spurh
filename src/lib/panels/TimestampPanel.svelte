@@ -1,5 +1,6 @@
 <script lang="ts">
   import { UI_ICONS, TOOL_ICONS } from '../icons';
+  import { copyText as copyTextNative } from '../env';
   import type { PluginResult } from '../plugins/types';
   import { timestampPlugin } from '../plugins/builtin/timestamp';
 
@@ -110,6 +111,29 @@
     return String(Math.floor(d.getTime() / 1000));
   })());
 
+  /** 日期时间 → 本地可读文本 */
+  const localPreview = $derived((() => {
+    const raw = session.options.pickDateTime || '';
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+    if (!m) return '';
+    const p = (n: number) => String(n).padStart(2, '0');
+    return m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5];
+  })());
+  const weekdayPreview = $derived((() => {
+    const raw = session.options.pickDateTime || '';
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+    if (!m) return '';
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+    return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()] || '';
+  })());
+  const unixMsPreview = $derived(unixPreview ? String(Number(unixPreview) * 1000) : '');
+  let copiedTs = $state('');
+  async function copyTs(value: string, key: string): Promise<void> {
+    await copyTextNative(value);
+    copiedTs = key;
+    setTimeout(() => { if (copiedTs === key) copiedTs = ''; }, 1100);
+  }
+
   let tsClockTimer: ReturnType<typeof setInterval> | undefined;
   let tsClock = $state('');
   function tickTsClock(): void {
@@ -167,9 +191,23 @@
           <button class="ts-now-inline" onclick={() => quickPick('now')} title="填入当前时间">现在</button>
         </div>
         {#if session.options.pickDateTime}
-          <div class="ts-live-unix">
-            <span>Unix 秒</span><b>{unixPreview || '—'}</b><small>本地 / UTC 完整结果在右侧同步展示</small>
+          {#key unixPreview || 'empty'}
+          <div class="ts-inline-card">
+            <div class="ts-inline-local">
+              <span>本地时间</span>
+              <b>{localPreview || '—'}</b>
+              <em>{weekdayPreview}</em>
+            </div>
+            <div class="ts-inline-cols">
+              <button class="ts-chip" onclick={() => copyTs(unixPreview || '', 'sec')} title="点击复制">
+                <small>Unix 秒</small><b>{unixPreview || '—'}</b>{copiedTs === 'sec' ? '✓ 已复制' : '复制'}
+              </button>
+              <button class="ts-chip" onclick={() => copyTs(unixMsPreview || '', 'ms')} title="点击复制">
+                <small>Unix 毫秒</small><b>{unixMsPreview || '—'}</b>{copiedTs === 'ms' ? '✓ 已复制' : '复制'}
+              </button>
+            </div>
           </div>
+          {/key}
         {:else}
           <small class="ts-field-hint">点击输入框打开日历选择，或使用下方快捷预设，结果即时显示</small>
         {/if}
@@ -206,6 +244,22 @@
   .ts-field input:hover, .ts-field select:hover { border-color: var(--line-strong); }
   .ts-field input:focus, .ts-field select:focus { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 12px color-mix(in srgb, var(--accent) 10%, transparent); }
   .ts-field-hint { color: var(--accent); font-size: var(--fs-xs); }
+  .ts-inline-card { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--c-green) 32%, var(--line)); border-radius: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--c-green) 8%, var(--panel)), var(--panel) 70%); box-shadow: 0 4px 16px color-mix(in srgb, var(--c-green) 8%, transparent); animation: tsCardIn .28s cubic-bezier(.2,.9,.3,1.2); }
+  @keyframes tsCardIn { from { opacity: 0; transform: translateY(6px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .ts-inline-local { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .ts-inline-local span { color: var(--muted); font-size: var(--fs-xs); letter-spacing: .6px; text-transform: uppercase; }
+  .ts-inline-local b { font: 650 var(--fs-sm) 'Cascadia Code', Consolas, monospace; color: var(--c-green); font-variant-numeric: tabular-nums; }
+  .ts-inline-local em { font-style: normal; color: var(--accent); font-size: var(--fs-xs); font-weight: 700; }
+  .ts-inline-cols { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ts-chip { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 9px; background: var(--w-04); transition: all .15s ease; }
+  .ts-chip small { color: var(--muted-2); }
+  .ts-chip b { font: 600 var(--fs-xs) 'Cascadia Code', Consolas, monospace; color: var(--text); font-variant-numeric: tabular-nums; }
+  .ts-chip:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); transform: translateY(-1px); }
+  .ts-input-wrap input[type="datetime-local"] { min-height: 38px; }
+  .ts-input-wrap input[type="datetime-local"]::-webkit-calendar-picker-indicator { width: 20px; height: 20px; margin-right: 52px; cursor: pointer; }
+  .ts-now-inline { top: 50%; transform: translateY(-50%); }
+  .ts-dtfield .ts-live-unix { display: none; }
+  .ts-dtfield:has(.ts-inline-card) { min-width: 100%; max-width: none; width: 100%; }
   .ts-live-unix { display: flex; align-items: baseline; gap: 7px; padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--c-green) 30%, var(--line)); border-radius: 9px; background: color-mix(in srgb, var(--c-green) 6%, var(--panel)); }
   .ts-live-unix span { color: var(--muted); font-size: var(--fs-xs); }
   .ts-live-unix b { font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; color: var(--c-green); font-variant-numeric: tabular-nums; }
