@@ -32,8 +32,9 @@
   type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts' | 'tools';
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', system-ui, sans-serif",
+    '系统默认': "'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Noto Sans SC', system-ui, sans-serif",
     '微软雅黑': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'HarmonyOS Sans SC', sans-serif",
+    '等线': "'DengXian', 'DengXian Light', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'SimHei', '黑体', 'Microsoft YaHei', sans-serif",
     '宋体': "'SimSun', '宋体', 'STSong', serif",
     'Consolas': "'Consolas', 'Cascadia Code', monospace",

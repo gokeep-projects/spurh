@@ -891,6 +891,17 @@ const MIME_TYPES: Array<[string, string]> = [
   .tcp-payloads button.ghost { color: var(--muted); border-style: solid; border-color: var(--line); }
   .tcp-payloads button.ghost:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 6%, transparent); }
 
+
+  .topo-node { cursor: pointer; }
+  .topo-node:hover circle:not(.node-halo) { filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 70%, transparent)); stroke: var(--c-cyan); stroke-width: 2; }
+  .topo-node .node-halo { animation: node-halo-pulse 2.2s ease-in-out infinite; }
+  @keyframes node-halo-pulse { 0%, 100% { opacity: .25; transform: scale(.92); } 50% { opacity: .55; transform: scale(1.12); } }
+  .topo-target { cursor: default; }
+  .topo-target .target-halo { animation: target-halo-pulse 2.6s ease-in-out infinite; transform-origin: center; }
+  @keyframes target-halo-pulse { 0%, 100% { opacity: .3; transform: scale(.9); } 50% { opacity: .7; transform: scale(1.18); } }
+  .topo-edge { transition: stroke .2s ease, stroke-width .2s ease; }
+  .topo-node:hover ~ .topo-edge, .topo-node.pending ~ .topo-edge { stroke: color-mix(in srgb, var(--c-cyan) 60%, var(--line-2)); }
+
   .topo-zoom { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
   .topo-zoom button { width: 24px; height: 24px; display: grid; place-items: center; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: all .15s ease; }
   .topo-zoom button:hover:not(:disabled) { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
