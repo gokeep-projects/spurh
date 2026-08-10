@@ -788,7 +788,7 @@ kbd {
 .model-switcher .ms-dot.busy { background: var(--accent); animation: aiPulse 1s ease infinite; }
 .model-switcher .ms-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .model-switcher .ms-arrow { display: inline-flex; opacity: .65; }
-.model-switcher .ms-arrow :global(svg) { width: 12px; height: 12px; }
+.model-switcher .ms-arrow svg { width: 12px; height: 12px; }
 @keyframes aiPulse { 50% { opacity: .3; } }
 
 /* ─── 主框架 ─── */
