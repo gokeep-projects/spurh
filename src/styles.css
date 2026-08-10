@@ -401,7 +401,8 @@ button { cursor: pointer; border: 0; background: none; }
   0%, 100% { transform: scale(1); opacity: .75; }
   50% { transform: scale(1.16); opacity: 1; }
 }
-.dispatcher input {
+.dispatcher input,
+.dispatcher textarea {
   flex: 1;
   min-width: 0;
   height: 100%;
@@ -411,7 +412,20 @@ button { cursor: pointer; border: 0; background: none; }
   font-size: var(--fs-sm);
   letter-spacing: .2px;
 }
-.dispatcher input::placeholder { color: var(--muted-2); }
+.dispatcher textarea {
+  height: auto;
+  max-height: 40px;
+  padding: 9px 0;
+  line-height: 1.35;
+  resize: none;
+  overflow-y: auto;
+  scrollbar-width: none;
+  font-family: inherit;
+  color: inherit;
+}
+.dispatcher textarea::-webkit-scrollbar { display: none; }
+.dispatcher input::placeholder,
+.dispatcher textarea::placeholder { color: var(--muted-2); }
 .dispatcher > kbd {
   flex: 0 0 auto;
   font-size: var(--fs-xs);

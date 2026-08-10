@@ -152,7 +152,7 @@
     } catch { /* ignore */ }
   });
   let dispatcherInput = $state('');
-  let dispatcherElement = $state<HTMLInputElement | undefined>(undefined);
+  let dispatcherElement = $state<HTMLTextAreaElement | undefined>(undefined);
   let inputElement = $state<HTMLTextAreaElement | undefined>(undefined);
   let streamScrollElement = $state<HTMLDivElement | undefined>(undefined);
   let toolSearch = $state('');
@@ -1127,6 +1127,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     const max = dispatcherCandidates.length - 1;
     if (event.key === 'ArrowDown') { event.preventDefault(); dispatchIndex = Math.min(dispatchIndex + 1, max); return; }
     if (event.key === 'ArrowUp') { event.preventDefault(); dispatchIndex = Math.max(dispatchIndex - 1, 0); return; }
+    if (event.key === 'Enter' && event.shiftKey) return; // Shift+Enter：插入换行
     if (event.key === 'Enter') {
       event.preventDefault();
       event.stopPropagation();
@@ -1609,7 +1610,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     </button>
     <div class="dispatcher">
         <span class="dispatcher-spark" class:active={dispatcherOpen}>{@html UI_ICONS.sparkle}</span>
-        <input bind:this={dispatcherElement} bind:value={dispatcherInput} oninput={(event) => handleDispatcherInput(event.currentTarget.value)} onpaste={handleDispatcherPaste} onkeydown={handleDispatcherKeys} onfocus={() => (dispatcherOpen = true)} onblur={() => (dispatcherOpen = false)} placeholder="搜索工具或粘贴内容…" />
+        <textarea rows="1" bind:this={dispatcherElement} bind:value={dispatcherInput} oninput={(event) => handleDispatcherInput(event.currentTarget.value)} onpaste={handleDispatcherPaste} onkeydown={handleDispatcherKeys} onfocus={() => (dispatcherOpen = true)} onblur={() => (dispatcherOpen = false)} placeholder="搜索工具或粘贴内容…（多行日志可直接粘贴，Shift+Enter 换行）"></textarea>
         {#if dispatcherOpen}
           <div class="dispatch-matches" class:passive={!dispatcherInput.trim()} role="listbox" aria-label="工具候选列表" tabindex="-1" onmousedown={(event) => { if (!(event.target as HTMLElement).closest('button')) dispatcherElement?.blur(); }}>
             {#if dispatcherInput.trim()}
