@@ -100,6 +100,16 @@
     onChangeAction(id);
   }
 
+  /** 选中日期时间的内联反馈：实时显示对应 Unix 秒（右栏同步展示完整结果） */
+  const unixPreview = $derived((() => {
+    const raw = session.options.pickDateTime || '';
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+    if (!m) return '';
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+    if (Number.isNaN(d.getTime())) return '';
+    return String(Math.floor(d.getTime() / 1000));
+  })());
+
   let tsClockTimer: ReturnType<typeof setInterval> | undefined;
   let tsClock = $state('');
   function tickTsClock(): void {
@@ -148,16 +158,21 @@
         <div class="ts-input-wrap">
           <i class="ts-input-ico">{@html TOOL_ICONS['spurh.timestamp']}</i>
           <input
-            value={pickText()}
-            placeholder="例如 2026-08-10 17:30"
+            type="datetime-local"
+            value={session.options.pickDateTime || ''}
             spellcheck="false"
-            inputmode="numeric"
-            oninput={(e) => parseDateTimeText(e.currentTarget.value)}
-            onchange={(e) => parseDateTimeText(e.currentTarget.value)}
+            step="60"
+            oninput={(e) => onChangeOption('pickDateTime', e.currentTarget.value)}
           />
           <button class="ts-now-inline" onclick={() => quickPick('now')} title="填入当前时间">现在</button>
         </div>
-        <small class="ts-field-hint" class:active={!!session.options.pickDateTime}>{session.options.pickDateTime ? '✓ 已选择：' + pickText() : '选择或填入日期时间，结果即时显示在右侧'}</small>
+        {#if session.options.pickDateTime}
+          <div class="ts-live-unix">
+            <span>Unix 秒</span><b>{unixPreview || '—'}</b><small>本地 / UTC 完整结果在右侧同步展示</small>
+          </div>
+        {:else}
+          <small class="ts-field-hint">点击输入框打开日历选择，或使用下方快捷预设，结果即时显示</small>
+        {/if}
       </label>
       <div class="ts-quick">{#each QUICK_PRESETS as preset}<button class:active={session.options.pickDateTime === presetValue(preset.id)} onclick={() => quickPick(preset.id)}>{preset.label}</button>{/each}</div>
       <button class="ts-clear" onclick={onClear} title="清空">清空</button>
@@ -191,6 +206,10 @@
   .ts-field input:hover, .ts-field select:hover { border-color: var(--line-strong); }
   .ts-field input:focus, .ts-field select:focus { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 12px color-mix(in srgb, var(--accent) 10%, transparent); }
   .ts-field-hint { color: var(--accent); font-size: var(--fs-xs); }
+  .ts-live-unix { display: flex; align-items: baseline; gap: 7px; padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--c-green) 30%, var(--line)); border-radius: 9px; background: color-mix(in srgb, var(--c-green) 6%, var(--panel)); }
+  .ts-live-unix span { color: var(--muted); font-size: var(--fs-xs); }
+  .ts-live-unix b { font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; color: var(--c-green); font-variant-numeric: tabular-nums; }
+  .ts-live-unix small { color: var(--muted-2); font-size: var(--fs-xs); }
   .ts-field.ts-narrow select { width: 112px; }
   .ts-row .ts-field:first-child { flex: 1 1 auto; min-width: 240px; max-width: 340px; }
   .ts-row .ts-field:first-child input { width: 100%; }
@@ -209,7 +228,7 @@
   .ts-input-ico :global(svg) { width: 15px; height: 15px; }
   .ts-now-inline { position: absolute; right: 5px; height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 7px; background: var(--accent-soft); transition: all .15s ease; }
   .ts-now-inline:hover { background: color-mix(in srgb, var(--accent) 24%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 20%, transparent); }
-  .ts-field-hint.active { color: var(--c-green); }
+
   .ts-live-clock { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
   .ts-live-clock i { width: 7px; height: 7px; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 8px color-mix(in srgb, var(--c-green) 70%, transparent); animation: tsLive 2s ease infinite; }
   @keyframes tsLive { 50% { opacity: .35; } }

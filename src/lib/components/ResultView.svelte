@@ -78,6 +78,48 @@
     return { ...data, weekday: extra.weekday, relative: extra.relative };
   }
 
+  function escHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  /** 轻量级 Markdown → HTML（AI 结果专用） */
+  function renderAiText(text: string): string {
+    const blocks = text.split(/\n{2,}/);
+    return blocks.map((block) => {
+      const t = block.trim();
+      if (!t) return '';
+      if (t.startsWith('```')) {
+        const lines = block.split('\n');
+        const fence = lines[0].trim();
+        const last = lines[lines.length - 1].trim();
+        const body = lines.slice(1, last === '```' ? lines.length - 1 : lines.length).join('\n');
+        return '<pre class="ai-code">' + escHtml(body) + '</pre>';
+      }
+      if (/^#{1,3}\s/.test(t)) {
+        const level = t.match(/^#+/)![0].length;
+        const tag = 'h' + Math.min(4, level + 1);
+        return '<' + tag + ' class="ai-h">' + inlineMd(t.replace(/^#+\s*/, '')) + '</' + tag + '>';
+      }
+      const ulLines = block.split('\n').filter((l) => /^[-*]\s+/.test(l));
+      if (ulLines.length > 0 && ulLines.length === block.split('\n').filter((l) => l.trim()).length) {
+        return '<ul class="ai-ul">' + ulLines.map((l) => '<li>' + inlineMd(l.replace(/^[-*]\s+/, '')) + '</li>').join('') + '</ul>';
+      }
+      const olLines = block.split('\n').filter((l) => /^\d+\.\s+/.test(l));
+      if (olLines.length > 0 && olLines.length === block.split('\n').filter((l) => l.trim()).length) {
+        return '<ol class="ai-ol">' + olLines.map((l) => '<li>' + inlineMd(l.replace(/^\d+\.\s+/, '')) + '</li>').join('') + '</ol>';
+      }
+      return '<p class="ai-p">' + inlineMd(t) + '</p>';
+    }).join('');
+  }
+  function inlineMd(s: string): string {
+    const esc = escHtml(s);
+    return esc
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+  }
+  /** AI 结果：卡片视图 */
+  const isAiAnswer = $derived(!!result.meta?.['来源'] && result.view === 'text');
+  const aiHtml = $derived(isAiAnswer ? renderAiText(result.output) : '');
+
   let items = $derived(list(result.data));
   let canTreeView = $derived(result.view === 'code' && isComplexJson(result.output, result.language));
   let useTreeView = $state(false);
@@ -360,6 +402,11 @@
         <div class="structured-empty"><span>∅</span><b>没有匹配的日志</b><small>调整级别过滤或搜索关键词。</small></div>
       {/if}
     </div>
+  {:else if isAiAnswer}
+    <div class="ai-answer">
+      <header><span class="ai-answer-badge">✦</span><div><b>AI 处理结果</b><small>{display(result.meta?.['模型'])} · {display(result.meta?.['来源'])}</small></div></header>
+      <div class="ai-answer-body">{@html aiHtml}</div>
+    </div>
   {:else}
     {#if useTreeView}
       <JsonView jsonString={result.output} />
@@ -377,6 +424,20 @@
   .tree-mode .result-actions { padding-right: 14px; }
   .result-view.tree-mode { padding: 0; display: flex; flex-direction: column; }
   .result-view.tree-mode :global(.json-tree) { flex: 1; min-height: 100%; }
+  .ai-answer { overflow: hidden; border: 1px solid color-mix(in srgb, var(--c-violet) 34%, var(--line)); border-radius: 15px; background: linear-gradient(160deg, color-mix(in srgb, var(--c-violet) 9%, var(--panel)), var(--panel) 55%, color-mix(in srgb, var(--c-cyan) 6%, var(--panel))); box-shadow: 0 14px 44px color-mix(in srgb, var(--c-violet) 12%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent); }
+  .ai-answer > header { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid color-mix(in srgb, var(--c-violet) 22%, var(--line)); background: color-mix(in srgb, var(--c-violet) 6%, transparent); }
+  .ai-answer-badge { display: grid; place-items: center; width: 30px; height: 30px; color: #fff; font-size: 15px; border-radius: 9px; background: var(--grad-main); box-shadow: 0 6px 18px color-mix(in srgb, var(--c-violet) 45%, transparent); }
+  .ai-answer > header b { display: block; font-size: var(--fs-sm); }
+  .ai-answer > header small { color: var(--muted-2); font-size: var(--fs-xs); }
+  .ai-answer-body { padding: 15px 18px 18px; color: var(--text); font-size: var(--fs-sm); line-height: 1.75; }
+  :global(.ai-answer-body .ai-p) { margin: 0 0 11px; }
+  :global(.ai-answer-body .ai-p:last-child) { margin-bottom: 0; }
+  :global(.ai-answer-body .ai-h) { margin: 15px 0 8px; font-size: var(--fs-lg); font-weight: 750; }
+  :global(.ai-answer-body .ai-ul), :global(.ai-answer-body .ai-ol) { margin: 0 0 11px; padding-left: 22px; }
+  :global(.ai-answer-body .ai-ul li), :global(.ai-answer-body .ai-ol li) { margin: 4px 0; }
+  :global(.ai-answer-body code) { padding: 1.5px 6px; color: var(--c-cyan); font: 500 var(--fs-xs) ui-monospace, Consolas, monospace; border-radius: 6px; background: color-mix(in srgb, var(--c-cyan) 11%, transparent); }
+  :global(.ai-answer-body strong) { color: color-mix(in srgb, var(--text) 78%, var(--c-violet)); }
+  :global(.ai-answer-body .ai-code) { margin: 0 0 11px; padding: 12px 14px; overflow: auto; color: var(--text); font: 450 var(--fs-xs)/1.6 ui-monospace, 'Cascadia Code', Consolas, monospace; white-space: pre; border: 1px solid var(--line); border-radius: 11px; background: var(--bg); }
   .result-view > pre { width: 100%; min-height: 100%; margin: 0; color: var(--text); font: 450 var(--fs-sm)/1.62 ui-monospace, 'Cascadia Code', Consolas, monospace; tab-size: 2; white-space: pre; overflow: auto; }
   .result-view > pre.plain { font-family: inherit; font-size: var(--fs-lg); }
   small { color: var(--muted); }

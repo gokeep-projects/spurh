@@ -293,6 +293,19 @@ button { cursor: pointer; border: 0; background: none; }
   opacity: .7;
   pointer-events: none;
 }
+.sidebar-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--muted);
+  border-radius: 11px;
+  transition: background var(--transition), color var(--transition), transform var(--transition);
+}
+.sidebar-toggle:hover { background: var(--w-06); color: var(--text); transform: translateY(-1px); }
+.sidebar-toggle svg { width: 18px; height: 18px; }
 .brand { position: relative; }
 .brand-mark { position: relative; }
 .brand-mark::after {
@@ -1923,6 +1936,28 @@ kbd {
 }
 .model-field input:focus, .model-field select:focus { border-color: rgba(129, 140, 248, .6); box-shadow: 0 0 0 3px rgba(129, 140, 248, .14); }
 .model-field input[type="password"] { font-family: ui-monospace, Consolas, monospace; letter-spacing: 1px; }
+.model-field > div { display: flex; align-items: center; gap: 6px; }
+.model-field > div input, .model-field > div select { flex: 1; min-width: 0; }
+.model-field button {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  flex: 0 0 auto;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--w-05);
+  transition: all var(--transition);
+}
+.model-field button:hover:not(:disabled) { color: var(--c-cyan); border-color: color-mix(in srgb, var(--c-cyan) 40%, var(--line)); }
+.model-field button:disabled { opacity: .45; cursor: default; }
+.model-field button span { display: inline-flex; }
+.model-field button svg { width: 13px; height: 13px; }
 .config-fields { padding: 12px; border-radius: 12px; background: var(--w-04); border: 1px solid var(--line); }
 .ai-secret { display: flex; align-items: center; gap: 6px; }
 .ai-secret input { flex: 1; min-width: 0; }
@@ -3538,7 +3573,7 @@ kbd {
   --fs-xs: calc(var(--fs) - 1px);
   --fs-sm: calc(var(--fs) - 0.5px);
   --fs-lg: calc(var(--fs) + 1px);
-  --fs-tiny: max(10.5px, calc(var(--fs) - 3px));
+  --fs-tiny: max(11.5px, calc(var(--fs) - 2.5px));
 }
 /* ═══════════════════════════════════════════════════════════════
    表面层级修复（最终覆盖，置于文件末尾）
