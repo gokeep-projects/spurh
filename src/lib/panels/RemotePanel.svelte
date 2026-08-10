@@ -54,22 +54,27 @@
 
   /** 迁移旧明文到钥匙串，并从钥匙串加载当前会话的密码/口令到内存。 */
   async function migrateAndHydrateSecrets(): Promise<void> {
-    for (const item of legacySecrets) {
-      try { await setSecret('ssh.' + item.id + '.' + item.key, item.value); } catch { /* 钥匙串不可用时忽略 */ }
+    try {
+      for (const item of legacySecrets) {
+        try { await setSecret('ssh.' + item.id + '.' + item.key, item.value); } catch { /* 钥匙串不可用时忽略 */ }
+      }
+      legacySecrets = [];
+      const hydrated = await Promise.all(sessions.map(async (session) => ({
+        ...session,
+        password: (await getSecret('ssh.' + session.id + '.password')) ?? '',
+        passphrase: (await getSecret('ssh.' + session.id + '.passphrase')) ?? '',
+      })));
+      sessions = hydrated;
+      // 恢复上次打开的标签页；过滤已删除的会话
+      openTabs = openTabs.filter((id) => sessions.some((session) => session.id === id));
+      if (activeId && !sessions.some((session) => session.id === activeId)) {
+        activeId = sessions[0]?.id ?? '';
+      }
+      saveTabs();
+    } finally {
+      // 无论钥匙串是否可用都必须放行终端，避免"信息都对但进不了终端"
+      secretsReady = true;
     }
-    legacySecrets = [];
-    const hydrated = await Promise.all(sessions.map(async (session) => ({
-      ...session,
-      password: (await getSecret('ssh.' + session.id + '.password')) ?? '',
-      passphrase: (await getSecret('ssh.' + session.id + '.passphrase')) ?? '',
-    })));
-    sessions = hydrated;
-    // 恢复上次打开的标签页；过滤已删除的会话
-    openTabs = openTabs.filter((id) => sessions.some((session) => session.id === id));
-    if (activeId && !sessions.some((session) => session.id === activeId)) {
-      activeId = sessions[0]?.id ?? '';
-    }
-    saveTabs();
   }
 
   onMount(() => { migrateAndHydrateSecrets(); });
@@ -110,6 +115,8 @@
   let showSecret = $state(false);
   let testing = $state(false);
   let testMessage = $state('');
+  /** 密钥从系统钥匙串加载完成前，不渲染终端，避免空密码触发"无法连接" */
+  let secretsReady = $state(false);
 
   type PortProbe = { port: number; open: boolean; elapsedMs: number };
 
@@ -485,7 +492,7 @@
         {#each openTabs as tabId}
           {#key tabId + ':' + (nonceMap[tabId] ?? 0)}
             {@const tab = sessionById(tabId)}
-            {#if tab}
+            {#if secretsReady && tab}
               <TerminalView session={tab} active={tabId === activeId} onState={handleTerminalState} />
             {/if}
           {/key}

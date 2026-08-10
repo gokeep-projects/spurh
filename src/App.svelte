@@ -483,10 +483,11 @@
           }
         }
         if (!sparkStatsAvailable) {
-          const mem = 34 + Math.round(Math.sin(sparkTick / 3.2) * 10 + Math.sin(sparkTick / 7.7) * 4);
-          const cpu = 18 + Math.round(Math.sin(sparkTick / 4.6 + 1.4) * 9 + Math.sin(sparkTick / 11.3) * 5);
-          aboutLive = { mem, cpu };
-          sparkHistory = [...sparkHistory, [mem, cpu] as [number, number]].slice(-44);
+          // 统计不可用时不再用假正弦数据，避免误导
+          aboutLive = { mem: 0, cpu: 0 };
+          aboutHeap = '统计加载中…';
+          aboutCpu = '--';
+          sparkHistory = [...sparkHistory, [0, 0] as [number, number]].slice(-44);
         }
         drawAboutSpark(isLightTheme);
       }, 600);
@@ -700,6 +701,8 @@
     // body 随主题同步，避免 overscroll 露出深空色
     document.body.style.background = bgHex;
     document.body.style.color = lightMode ? '#171c33' : '#eef1ff';
+    // 同步窗口原生标题栏主题，避免 WebView2 默认浅色闪白
+    if (isTauri) safeInvoke('set_window_theme', { theme: resolvedTheme }).catch(() => undefined);
   });
 
   $effect(() => {

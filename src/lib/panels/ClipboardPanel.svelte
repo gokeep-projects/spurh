@@ -14,6 +14,8 @@
   let selected = $state(0);
   let confirmingClear = $state(false);
   let clearTimer: ReturnType<typeof setTimeout> | null = null;
+  /** 相对时间标签每 30 秒自动刷新（x 分钟前） */
+  let timeTick = $state(0);
 
   /** 已删除条目的 id 集合：后端暂无单条删除能力，前端过滤并持久化，避免重启后重新出现 */
   function loadDeletedIds(): Set<string> {
@@ -64,6 +66,7 @@
   }
 
   function timeLabel(ts: number): string {
+    void timeTick; // 依赖 tick 触发重新渲染
     const diff = Date.now() - ts;
     if (diff < 60_000) return '刚刚';
     if (diff < 3_600_000) return Math.floor(diff / 60_000) + ' 分钟前';
@@ -135,6 +138,7 @@
   }
 
   onMount(() => {
+    const ticker = setInterval(() => (timeTick += 1), 30_000);
     safeInvoke<ClipItem[]>('clipboard_history').then((snapshot) => {
       items = snapshot.filter((item) => !deletedIds.has(item.id));
       loaded = true;
@@ -163,6 +167,7 @@
       items = trimImageHistory([event.payload, ...items].slice(0, 100));
     });
     return () => {
+      clearInterval(ticker);
       unlisten1.then((fn) => fn()).catch(() => undefined);
       unlisten2.then((fn) => fn()).catch(() => undefined);
     };

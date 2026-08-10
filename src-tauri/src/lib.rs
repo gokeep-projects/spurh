@@ -149,6 +149,18 @@ fn app_log_error(message: String) {
     eprintln!("[frontend-error] {message}");
 }
 
+/// 设置窗口原生主题，与前端主题联动
+#[tauri::command]
+fn set_window_theme(window: tauri::Window, theme: String) -> Result<(), String> {
+    use tauri::Theme;
+    let resolved = match theme.as_str() {
+        "light" => Theme::Light,
+        "dark" => Theme::Dark,
+        _ => return Ok(()), // aurora / forest 沿用默认
+    };
+    window.set_theme(Some(resolved)).map_err(|error| format!("设置窗口主题失败：{error}"))
+}
+
 #[tauri::command]
 fn get_process_stats() -> Result<serde_json::Value, String> {
     #[cfg(windows)]
@@ -891,7 +903,7 @@ async fn apply_hotkeys(
     Ok(results)
 }
 
-/// ?????panic=abort ?? panic ????????????
+/// panic 键设置为 abort 时，panic 日志也要写入日志文件
 fn install_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
         let msg = if let Some(s) = info.payload().downcast_ref::<&str>() {
@@ -998,6 +1010,7 @@ pub fn run(cli_args: Vec<String>) {
         })
         .invoke_handler(tauri::generate_handler![
             app_log_error,
+            set_window_theme,
             get_process_stats,
             save_text_file,
             ai_list_models,
