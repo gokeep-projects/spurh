@@ -1291,6 +1291,8 @@ kbd {
 .syntax-boolean { color: var(--c-cyan); }
 .syntax-null { color: var(--c-magenta); }
 .light .syntax-key { color: #7c3aed; }
+.app.forest .syntax-key { color: #a78bfa; }
+.app.forest .syntax-null { color: #f0abfc; }
 .light .syntax-string { color: #047857; }
 .light .syntax-number { color: #b45309; }
 .light .syntax-boolean { color: #0e7490; }
@@ -3491,7 +3493,7 @@ kbd {
   --muted: #8fb8a4;
   --muted-2: #719b87;
   --c-cyan: #2dd4bf;
-  --c-violet: #34d399;
+  --c-violet: #a78bfa;
   --c-magenta: #4ade80;
   --c-blue: #38bdf8;
   --c-green: #34d399;

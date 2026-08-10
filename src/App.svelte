@@ -916,9 +916,19 @@
       // 自动补全：未闭合引号 / 行尾开括号
       const openQuote = (cursorPart.match(/"/g) || []).length % 2 === 1;
       let extra = (!openQuote && /[{[(]$/.test(cursorPart.trimEnd())) ? '  ' : '';
-      // 对齐闭合括号（} ] )）
+      // 光标后紧跟闭合括号（自动配对插入）：闭合括号换行到外层缩进，光标停在中间行
+      const closeAfter = value.slice(end).match(/^[}\])]/);
+      if (closeAfter) {
+        const closeChar = closeAfter[0];
+        const afterClose = value.slice(end + 1);
+        const newText = '\n' + indent + extra + '\n' + indent + closeChar + afterClose;
+        changeInput(value.slice(0, start) + newText + value.slice(end + 1));
+        requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 1 + indent.length + extra.length; });
+        return;
+      }
+      // 对齐闭合括号（} ] )）：仅当光标行是纯空白时跳出到闭合括号缩进，内容行尾 Enter 保持当前缩进
       const nextLineStart = value.indexOf('\n', end);
-      if (nextLineStart >= 0) {
+      if (nextLineStart >= 0 && /^[\t ]*$/.test(cursorPart)) {
         const nextLineEnd = value.indexOf('\n', nextLineStart + 1);
         const nextLine = value.slice(nextLineStart + 1, nextLineEnd < 0 ? value.length : nextLineEnd);
         const nextIndent = (nextLine.match(/^[\t ]*/) || [''])[0];
@@ -949,8 +959,12 @@
               const openIndent = (value.slice(openLineStart, i).match(/^[\t ]*/) || [''])[0];
               if (before.length > openIndent.length) {
                 event.preventDefault();
-                changeInput(value.slice(0, cLineStart) + openIndent + value.slice(start));
-                requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = cLineStart + openIndent.length; });
+                // 光标后可能已有自动配对的闭合括号（同行或下一行），替换时跳过，避免重复
+                let tail = value.slice(start);
+                if (tail.startsWith(event.key)) tail = tail.slice(1);
+                else if (tail.startsWith('\n' + event.key)) tail = tail.slice(2);
+                changeInput(value.slice(0, cLineStart) + openIndent + event.key + tail);
+                requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = cLineStart + openIndent.length + 1; });
                 return;
               }
             } else depth--;
