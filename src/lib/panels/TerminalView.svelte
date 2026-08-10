@@ -316,6 +316,10 @@
 
 <div class="term-pane" class:inactive={!active}>
   <div class="term-toolbar" title="终端工具栏">
+    <span class="term-status" class:on={connected} class:off={!connected && !connecting} class:busy={connecting}>
+      <i></i>{connecting ? '连接中…' : connected ? '已连接' : '未连接'}
+    </span>
+    <i></i>
     <button onclick={() => setFontSize(fontSize - 1)} title="减小字号">A−</button>
     <span class="term-font">{fontSize}</span>
     <button onclick={() => setFontSize(fontSize + 1)} title="增大字号">A+</button>
@@ -344,6 +348,14 @@
   .term-toolbar button:hover { color: var(--text); border-color: var(--line-2); }
   .term-toolbar i { width: 1px; height: 14px; margin: 0 3px; background: var(--line); }
   .term-toolbar .term-font { min-width: 22px; color: var(--muted-2); font: 500 var(--fs-xs) 'Cascadia Code', monospace; text-align: center; }
+  .term-status { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; color: var(--muted); font-size: var(--fs-tiny); font-weight: 600; border: 1px solid var(--line); border-radius: 999px; }
+  .term-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-2); }
+  .term-status.on { color: var(--c-green); border-color: color-mix(in srgb, var(--c-green) 40%, var(--line)); background: color-mix(in srgb, var(--c-green) 8%, transparent); }
+  .term-status.on i { background: var(--c-green); box-shadow: 0 0 8px var(--c-green); }
+  .term-status.busy { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .term-status.busy i { background: var(--accent); animation: term-blink 1s ease infinite; }
+  .term-status.off i { background: var(--muted-2); }
+  @keyframes term-blink { 50% { opacity: .3; } }
   .term-wrap { min-width: 0; min-height: 0; flex: 1; display: flex; position: relative; }
   .term-box { min-width: 0; min-height: 0; flex: 1; padding: 8px 10px; overflow: hidden; background: var(--bg); }
   .term-box :global(.xterm) { height: 100%; }
