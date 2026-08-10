@@ -457,7 +457,7 @@
       sparkHistory = [];
       sparkTick = 0;
       /* 折线 + 系统统计合并为单个低频心跳，减少定时器唤醒次数 */
-      let statsMisses = 0;
+      let statsMisses = 3; // 首轮立即拉取系统统计，避免“加载中”空窗
       const sparkTicker = setInterval(async () => {
         sparkTick += 1;
         statsMisses += 1;
