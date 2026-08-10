@@ -146,7 +146,7 @@
   .ts-field input, .ts-field select { height: 30px; padding: 0 11px; color: var(--text); font-size: var(--fs-xs); border: 1px solid var(--line-2); border-radius: 8px; outline: 0; background: var(--panel); }
   .ts-field input:focus, .ts-field select:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .ts-field.ts-narrow select { width: 112px; }
-  .ts-row .ts-field:first-child { flex: 1; min-width: 240px; }
+  .ts-row .ts-field:first-child { flex: 1 1 auto; min-width: 240px; max-width: 340px; }
   .ts-row .ts-field:first-child input { width: 100%; }
   .ts-now, .ts-clear { height: 30px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); transition: all var(--transition); }
   .ts-now { display: inline-flex; align-items: center; gap: 6px; }

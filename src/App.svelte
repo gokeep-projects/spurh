@@ -54,6 +54,8 @@
     sidebarShortcuts: boolean;
     sidebarOpen: boolean;
     hiddenTools: string[];
+    topBarFullscreen: boolean;
+    topBarSettings: boolean;
   };
 
   type ContextInfo = { path: string; content: string };
@@ -71,6 +73,8 @@
       sidebarShortcuts: false,
       sidebarOpen: true,
       hiddenTools: [],
+      topBarFullscreen: true,
+      topBarSettings: true,
     };
     try {
       const stored = localStorage.getItem(SETTINGS_KEY);
@@ -1788,12 +1792,14 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
           {#if anyAiProcessing}<span class="ai-spin" title="AI 处理中"></span>{/if}
         </label>
       {/if}
-      {#if fullscreenSupported}
+      {#if appSettings.topBarFullscreen && fullscreenSupported}
         <button class="settings-button" onclick={toggleFullscreen} title={isFullscreen ? '退出全屏' : '全屏显示'}>
           <span>{@html isFullscreen ? UI_ICONS.shrink : UI_ICONS.expand}</span>{isFullscreen ? '退出全屏' : '全屏'}
         </button>
       {/if}
-      <button class:configured={isAiConfigured(aiConfig)} class="settings-button" onclick={() => openSettings()}><span>{@html UI_ICONS.settings}</span>设置</button>
+      {#if appSettings.topBarSettings}
+        <button class:configured={isAiConfigured(aiConfig)} class="settings-button" onclick={() => openSettings()}><span>{@html UI_ICONS.settings}</span>设置</button>
+      {/if}
     </div>
   </header>
 
@@ -2037,6 +2043,9 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               <label class="setting-row"><div class="setting-copy"><b>侧栏默认展开</b><small>启动时默认显示左侧工具栏（窄窗口下自动收起）</small></div><input type="checkbox" checked={sidebarOpen} onchange={(event) => { sidebarOpen = event.currentTarget.checked; sidebarAutoCollapsed = false; if (sidebarOpen && window.innerWidth <= 850) sidebarUserNarrowChoice = true; saveAppSettings({ sidebarOpen }); }} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>系统右键菜单</b><small>在资源管理器中“用 Spurh 打开”</small></div><input type="checkbox" checked={contextMenuEnabled} disabled={settingsBusy === 'contextMenu'} onchange={(event) => changeContextMenu(event.currentTarget.checked)} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>剪贴板历史</b><small>自动记录复制的文本（含密码等敏感内容，注意隐私）</small></div><input type="checkbox" checked={appSettings.clipboardWatch} disabled={settingsBusy === 'clipboard'} onchange={(event) => changeClipboardWatch(event.currentTarget.checked)} /><i></i></label>
+              <div class="settings-section-title"><h3>顶栏显示</h3><small>默认全部显示，可隐藏顶栏按钮（仍可通过 Ctrl+K 命令面板使用）</small></div>
+              <label class="setting-row"><div class="setting-copy"><b>全屏按钮</b></div><input type="checkbox" checked={appSettings.topBarFullscreen} onchange={(event) => saveAppSettings({ topBarFullscreen: event.currentTarget.checked })} /><i></i></label>
+              <label class="setting-row"><div class="setting-copy"><b>设置按钮</b></div><input type="checkbox" checked={appSettings.topBarSettings} onchange={(event) => saveAppSettings({ topBarSettings: event.currentTarget.checked })} /><i></i></label>
               {#if settingsError}<div class="settings-error">{settingsError}</div>{/if}
             {/if}
             {#if settingsTab === 'tools'}
