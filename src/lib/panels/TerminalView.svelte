@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import { Terminal } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
@@ -32,8 +32,8 @@
   let term: Terminal | undefined;
   let fitAddon: FitAddon | undefined;
   let channel: Channel<SshEvent> | undefined;
-  let connected = false;
-  let connecting = false;
+  let connected = $state(false);
+  let connecting = $state(false);
   let disposed = false;
   /** 会话在 ready 前已退出（服务器拒绝 shell 等情况），防止后续 ready 误报已连接 */
   let sessionDead = false;
@@ -249,7 +249,7 @@
       if (term) term.focus();
       fit();
     });
-    if (!connected && !connecting && !disposed) connect();
+    if (!connected && !connecting && !disposed && !sessionDead) connect();
   });
 
   onMount(() => {
