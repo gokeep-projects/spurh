@@ -400,7 +400,7 @@ const MIME_TYPES: Array<[string, string]> = [
             <option value="udp">UDP</option>
           </select>
         </label>
-        <label class="net-field grow"><span>数据</span><input value={tcpData} oninput={(e) => (tcpData = e.currentTarget.value)} placeholder="要发送的内容，如 GET / HTTP/1.1" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && sendTcp()} /></label>
+        <label class="net-field grow net-data"><span>数据</span><textarea rows={tcpHexMode ? 2 : 4} value={tcpData} oninput={(e) => (tcpData = e.currentTarget.value)} placeholder="要发送的内容，如 GET / HTTP/1.1" spellcheck="false" onkeydown={(e) => e.ctrlKey && e.key === 'Enter' && sendTcp()}></textarea><small class="net-data-hint">Ctrl+Enter 发送 · 支持多行报文</small></label>
         <label class="tcp-hex"><input type="checkbox" checked={tcpHexMode} onchange={(e) => (tcpHexMode = e.currentTarget.checked)} />HEX</label>
         <button class="net-run" class:busy={tcpSending} disabled={tcpSending} onclick={sendTcp} title="发送数据并等待响应">
           <span class="net-dot"></span>{tcpSending ? '发送中…' : '发送'}
@@ -667,6 +667,9 @@ const MIME_TYPES: Array<[string, string]> = [
   .net-field span { color: var(--muted-2); font-size: var(--fs-xs); white-space: nowrap; }
   .net-field input { min-width: 0; flex: 1; width: 100%; height: 100%; padding: 0; color: var(--text); font-size: var(--fs-xs); border: 0; outline: 0; background: transparent; }
   .net-field.grow { flex: 1 1 260px; min-width: 220px; }
+  .net-field.net-data { height: auto; min-height: 30px; align-items: flex-start; padding: 7px 9px; flex-direction: column; gap: 4px; }
+  .net-field.net-data textarea { width: 100%; min-height: 52px; padding: 0; color: var(--text); font: 500 13px/1.55 'Cascadia Code', Consolas, monospace; resize: vertical; border: 0; outline: 0; background: transparent; }
+  .net-field.net-data .net-data-hint { color: var(--muted-2); font-size: var(--fs-tiny); line-height: 1; }
   .net-select select { height: 100%; color: var(--text); font-size: var(--fs-xs); border: 0; outline: 0; background: transparent; cursor: pointer; }
   .net-run { height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 13px; cursor: pointer; color: #fff; font-size: var(--fs-sm); font-weight: 600; border: 0; border-radius: 8px; background: var(--btn-gradient); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 28%, transparent); transition: filter var(--transition), transform var(--transition); }
   .net-run:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
