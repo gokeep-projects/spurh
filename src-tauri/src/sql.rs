@@ -18,6 +18,12 @@ fn friendly_db_error(context: &str, raw: &str) -> String {
             msg = inner[..end].trim().to_string();
         }
     }
+    // postgres crate 的 SQL 错误 Display 形如 "db error: ERROR: column ... does not exist"，
+    // 直接透传 ERROR 后的真实信息，避免被下面宽泛的 "db error" 映射误报为连接失败
+    if let Some(pos) = msg.find("db error: ERROR:") {
+        let detail = msg[pos + "db error: ERROR:".len()..].trim().to_string();
+        return format!("{context}：{detail}");
+    }
     let mappings: &[(&str, &str)] = &[
         ("由于目标计算机积极拒绝，无法连接。 (os error 10061)", "目标主机拒绝连接（端口未开放或被防火墙拦截）"),
         ("Connection refused (os error 10061)", "目标主机拒绝连接（端口未开放或被防火墙拦截）"),
@@ -35,7 +41,6 @@ fn friendly_db_error(context: &str, raw: &str) -> String {
         ("password authentication failed", "认证失败（请检查用户名与密码）"),
         ("no password supplied", "缺少密码（请填写连接密码）"),
         ("Unknown database", "数据库不存在（请检查数据库名称）"),
-        ("db error", "数据库连接失败（请检查用户名、密码与数据库名称）"),
         ("SSL", "SSL 连接失败（请确认服务器支持并已正确启用 SSL）"),
     ];
     for (from, to) in mappings {
@@ -1943,8 +1948,19 @@ fn run_user_grants(profile: &SqlProfile, name: &str, host: Option<&str>) -> Resu
                     let table: String = row.get(2);
                     lines.push(format!("GRANT {priv_name} ON {schema}.{table} TO {name}"));
                 }
+                // PG16+ 的 role_usage_grants 视图列名由 table_schema 改为 object_schema，动态兼容
+                let schema_col: String = client
+                    .query_one(
+                        "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema' AND table_name = 'role_usage_grants' AND column_name IN ('object_schema', 'table_schema') ORDER BY column_name DESC LIMIT 1",
+                        &[],
+                    )
+                    .map_err(|error| friendly_db_error(&format!("读取 {name} 的 schema 权限失败"), &error.to_string()))?
+                    .get(0);
+                let usage_sql = format!(
+                    "SELECT privilege_type, {schema_col} FROM information_schema.role_usage_grants WHERE grantee = $1 ORDER BY {schema_col}"
+                );
                 let usage_rows = client
-                    .query("SELECT privilege_type, table_schema FROM information_schema.role_usage_grants WHERE grantee = $1 ORDER BY table_schema", &[&name])
+                    .query(&usage_sql, &[&name])
                     .map_err(|error| friendly_db_error(&format!("读取 {name} 的 schema 权限失败"), &error.to_string()))?;
                 for row in usage_rows {
                     let priv_name: String = row.get(0);

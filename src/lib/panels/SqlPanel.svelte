@@ -1757,7 +1757,9 @@
       {/if}
 
         {#if tab === 'users'}
-        <SqlUsersPanel conn={activeConn} databases={databases} />
+        <div class="sql-users-scroll">
+          <SqlUsersPanel conn={activeConn} databases={databases} />
+        </div>
       {/if}
     </main>
   </div>
@@ -1928,6 +1930,7 @@
 
   /* ── 主区 ── */
   .sql-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
+  .sql-users-scroll { flex: 1; min-height: 0; padding: 12px; overflow-y: auto; }
   .sql-tabs { height: 40px; flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-tabs-group { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   .sql-tabs-group button { height: 26px; padding: 0 13px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 0; border-radius: 8px; background: transparent; transition: all .15s ease; }
