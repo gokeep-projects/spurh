@@ -161,7 +161,7 @@
   .ai-send { height: 31px; flex: 0 0 auto; padding: 0 16px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 10px; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); background-size: 180% 100%; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 24%, transparent); transition: background-position .3s ease, transform .15s ease; }
   .ai-send:hover:not(:disabled) { background-position: 100% 0; transform: translateY(-1px); }
   .ai-send:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
-  .ai-stream { min-width: 0; display: flex; flex-direction: column; gap: 7px; max-height: 340px; overflow-y: auto; padding: 2px; }
+  .ai-stream { display: flex; flex-direction: column; gap: 9px; max-height: min(46vh, 460px); overflow: auto; padding-right: 2px; }
   .ai-content { width: min(100%, 860px); align-self: center; }
   .ai-reasoning { width: min(100%, 860px); align-self: center; }
   .ai-reasoning, .ai-content { min-width: 0; display: flex; flex-direction: column; gap: 4px; }

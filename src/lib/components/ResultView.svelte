@@ -325,12 +325,12 @@
   .tree-mode .result-actions { padding-right: 14px; }
   .result-view.tree-mode { padding: 0; display: flex; flex-direction: column; }
   .result-view.tree-mode :global(.json-tree) { flex: 1; min-height: 100%; }
-  .ai-answer { overflow: hidden; border: 1px solid color-mix(in srgb, var(--c-violet) 34%, var(--line)); border-radius: 15px; background: linear-gradient(160deg, color-mix(in srgb, var(--c-violet) 9%, var(--panel)), var(--panel) 55%, color-mix(in srgb, var(--c-cyan) 6%, var(--panel))); box-shadow: 0 14px 44px color-mix(in srgb, var(--c-violet) 12%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent); }
+  .ai-answer { display: flex; flex-direction: column; max-height: min(62vh, 620px); overflow: hidden; border: 1px solid color-mix(in srgb, var(--c-violet) 34%, var(--line)); border-radius: 15px; background: linear-gradient(160deg, color-mix(in srgb, var(--c-violet) 9%, var(--panel)), var(--panel) 55%, color-mix(in srgb, var(--c-cyan) 6%, var(--panel))); box-shadow: 0 14px 44px color-mix(in srgb, var(--c-violet) 12%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent); }
   .ai-answer > header { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid color-mix(in srgb, var(--c-violet) 22%, var(--line)); background: color-mix(in srgb, var(--c-violet) 6%, transparent); }
   .ai-answer-badge { display: grid; place-items: center; width: 30px; height: 30px; color: #fff; font-size: 15px; border-radius: 9px; background: var(--grad-main); box-shadow: 0 6px 18px color-mix(in srgb, var(--c-violet) 45%, transparent); }
   .ai-answer > header b { display: block; font-size: var(--fs-sm); }
   .ai-answer > header small { color: var(--muted-2); font-size: var(--fs-xs); }
-  .ai-answer-body { padding: 15px 18px 18px; color: var(--text); font-size: var(--fs-sm); line-height: 1.75; }
+  .ai-answer-body { min-height: 0; flex: 1; overflow: auto; padding: 15px 18px 18px; color: var(--text); font-size: var(--fs-sm); line-height: 1.75; }
   :global(.ai-answer-body .ai-p) { margin: 0 0 11px; }
   :global(.ai-answer-body .ai-p:last-child) { margin-bottom: 0; }
   :global(.ai-answer-body .ai-h) { margin: 15px 0 8px; font-size: var(--fs-lg); font-weight: 750; }

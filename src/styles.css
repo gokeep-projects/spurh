@@ -1305,6 +1305,8 @@ kbd {
   font-size: var(--fs-sm);
   line-height: 1.62;
   tab-size: 2;
+  font-variant-ligatures: none;
+  font-kerning: none;
   background: transparent;
   color: var(--text);
   white-space: pre;
@@ -3583,11 +3585,11 @@ kbd {
 /* ── 全局字号档位：让“设置→字号”对组件真正生效（替换硬编码 13/13.5px 等） ── */
 .app {
   --fs: var(--app-font-size, 14px);
-  --fs-xxs: calc(var(--fs) - 2px);
-  --fs-xs: calc(var(--fs) - 1px);
-  --fs-sm: calc(var(--fs) - 0.5px);
+  --fs-xxs: calc(var(--fs) - 1.5px);
+  --fs-xs: calc(var(--fs) - 0.5px);
+  --fs-sm: var(--fs);
   --fs-lg: calc(var(--fs) + 1px);
-  --fs-tiny: max(11.5px, calc(var(--fs) - 2.5px));
+  --fs-tiny: max(12px, calc(var(--fs) - 2px));
 }
 /* ═══════════════════════════════════════════════════════════════
    表面层级修复（最终覆盖，置于文件末尾）
