@@ -135,12 +135,12 @@ button { cursor: pointer; border: 0; background: none; }
   opacity: .6;
 }
 .app.light {
-  --bg0: #b6c4de;
-  --bg1: #d0daee;
+  --bg0: #aebdd9;
+  --bg1: #c9d6ee;
   --bg2: #ffffff;
-  --bg3: #ccd6ec;
-  --line: rgba(58, 76, 150, .4);
-  --line-strong: rgba(58, 76, 150, .62);
+  --bg3: #c3cfe8;
+  --line: rgba(58, 76, 150, .5);
+  --line-strong: rgba(58, 76, 150, .74);
   --text: #0b1030;
   --muted: #333e6b;
   --muted-2: #46538a;
@@ -151,8 +151,8 @@ button { cursor: pointer; border: 0; background: none; }
   --w-025: rgba(28, 38, 84, .035);
   --w-03: rgba(28, 38, 84, .045);
   --w-035: rgba(28, 38, 84, .05);
-  --w-04: rgba(28, 38, 84, .055);
-  --w-045: rgba(28, 38, 84, .06);
+  --w-04: rgba(28, 38, 84, .07);
+  --w-045: rgba(28, 38, 84, .075);
   --w-05: rgba(28, 38, 84, .07);
   --w-055: rgba(28, 38, 84, .075);
   --w-06: rgba(28, 38, 84, .085);
@@ -237,6 +237,18 @@ button { cursor: pointer; border: 0; background: none; }
 }
 .app.light .dispatch-matches {
   box-shadow: 0 20px 64px rgba(37, 48, 100, .38), 0 0 40px rgba(99, 102, 241, .14);
+}
+.app.light .app-bar {
+  box-shadow: 0 8px 28px rgba(37, 48, 100, .1);
+}
+.app.light .tool-controls {
+  box-shadow: 0 10px 26px rgba(37, 48, 100, .08);
+}
+.app.light .editor-grid {
+  box-shadow: 0 16px 44px rgba(37, 48, 100, .14), 0 0 0 1px rgba(58, 76, 150, .14);
+}
+.app.light .actions {
+  background: var(--w-06);
 }
 
 
@@ -994,8 +1006,8 @@ kbd {
 }
 .app.light .workspace {
   background:
-    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .1), transparent 60%),
-    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .08), transparent 58%);
+    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .15), transparent 60%),
+    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .12), transparent 58%);
 }
 .workspace::before {
   content: "";
@@ -1006,10 +1018,11 @@ kbd {
     radial-gradient(30vw 24vh at 18% 12%, rgba(34, 211, 238, .05), transparent 65%),
     radial-gradient(30vw 24vh at 86% 78%, rgba(232, 121, 249, .05), transparent 65%);
   animation: aurora-drift 18s ease-in-out infinite alternate;
+  will-change: transform;
 }
 @keyframes aurora-drift {
-  0% { opacity: .5; }
-  100% { opacity: .92; }
+  0% { opacity: .5; transform: translate3d(0, 0, 0) scale(1); }
+  100% { opacity: .92; transform: translate3d(0, -1.8%, 0) scale(1.035); }
 }
 .workspace > * { position: relative; }
 .tool-header {
@@ -3923,17 +3936,17 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 }
 .app.light .workspace {
   background:
-    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .1), transparent 60%),
-    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .09), transparent 58%),
-    #d7e1f0;
+    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .16), transparent 60%),
+    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .13), transparent 58%),
+    #cdd9ea;
 }
 .app.light .tool-controls {
   background: #c7d3e8;
-  border-color: rgba(35, 58, 122, .4);
+  border-color: rgba(35, 58, 122, .45);
 }
 .app.light .editor-grid {
-  border-color: rgba(35, 58, 122, .35);
-  box-shadow: 0 16px 40px rgba(35, 58, 122, .18);
+  border-color: rgba(35, 58, 122, .42);
+  box-shadow: 0 16px 40px rgba(35, 58, 122, .22);
 }
 .app.light .editor-pane {
   background: #ffffff;
@@ -3944,3 +3957,35 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app.light .json-tree { background: #e3eaf7; }
 .app.light .side-heading small { color: #45507f; }
 .app.light .tool-kbd { color: #46538a; }
+
+/* ===== 关于页：版本徽章流光扫描 + 实况环呼吸 ===== */
+.about-ver-head b {
+  position: relative;
+  isolation: isolate;
+}
+.about-ver-head b::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, .55) 50%, transparent 58%);
+  clip-path: inset(0 round 999px);
+  transform: translateX(-150%);
+  animation: about-ver-sweep 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes about-ver-sweep {
+  0%, 55% { transform: translateX(-150%); }
+  100% { transform: translateX(150%); }
+}
+.about-ring.live svg {
+  animation: about-ring-breathe 3.2s ease-in-out infinite;
+}
+@keyframes about-ring-breathe {
+  0%, 100% { filter: drop-shadow(0 0 3px color-mix(in srgb, currentColor 45%, transparent)); }
+  50% { filter: drop-shadow(0 0 10px color-mix(in srgb, currentColor 90%, transparent)); }
+}
+.app.light .about-ver-head b::after {
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, .8) 50%, transparent 58%);
+}
