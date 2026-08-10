@@ -255,7 +255,7 @@
         <span class="jv-content">
           {#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}
           <span class="jv-bracket">{'{'}</span>
-          {#if f}<span class="jv-ellipsis">{ks.length} 键</span><span class="jv-bracket">{'}'}</span><span class="jv-preview">{previewKeys(obj)}</span>{/if}
+          {#if f}<span class="jv-ellipsis">{ks.length} 项</span><span class="jv-bracket">{'}'}</span><span class="jv-preview">{previewKeys(obj)}</span>{/if}
         </span>
       </div>
       {#if !f}

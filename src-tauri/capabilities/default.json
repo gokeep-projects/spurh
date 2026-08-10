@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Minimal permissions for the main Spurh window",
   "windows": ["main"],
-  "permissions": ["core:default", "global-shortcut:default"]
+  "permissions": ["core:default", "core:window:allow-set-fullscreen", "global-shortcut:default"]
 }

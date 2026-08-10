@@ -4,7 +4,6 @@ use std::{
     process::Command,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
         Mutex,
     },
     time::Duration,
@@ -14,7 +13,6 @@ use tauri::{Emitter, Manager};
 mod clipboard;
 mod secrets;
 mod net;
-mod git;
 mod sql;
 mod ssh;
 
@@ -954,16 +952,9 @@ pub fn run(cli_args: Vec<String>) {
         .manage(TrayState(AtomicBool::new(false)))
         .manage(HotkeyRegistry::default())
         .manage(PendingOpen(Mutex::new(None)))
-        .manage(Arc::new(clipboard::ClipboardHistory::default()))
         .manage(ssh::SshSessions::default())
         .setup(move |app| {
             use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
-
-            // 剪贴板历史：独立线程轮询，文本变化时记录并推送事件（开关默认开启，前端设置同步）
-            let history = app.state::<Arc<clipboard::ClipboardHistory>>().inner().clone();
-            let watch = Arc::new(clipboard::ClipboardWatch(AtomicBool::new(true)));
-            app.manage(watch.clone());
-            clipboard::start_watcher(app.handle().clone(), history, watch);
 
             // Always available: show the window from anywhere.
             let toggle = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
@@ -1024,9 +1015,6 @@ pub fn run(cli_args: Vec<String>) {
             take_pending_open,
             clipboard::read_clipboard,
             clipboard::clipboard_write_text,
-            clipboard::clipboard_history,
-            clipboard::clipboard_clear_history,
-            clipboard::set_clipboard_watch,
             secrets::secret_set,
             secrets::secret_get,
             secrets::secret_delete,
@@ -1065,22 +1053,6 @@ sql::sql_alter_table,
             ssh::ssh_resize,
             ssh::ssh_close,
             apply_hotkeys,
-            git::git_open,
-            git::git_detect,
-            git::git_status,
-            git::git_branches,
-            git::git_log,
-            git::git_diff_workdir,
-            git::git_diff_commit,
-            git::git_stage,
-            git::git_unstage,
-            git::git_discard,
-            git::git_commit,
-            git::git_checkout,
-            git::git_create_branch,
-            git::git_pull,
-            git::git_push,
-            git::pick_folder
         ])
         .build(tauri::generate_context!())
         .expect("error while building Spurh")

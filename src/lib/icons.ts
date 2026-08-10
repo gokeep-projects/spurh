@@ -29,10 +29,7 @@ export const TOOL_ICONS: Record<string, string> = {
   'spurh.regex': S('<path d="M5.2 18.8 18.8 5.2"/><path d="M12 3.6l1.4 5.3L18.6 12l-5.2 3.1L12 20.4l-1.4-5.3L5.4 12l5.2-3.1z" fill="currentColor" stroke="none"/>'),
   'spurh.sql': S('<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/>'),
   'spurh.network': S('<circle cx="12" cy="12" r="3"/><path d="M12 9V4.5M12 15v4.5M9 12H4.5M15 12h4.5"/><path d="M7.8 7.8 5 5M16.2 7.8 19 5M7.8 16.2 5 19M16.2 16.2 19 19"/>'),
-  'spurh.clipboard': S('<rect width="13" height="16" x="5.5" y="4.5" rx="2"/><path d="M9 4.5a3 3 0 0 1 6 0"/><path d="M9 10.5h6M9 14h6"/>'),
   'spurh.remote': S('<rect x="3" y="4.5" width="18" height="13" rx="2.4"/><path d="m7.5 9 3 2.5-3 2.5"/><path d="M12.5 14h4"/><path d="M7 20.5h10"/>'),
-  'spurh.git': S('<circle cx="6" cy="6" r="2.6"/><circle cx="18" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><path d="M6 8.6v6.8M18 8.6a6.4 6.4 0 0 1-6.4 6.4H8.6"/>'),
-  'spurh.log': S('<path d="M5 4.5h14M5 9.5h14M5 14.5h14M5 19.5h14"/><circle cx="8" cy="9.5" r=".6" fill="currentColor" stroke="none"/><circle cx="8" cy="14.5" r=".6" fill="currentColor" stroke="none"/><circle cx="8" cy="19.5" r=".6" fill="currentColor" stroke="none"/>'),
 };
 
 // ── 通用 UI 图标 ───────────────────────────────────────────

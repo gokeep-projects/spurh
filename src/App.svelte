@@ -12,8 +12,6 @@
   import TimestampPanel from './lib/panels/TimestampPanel.svelte';
   import { buildExpression } from './lib/plugins/builtin/cron';
   import { runtime, type PluginResult } from './lib/plugins';
-  import { setPendingRepo } from './lib/panels/gitStore';
-  import { trimImageHistory, type ClipItem } from './lib/clipHistory';
 
   type ToolSession = {
     input: string;
@@ -46,7 +44,6 @@
     theme: ThemeMode;
     trayEnabled: boolean;
     contextMenuEnabled: boolean;
-    clipboardWatch: boolean;
     dispatchHotkey: string;
     toolHotkeys: Record<string, string>;
     fontSize: number;
@@ -67,7 +64,7 @@
 
   function loadAppSettings(): AppSettings {
     const fallback: AppSettings = {
-      theme: 'dark', trayEnabled: true, contextMenuEnabled: true, clipboardWatch: true, dispatchHotkey: 'ctrl+shift+space',
+      theme: 'dark', trayEnabled: true, contextMenuEnabled: true, dispatchHotkey: 'ctrl+shift+space',
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
       fontSize: 16, fontFamily: '系统默认',
       sidebarShortcuts: false,
@@ -191,11 +188,6 @@
   let paletteQuery = $state('');
   let paletteIndex = $state(0);
   let paletteElement = $state<HTMLInputElement | undefined>(undefined);
-  let clipItems = $state<ClipItem[]>([]);
-  let clipOverlayOpen = $state(false);
-  let clipOverlayQuery = $state('');
-  let clipOverlayIndex = $state(0);
-  let clipElement = $state<HTMLInputElement | undefined>(undefined);
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
   /* ── 关于页实时动态：会话运行时长 + 实时时钟 ── */
@@ -234,8 +226,8 @@
     { k: 'priv', l: '隐私安全', c: '#f472b6' },
   ] as const;
   let aboutCaps = $state({ ai: 0, local: 0, cover: 0, priv: 0 });
-  const aboutPhrases = ['AI Native Developer Toolbox', '本地优先 · 数据不出设备', '粘贴即用 · 一步完成', '14 个工具 · 一个入口'];
-  const aboutToolNames = ['JSON 格式化', '时间戳转换', '文本处理', '随机生成', '加解密', 'Cron 表达式', '编码转换', '正则表达式', '数据库工具', '网络工具', '日志分析', '远程连接', 'Git 仓库', '剪贴板历史'];
+  const aboutPhrases = ['AI Native Developer Toolbox', '本地优先 · 数据不出设备', '粘贴即用 · 一步完成', '11 个工具 · 一个入口'];
+  const aboutToolNames = ['JSON 格式化', '时间戳转换', '文本处理', '随机生成', '加解密', 'Cron 表达式', '编码转换', '正则表达式', '数据库工具', '网络工具', '远程连接'];
   const BUILD_STAMP = __BUILD_DATE__; // 构建标记来自 vite define
 
   function startAboutCanvas(canvas: HTMLCanvasElement, stage: HTMLElement, isLight: boolean): () => void {
@@ -577,29 +569,15 @@
   type LazyPanelModule = { default: Component };
   const PANEL_LOADERS: Record<string, () => Promise<LazyPanelModule>> = {
     'spurh.network': () => import('./lib/panels/NetworkPanel.svelte') as Promise<LazyPanelModule>,
-    'spurh.log': () => import('./lib/panels/LogPanel.svelte') as Promise<LazyPanelModule>,
-    'spurh.clipboard': () => import('./lib/panels/ClipboardPanel.svelte') as Promise<LazyPanelModule>,
     'spurh.remote': () => import('./lib/panels/RemotePanel.svelte') as Promise<LazyPanelModule>,
     'spurh.sql': () => import('./lib/panels/SqlPanel.svelte') as Promise<LazyPanelModule>,
-    'spurh.git': () => import('./lib/panels/GitPanel.svelte') as Promise<LazyPanelModule>,
   };
   let lazyPanel = $state<Component | null>(null);
   let lazyPanelLoading = $state(false);
-  let logPanelStatus = $state<{ chars: number; summary: string } | null>(null);
   const lazyPanelProps = $derived<Record<string, unknown>>(
-    activePluginId === 'spurh.clipboard'
-      ? { onChangeInput: fillFromClipboard }
-      : activePluginId === 'spurh.sql'
-        ? { aiConfig }
-        : activePluginId === 'spurh.log'
-          ? {
-              onStatus: (status: { chars: number; summary: string } | null) => (logPanelStatus = status),
-              aiConfig,
-              aiConfigured: isAiConfigured(aiConfig),
-              // 路由/拖拽进入日志面板的内容同步到面板输入区，避免“有结果但界面空”的割裂
-              externalText: activeSession.input.trim() ? { text: activeSession.input, ts: activeSession.revision } : null,
-            }
-          : {},
+    activePluginId === 'spurh.sql'
+      ? { aiConfig }
+      : {},
   );
 
   $effect(() => {
@@ -655,9 +633,7 @@
     activeSession.error ? '处理失败'
       : activeSession.aiProcessing ? 'AI 处理中…'
         : activeSession.processing ? '处理中…'
-          : activePluginId === 'spurh.log' && logPanelStatus
-            ? `结果 ${logPanelStatus.summary} · ${logPanelStatus.chars} 字符`
-            : currentSessionResult() ? `结果 ${currentSessionResult()!.output?.length ?? 0} 字符`
+          : currentSessionResult() ? `结果 ${currentSessionResult()!.output?.length ?? 0} 字符`
               : '等待输入',
   );
   let dispatchHotkeyLabel = $derived(formatHotkey(dispatchHotkey));
@@ -675,15 +651,12 @@
     return groups;
   })());
   let paletteFlat = $derived(paletteFiltered);
-  let clipFiltered = $derived(clipOverlayQuery ? clipItems.filter((item) => item.text.toLowerCase().includes(clipOverlayQuery.toLowerCase())) : clipItems);
   let titleTimer: ReturnType<typeof setTimeout> | undefined;
   $effect(() => {
     // 结果状态实时写入窗口标题；纯 ASCII + 500ms 节流，规避 Tauri Windows 原生标题
     // 同步在快速连续切换时的崩溃风险，同时降低高频写入开销
     const result = currentSessionResult();
-    const next = activePluginId === 'spurh.log' && logPanelStatus
-      ? `Spurh ${__BUILD_DATE__} | log ${logPanelStatus.summary} | ${logPanelStatus.chars}c`
-      : result
+    const next = result
         ? `Spurh ${__BUILD_DATE__} | result ${(result.summary || 'ok').slice(0, 24)} | ${result.output?.length ?? 0}c`
         : `Spurh ${__BUILD_DATE__} | ready`;
     clearTimeout(titleTimer);
@@ -707,9 +680,6 @@
 
   $effect(() => {
     if (paletteIndex > paletteFlat.length - 1) paletteIndex = Math.max(0, paletteFlat.length - 1);
-  });
-  $effect(() => {
-    if (clipOverlayIndex > Math.max(0, clipFiltered.length - 1)) clipOverlayIndex = Math.max(0, clipFiltered.length - 1);
   });
 
   async function applyHotkeys(): Promise<void> {
@@ -762,35 +732,7 @@
       safeInvoke<boolean>('get_autostart').then((enabled) => (autostartEnabled = enabled)).catch(() => undefined);
       safeInvoke<boolean>('get_context_menu_enabled').then((enabled) => (contextMenuEnabled = enabled)).catch(() => undefined);
       safeInvoke('set_tray_enabled', { enabled: appSettings.trayEnabled }).catch(() => undefined);
-      safeInvoke('set_clipboard_watch', { enabled: appSettings.clipboardWatch }).catch(() => undefined);
     }, 800);
-    // 剪贴板历史：初始快照 + 实时事件
-    safeInvoke<ClipItem[]>('clipboard_history').then((snapshot) => { clipItems = snapshot; }).catch(() => undefined);
-    const clipUnlisten1 = safeListen<ClipItem[]>('clipboard:history', (event) => {
-      // 后端历史不含图片，合并保留本地图片项，避免被全量替换清掉
-      const images = clipItems.filter((item) => item.kind === 'image');
-      clipItems = trimImageHistory([...images, ...event.payload].slice(0, 100));
-    });
-    const clipUnlisten2 = safeListen<ClipItem>('clipboard:item', (event) => {
-      const item = event.payload;
-      // 内容去重：同文本/同图片条目移动到头并更新时间，不新增重复项
-      if (item.kind === 'image' && item.image) {
-        // 图片按内容去重
-        const dup = clipItems.find((other) => other.kind === 'image' && other.image === item.image);
-        if (dup) {
-          clipItems = [{ ...dup, ts: item.ts }, ...clipItems.filter((other) => other.id !== dup.id)].slice(0, 100);
-          return;
-        }
-      } else {
-        const dup = clipItems.find((other) => other.kind !== 'image' && other.text === item.text);
-        if (dup) {
-          clipItems = [{ ...dup, ts: item.ts }, ...clipItems.filter((other) => other.id !== dup.id)].slice(0, 100);
-          return;
-        }
-      }
-      clipItems = trimImageHistory([item, ...clipItems].slice(0, 100));
-    });
-    window.addEventListener('paste', handleGlobalPaste);
     // 可见版本标识：窗口标题带构建日期，用于确认当前运行的是最新代码
     document.title = `Spurh · ${__BUILD_DATE__}`;
     const onFrontendError = (event: ErrorEvent | PromiseRejectionEvent): void => {
@@ -803,12 +745,9 @@
     window.addEventListener('unhandledrejection', onFrontendError);
     return () => {
       clearTimeout(systemTimer);
-      window.removeEventListener('paste', handleGlobalPaste);
       window.removeEventListener('error', onFrontendError);
       window.removeEventListener('unhandledrejection', onFrontendError);
       unlistenPromise.then((unlisten) => unlisten()).catch(() => undefined);
-      clipUnlisten1.then((fn) => fn()).catch(() => undefined);
-      clipUnlisten2.then((fn) => fn()).catch(() => undefined);
     };
   });
 
@@ -817,7 +756,7 @@
   }
 
   function hasProcessableInput(pluginId: string, session: ToolSession): boolean {
-    if (pluginId === 'spurh.network' || pluginId === 'spurh.clipboard' || pluginId === 'spurh.remote') return false;
+    if (pluginId === 'spurh.network' || pluginId === 'spurh.remote') return false;
     if (session.input.length > 0) return true;
     if (pluginId === 'spurh.timestamp' && session.actionId === 'now') return true;
     if (pluginId === 'spurh.timestamp' && session.actionId === 'to-unix' && session.options.pickDateTime) return true;
@@ -1103,15 +1042,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   }
 
   /** 面板型插件：自带完整界面，不接受输入→输出的实时路由 */
-  const SELF_CONTAINED_PANELS = new Set(['spurh.sql', 'spurh.network', 'spurh.remote', 'spurh.clipboard', 'spurh.git']);
-
-  function fillFromClipboard(text: string): void {
-    const match = runtime.dispatch(text).selected;
-    const target = match && match.confidence >= 0.4 && !SELF_CONTAINED_PANELS.has(match.plugin.id) ? match.plugin.id : 'spurh.json';
-    activePluginId = target;
-    patchSession(target, { input: text, aiResult: null, aiError: '', ...(match?.suggestedAction ? { actionId: match.suggestedAction } : {}) });
-    scheduleProcess(target, 0);
-  }
+  const SELF_CONTAINED_PANELS = new Set(['spurh.sql', 'spurh.network', 'spurh.remote']);
 
   let dispatcherRouteTimer: ReturnType<typeof setTimeout> | undefined;
   function handleDispatcherInput(value: string, instant = false): void {
@@ -1157,25 +1088,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
         else routeToPlugin(plugin.id, content);
       }
     }
-  }
-
-  function handleGlobalPaste(event: ClipboardEvent): void {
-    const files = event.clipboardData?.files ?? [];
-    // 仅收位图格式（≤5MB）；SVG 可能携带脚本，粘贴到外部应用时有激活风险
-    const image = [...files].find((file) => file.type.startsWith('image/') && !file.type.includes('svg') && file.size <= 5 * 1024 * 1024);
-    if (!image) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result ?? '');
-      const dup = clipItems.find((other) => other.kind === 'image' && other.image === dataUrl);
-      if (dup) {
-        clipItems = [{ ...dup, ts: Date.now() }, ...clipItems.filter((other) => other.id !== dup.id)].slice(0, 100);
-        return;
-      }
-      const item: ClipItem = { id: crypto.randomUUID(), text: '', ts: Date.now(), kind: 'image', image: dataUrl };
-      clipItems = trimImageHistory([item, ...clipItems].slice(0, 100));
-    };
-    reader.readAsDataURL(image);
   }
 
   function handleDispatcherPaste(event: ClipboardEvent): void {
@@ -1281,7 +1193,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 
   function openSettings(tab: SettingsTab = 'general', notice = ''): void {
     paletteOpen = false;
-    clipOverlayOpen = false;
     dispatcherElement?.blur();
     aiDraft = aiConfig ? { ...aiConfig } : createAiProfile();
     aiTestStatus = 'idle'; aiTestMessage = ''; settingsError = ''; settingsNotice = notice; settingsTab = tab; settingsOpen = true;
@@ -1400,13 +1311,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     finally { settingsBusy = ''; }
   }
 
-  async function changeClipboardWatch(enabled: boolean): Promise<void> {
-    settingsBusy = 'clipboard'; settingsError = '';
-    try { await safeInvoke('set_clipboard_watch', { enabled }); saveAppSettings({ clipboardWatch: enabled }); }
-    catch (cause) { settingsError = cause instanceof Error ? cause.message : String(cause); }
-    finally { settingsBusy = ''; }
-  }
-
   async function loadRemoteModels(): Promise<void> {
     modelListLoading = true; aiTestStatus = 'idle'; aiTestMessage = '';
     const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('拉取超时（25 秒），请检查网络与接口地址')), 25000));
@@ -1519,16 +1423,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
         run: () => { selectPlugin(plugin.id); },
       });
     }
-    for (const clipItem of clipItems.slice(0, 5)) {
-      items.push({
-        id: 'clip:' + clipItem.id,
-        group: '剪贴板',
-        label: clipPreview(clipItem.text),
-        hint: '填入当前工具 · ' + clipTimeLabel(clipItem.ts),
-        icon: UI_ICONS.copy,
-        run: () => { changeInput(clipItem.text); },
-      });
-    }
     items.push({ id: 'settings:general', group: '设置', label: '通用设置', hint: '主题 · 启动 · 托盘', icon: UI_ICONS.sliders, run: () => openSettings('general') });
     items.push({ id: 'settings:ai', group: '设置', label: 'AI 模型', hint: '服务商配置', icon: UI_ICONS.sparkle, run: () => openSettings('ai') });
     items.push({ id: 'settings:shortcuts', group: '设置', label: '快捷键', hint: '全局绑定', icon: UI_ICONS.keyboard, run: () => openSettings('shortcuts') });
@@ -1563,53 +1457,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     run();
   }
 
-  /* ── 剪贴板全局浮层（Ctrl+Shift+V） ── */
-  function openClipOverlay(): void {
-    paletteOpen = false;
-    clipOverlayOpen = true;
-    clipOverlayQuery = '';
-    clipOverlayIndex = 0;
-    requestAnimationFrame(() => clipElement?.focus());
-  }
-
-  function closeClipOverlay(): void {
-    clipOverlayOpen = false;
-  }
-
-
-
-  function clipPreview(text: string): string {
-    return text.split(/\r?\n/)[0].trim() || '(空内容)';
-  }
-
-  function clipTimeLabel(ts: number): string {
-    const diff = Date.now() - ts;
-    if (diff < 60_000) return '刚刚';
-    if (diff < 3_600_000) return Math.floor(diff / 60_000) + ' 分钟前';
-    if (diff < 86_400_000) return Math.floor(diff / 3_600_000) + ' 小时前';
-    const date = new Date(ts);
-    return (date.getMonth() + 1) + '月' + date.getDate() + '日 ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
-  }
-
-  function useClipItem(item: ClipItem): void {
-    closeClipOverlay();
-    if (item.kind === 'image' || !item.text) return; // 图片项只能从剪贴板面板复制
-    changeInput(item.text);
-  }
-
-  function handleClipKeys(event: KeyboardEvent): void {
-    const count = clipFiltered.length;
-    if (event.key === 'ArrowDown') { event.preventDefault(); clipOverlayIndex = Math.min(clipOverlayIndex + 1, Math.max(0, count - 1)); return; }
-    if (event.key === 'ArrowUp') { event.preventDefault(); clipOverlayIndex = Math.max(clipOverlayIndex - 1, 0); return; }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const item = clipFiltered[clipOverlayIndex] ?? clipFiltered[0];
-      if (item) useClipItem(item);
-      return;
-    }
-    if (event.key === 'Escape') { event.preventDefault(); closeClipOverlay(); }
-  }
-
   function applyAiResult(): void {
     if (!activeSession.aiResult) return;
     patchSession(activePluginId, { input: activeSession.aiResult.output, aiResult: null, aiError: '' });
@@ -1626,10 +1473,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   }
 
   function handleKeys(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && clipOverlayOpen) {
-      closeClipOverlay();
-      return;
-    }
     if (event.key === 'Escape' && paletteOpen) {
       closePalette();
       return;
@@ -1645,14 +1488,8 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     if (event.metaKey) mods.push('super');
     const key = normalizeKeyName(event.key);
     if (!key) return;
-    if (event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey && key === 'v') {
-      event.preventDefault();
-      if (clipOverlayOpen) { closeClipOverlay(); } else { openClipOverlay(); }
-      return;
-    }
     if (event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey && key === 'k') {
       event.preventDefault();
-      clipOverlayOpen = false;
       paletteOpen = !paletteOpen;
       if (paletteOpen) {
         paletteQuery = '';
@@ -1823,8 +1660,8 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     </aside>
 
     <main class="workspace">
-      {#if activePluginId === 'spurh.network' || activePluginId === 'spurh.log' || activePluginId === 'spurh.clipboard' || activePluginId === 'spurh.remote' || activePluginId === 'spurh.sql' || activePluginId === 'spurh.git'}
-        {#if !isTauri && activePluginId !== 'spurh.log' && activePluginId !== 'spurh.network'}
+      {#if activePluginId === 'spurh.network' || activePluginId === 'spurh.remote' || activePluginId === 'spurh.sql'}
+        {#if !isTauri && activePluginId !== 'spurh.network'}
           <div class="browser-note"><span>{@html UI_ICONS.info}</span>浏览器预览模式:{activePlugin.name} 需要桌面能力,请运行 <code>npm run tauri dev</code> 获得完整功能</div>
         {/if}
         {#if lazyPanel}
@@ -1967,37 +1804,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     </div>
   {/if}
 
-  {#if clipOverlayOpen}
-    <div class="palette-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) closeClipOverlay(); }}>
-      <div class="clip-overlay" role="dialog" aria-modal="true" aria-label="剪贴板历史">
-        <div class="palette-search">
-          <span class="palette-spark">{@html UI_ICONS.copy}</span>
-          <input bind:this={clipElement} bind:value={clipOverlayQuery} onkeydown={handleClipKeys} placeholder="搜索剪贴板历史… Ctrl+Shift+V 唤起" spellcheck="false" />
-          <kbd>ESC</kbd>
-        </div>
-        <div class="clip-overlay-results">
-          {#if clipFiltered.length > 0}
-            {#each clipFiltered.slice(0, 20) as item, i}
-              <button class:active={i === clipOverlayIndex} onmousedown={(event) => event.preventDefault()} onclick={() => useClipItem(item)} title="点击填入当前工具输入区">
-                <span class="clip-overlay-icon">{@html UI_ICONS.copy}</span>
-                <code>{clipPreview(item.text)}</code>
-                <small>{item.text.length} 字符 · {clipTimeLabel(item.ts)}</small>
-                {#if i === clipOverlayIndex}<i>↵</i>{/if}
-              </button>
-            {/each}
-          {:else}
-            <div class="palette-empty">{clipItems.length === 0 ? '剪贴板历史为空，复制任意文本后会自动记录' : '没有匹配「' + clipOverlayQuery + '」的内容'}</div>
-          {/if}
-        </div>
-        <footer class="palette-footer">
-          <span><kbd>↑</kbd><kbd>↓</kbd> 导航</span>
-          <span><kbd>↵</kbd> 填入当前工具</span>
-          <span><kbd>ESC</kbd> 关闭</span>
-        </footer>
-      </div>
-    </div>
-  {/if}
-
   {#if settingsOpen}
     <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) settingsOpen = false; }}>
       <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
@@ -2045,7 +1851,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               <label class="setting-row"><div class="setting-copy"><b>系统托盘</b></div><input type="checkbox" checked={appSettings.trayEnabled} disabled={settingsBusy === 'tray'} onchange={(event) => changeTray(event.currentTarget.checked)} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>侧栏默认展开</b><small>启动时默认显示左侧工具栏（窄窗口下自动收起）</small></div><input type="checkbox" checked={sidebarOpen} onchange={(event) => { sidebarOpen = event.currentTarget.checked; sidebarAutoCollapsed = false; if (sidebarOpen && window.innerWidth <= 850) sidebarUserNarrowChoice = true; saveAppSettings({ sidebarOpen }); }} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>系统右键菜单</b><small>在资源管理器中“用 Spurh 打开”</small></div><input type="checkbox" checked={contextMenuEnabled} disabled={settingsBusy === 'contextMenu'} onchange={(event) => changeContextMenu(event.currentTarget.checked)} /><i></i></label>
-              <label class="setting-row"><div class="setting-copy"><b>剪贴板历史</b><small>自动记录复制的文本（含密码等敏感内容，注意隐私）</small></div><input type="checkbox" checked={appSettings.clipboardWatch} disabled={settingsBusy === 'clipboard'} onchange={(event) => changeClipboardWatch(event.currentTarget.checked)} /><i></i></label>
               <div class="settings-section-title"><h3>顶栏显示</h3><small>默认全部显示，可隐藏顶栏按钮（仍可通过 Ctrl+K 命令面板使用）</small></div>
               <label class="setting-row"><div class="setting-copy"><b>全屏按钮</b></div><input type="checkbox" checked={appSettings.topBarFullscreen} onchange={(event) => saveAppSettings({ topBarFullscreen: event.currentTarget.checked })} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>设置按钮</b></div><input type="checkbox" checked={appSettings.topBarSettings} onchange={(event) => saveAppSettings({ topBarSettings: event.currentTarget.checked })} /><i></i></label>
