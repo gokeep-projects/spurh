@@ -217,6 +217,9 @@
   let copiedKey = $state('');
   let sqlHistory = $state<string[]>(loadSqlHistory());
   let sqlHistoryOpen = $state(false);
+  /* 连接级 Tab：后台连接保活 + 每连接 SQL 草稿 */
+  let connectedIds = $state<string[]>([]);
+  let queryDrafts = $state<Record<string, string>>({});
   let sqlEditorEl = $state<HTMLTextAreaElement | undefined>();
   let historyIndex = $state(-1);
   let sqlHelpOpen = $state(false);
@@ -347,9 +350,16 @@
   let confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
   function selectConn(id: string): void {
+    switchConn(id, false);
+  }
+
+  /** 切换连接：保留各连接的 SQL 草稿；已连接的后台保活，切回时快速重建树 */
+  function switchConn(id: string, autoConnect: boolean): void {
+    if (activeId && activeId !== id) queryDrafts[activeId] = sqlText;
     activeId = id;
     localStorage.setItem(LAST_CONN_KEY, id);
-    connected = false;
+    const alreadyLive = connectedIds.includes(id);
+    connected = alreadyLive;
     connError = '';
     serverVersion = '';
     databases = [];
@@ -360,6 +370,13 @@
     total = 0;
     sqlResult = null;
     sqlError = '';
+    if (alreadyLive) {
+      sqlText = queryDrafts[id] ?? sqlText;
+      connected = false;
+      void connect();
+    } else if (autoConnect) {
+      void connect();
+    }
   }
 
   async function connect(): Promise<void> {
@@ -374,6 +391,7 @@
     try {
       const names = await safeInvoke<string[]>('sql_databases', { profile: profileOf(activeConn) });
       connected = true;
+      if (!connectedIds.includes(activeId)) connectedIds = [...connectedIds, activeId];
       databases = names.map((name) => ({ name, expanded: false, tables: null, loading: false }));
       // 默认展开第一个数据库
       if (databases.length > 0) {
@@ -391,15 +409,26 @@
   }
 
   function disconnect(): void {
-    if (activeConn) safeInvoke('sql_disconnect', { profile: profileOf(activeConn) }).catch(() => undefined);
-    connected = false;
-    databases = [];
-    selectedTable = '';
-    selectedDb = '';
-    meta = null;
-    rows = [];
-    sqlResult = null;
-    connError = '';
+    disconnectId(activeId);
+  }
+
+  function disconnectId(id: string): void {
+    const target = connections.find((item) => item.id === id);
+    if (!target) return;
+    safeInvoke('sql_disconnect', { profile: profileOf(target) }).catch(() => undefined);
+    connectedIds = connectedIds.filter((cid) => cid !== id);
+    if (activeId === id) {
+      connected = false;
+      databases = [];
+      selectedTable = '';
+      selectedDb = '';
+      meta = null;
+      rows = [];
+      sqlResult = null;
+      connError = '';
+      const next = connectedIds[connectedIds.length - 1] ?? '';
+      if (next) switchConn(next, false);
+    }
   }
 
   async function loadTables(dbName: string): Promise<void> {
@@ -1062,6 +1091,13 @@
       formOpen = false;
       return;
     }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && (event.key === 'w' || event.key === 'W')) {
+      if (activeId && connectedIds.length > 0) {
+        event.preventDefault();
+        disconnectId(activeId);
+      }
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && (event.key === 's' || event.key === 'S')) {
       event.preventDefault();
       if (tab === 'design') saveDesign();
@@ -1175,15 +1211,25 @@
     if (!target) return;
     safeInvoke('sql_disconnect', { profile: profileOf(target) }).catch(() => undefined);
     deleteSecret('sql.' + id + '.password').catch(() => undefined);
+    const wasActive = activeId === id;
     connections = connections.filter((item) => item.id !== id);
+    connectedIds = connectedIds.filter((cid) => cid !== id);
     saveConnections(connections);
-    if (activeId === id) {
-      activeId = connections[0]?.id ?? '';
-      localStorage.setItem(LAST_CONN_KEY, activeId);
-      connected = false;
-      databases = [];
-      selectedTable = '';
+    if (wasActive) {
+      const next = connections[0]?.id ?? '';
+      if (next) {
+        switchConn(next, false);
+      } else {
+        activeId = '';
+        localStorage.setItem(LAST_CONN_KEY, '');
+        connected = false;
+        databases = [];
+        selectedTable = '';
+      }
     }
+    const drafts = { ...queryDrafts };
+    delete drafts[id];
+    queryDrafts = drafts;
   }
 
   function connErrorFor(conn: SavedConn): string {
@@ -1223,6 +1269,23 @@
       {/if}
     </div>
   </header>
+
+  {#if connectedIds.length > 0}
+    <div class="sql-conn-tabs" role="tablist" aria-label="已连接的数据库">
+      {#each connectedIds as id}
+        {@const conn = connections.find((item) => item.id === id)}
+        {#if conn}
+          <button class="sql-conn-tab" class:active={id === activeId} role="tab" aria-selected={id === activeId} onclick={() => switchConn(id, false)} title={connSubtitle(conn) + '（点击切换 · Ctrl+W 关闭）'}>
+            <span class="sql-conn-ico small">{@html dbIcon(conn.kind)}</span>
+            <b>{conn.name}</b>
+            <i class="sql-conn-dot on"></i>
+            <span class="sql-tab-x" onclick={(event) => { event.stopPropagation(); disconnectId(id); }} title="断开并关闭标签">×</span>
+          </button>
+        {/if}
+      {/each}
+      <button class="sql-tab-add" onclick={openNewConn} title="新建连接">＋</button>
+    </div>
+  {/if}
 
   <div class="sql-body">
     <aside class="sql-side">
@@ -2070,5 +2133,19 @@
   .sql-design-del:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
   .sql-design-note { display: flex; align-items: center; gap: 8px; padding: 8px 11px; color: var(--muted-2); font-size: var(--fs-tiny); border: 1px dashed var(--line-2); border-radius: 8px; background: var(--panel); }
   .sql-design-note span { color: var(--muted); font-weight: 700; }
+
+  /* 连接级 Tab 栏（Navicat 风格） */
+  .sql-conn-tabs { display: flex; align-items: flex-end; gap: 3px; padding: 8px 12px 0; overflow-x: auto; scrollbar-width: thin; flex: 0 0 auto; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .sql-conn-tab { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 6px 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; border: 1px solid var(--line); border-bottom: 0; border-radius: 10px 10px 0 0; background: var(--w-03); transition: all var(--transition); }
+  .sql-conn-tab:hover { color: var(--text); background: var(--w-06); }
+  .sql-conn-tab.active { color: var(--text); font-weight: 700; background: var(--panel-2); border-color: var(--line-strong); box-shadow: 0 -3px 12px color-mix(in srgb, var(--accent) 14%, transparent); }
+  .sql-conn-tab b { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+  .sql-conn-tab .sql-conn-ico.small { width: 20px; height: 20px; border-radius: 6px; }
+  .sql-conn-tab .sql-conn-ico.small svg { width: 12px; height: 12px; }
+  .sql-conn-tab .sql-conn-dot.on { width: 6px; height: 6px; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 6px color-mix(in srgb, var(--c-green) 80%, transparent); }
+  .sql-tab-x { display: grid; place-items: center; width: 17px; height: 17px; border-radius: 5px; color: var(--muted-2); font-size: 14px; line-height: 1; cursor: pointer; transition: all .12s ease; }
+  .sql-tab-x:hover { background: var(--danger); color: #fff; }
+  .sql-tab-add { display: grid; place-items: center; flex: 0 0 auto; width: 30px; height: 30px; margin-bottom: 2px; cursor: pointer; color: var(--muted-2); font-size: 15px; border: 1px dashed var(--line-strong); border-radius: 8px; background: transparent; transition: all var(--transition); }
+  .sql-tab-add:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 
 </style>
