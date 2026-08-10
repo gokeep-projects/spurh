@@ -58,8 +58,30 @@
   }
 
   let data = $derived(record(result.data));
+
+    function timeHeroExtra(localText: string): { weekday: string; relative: string } {
+    const m = localText.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+    if (!m) return { weekday: '', relative: '' };
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
+    const week = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()];
+    const diff = Math.round((d.getTime() - Date.now()) / 1000);
+    const abs = Math.abs(diff);
+    const rel = diff === 0 ? '就是现在'
+      : abs < 60 ? (diff > 0 ? '即将到来' : '刚刚')
+      : abs < 3600 ? (diff > 0 ? Math.floor(abs / 60) + ' 分钟后' : Math.floor(abs / 60) + ' 分钟前')
+      : abs < 86400 ? (diff > 0 ? Math.floor(abs / 3600) + ' 小时后' : Math.floor(abs / 3600) + ' 小时前')
+      : (diff > 0 ? Math.floor(abs / 86400) + ' 天后' : Math.floor(abs / 86400) + ' 天前');
+    return { weekday: week, relative: rel };
+  }
+  function withHeroExtra(data: Record<string, unknown>): Record<string, unknown> {
+    const extra = timeHeroExtra(String(data.local ?? ''));
+    return { ...data, weekday: extra.weekday, relative: extra.relative };
+  }
+
   let items = $derived(list(result.data));
-  let useTreeView = $derived(result.view === 'code' && isComplexJson(result.output, result.language));
+  let canTreeView = $derived(result.view === 'code' && isComplexJson(result.output, result.language));
+  let useTreeView = $state(false);
+  $effect(() => { if (!canTreeView) useTreeView = false; });
   let logLevel = $state('');
   let logSearch = $state('');
 
@@ -143,29 +165,36 @@
 
 <div class="result-view" class:tree-mode={useTreeView}>
 <div class="result-actions">
+    {#if canTreeView}
+      <button class="export-btn" onclick={() => (useTreeView = !useTreeView)} title={useTreeView ? '切换为格式化文本' : '切换为折叠树视图'}>{useTreeView ? '文本' : '树视图'}</button>
+    {/if}
     {#if result.output}<button class="export-btn" onclick={exportResult} title="导出结果到文件">{exportState || '导出'}</button>{/if}
   </div>
   {#if result.view === 'timestamp' && Object.keys(data).length}
+    {@const heroData = withHeroExtra(data)}
     <div class="time-hero">
-      <small>本地时间</small>
-      <strong>{display(data.local)}</strong>
-      <span>{display(data.timezone)}</span>
+      <div class="time-hero-top"><small>本地时间</small><span class="time-hero-tz">{display(heroData.timezone)}</span></div>
+      <strong>{display(heroData.local)}</strong>
+      <div class="time-hero-meta">
+        <span class="time-hero-week">{display(heroData.weekday || '')}</span>
+        <span class="time-hero-rel">{display(heroData.relative || '')}</span>
+      </div>
     </div>
     <div class="value-grid time-grid">
       <article>
         <small>UTC / ISO 8601</small>
-        <b>{display(data.utc)}</b>
-        <button class="copy-btn" onclick={() => copyText(display(data.utc), 'utc')}>{copiedKey === 'utc' ? '已复制 ✓' : '复制'}</button>
+        <b>{display(heroData.utc)}</b>
+        <button class="copy-btn" onclick={() => copyText(display(heroData.utc), 'utc')}>{copiedKey === 'utc' ? '已复制 ✓' : '复制'}</button>
       </article>
       <article>
         <small>Unix 秒</small>
-        <b>{display(data.unixSeconds)}</b>
-        <button class="copy-btn" onclick={() => copyText(display(data.unixSeconds), 'sec')}>{copiedKey === 'sec' ? '已复制 ✓' : '复制'}</button>
+        <b>{display(heroData.unixSeconds)}</b>
+        <button class="copy-btn" onclick={() => copyText(display(heroData.unixSeconds), 'sec')}>{copiedKey === 'sec' ? '已复制 ✓' : '复制'}</button>
       </article>
       <article>
         <small>Unix 毫秒</small>
-        <b>{display(data.unixMilliseconds)}</b>
-        <button class="copy-btn" onclick={() => copyText(display(data.unixMilliseconds), 'ms')}>{copiedKey === 'ms' ? '已复制 ✓' : '复制'}</button>
+        <b>{display(heroData.unixMilliseconds)}</b>
+        <button class="copy-btn" onclick={() => copyText(display(heroData.unixMilliseconds), 'ms')}>{copiedKey === 'ms' ? '已复制 ✓' : '复制'}</button>
       </article>
     </div>
   {:else if result.view === 'http' && Object.keys(data).length}
@@ -348,13 +377,18 @@
   .tree-mode .result-actions { padding-right: 14px; }
   .result-view.tree-mode { padding: 0; display: flex; flex-direction: column; }
   .result-view.tree-mode :global(.json-tree) { flex: 1; min-height: 100%; }
-  .result-view > pre { width: 100%; min-height: 100%; margin: 0; color: var(--text); font: 450 var(--fs-sm)/1.62 ui-monospace, 'Cascadia Code', Consolas, monospace; tab-size: 2; white-space: pre-wrap; word-break: break-word; }
+  .result-view > pre { width: 100%; min-height: 100%; margin: 0; color: var(--text); font: 450 var(--fs-sm)/1.62 ui-monospace, 'Cascadia Code', Consolas, monospace; tab-size: 2; white-space: pre; overflow: auto; }
   .result-view > pre.plain { font-family: inherit; font-size: var(--fs-lg); }
   small { color: var(--muted); }
-  .time-hero { padding: 23px; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 12px; background: linear-gradient(135deg, var(--accent-soft), transparent); }
-  .time-hero small { display: block; margin-bottom: 8px; font-size: var(--fs-xs); }
-  .time-hero strong { display: block; font: 650 18px/1.3 'Cascadia Code', Consolas, monospace; letter-spacing: -.8px; }
-  .time-hero span { display: inline-flex; margin-top: 12px; padding: 4px 8px; color: var(--accent); font-size: var(--fs-xs); border-radius: 8px; background: var(--accent-soft); }
+  .time-hero { position: relative; overflow: hidden; padding: 24px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--panel)), var(--panel) 65%, color-mix(in srgb, var(--c-cyan) 8%, var(--panel))); box-shadow: 0 10px 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent); }
+  .time-hero::after { content: ""; position: absolute; inset: -60% -30% auto; height: 80%; background: radial-gradient(45% 65% at 30% 0%, color-mix(in srgb, var(--c-cyan) 14%, transparent), transparent 70%); pointer-events: none; }
+  .time-hero-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+  .time-hero-top small { display: block; font-size: var(--fs-xs); letter-spacing: 1.2px; text-transform: uppercase; }
+  .time-hero-tz { display: inline-flex; padding: 2px 8px; color: var(--accent); font-size: var(--fs-xs); border-radius: 999px; background: var(--accent-soft); }
+  .time-hero strong { position: relative; z-index: 1; display: block; font: 700 21px/1.3 'Cascadia Code', Consolas, monospace; letter-spacing: -.5px; }
+  .time-hero-meta { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; margin-top: 13px; }
+  .time-hero-week { display: inline-flex; padding: 3px 9px; color: var(--c-cyan); font-size: var(--fs-xs); font-weight: 700; border-radius: 8px; background: color-mix(in srgb, var(--c-cyan) 12%, transparent); }
+  .time-hero-rel { display: inline-flex; padding: 3px 9px; color: var(--muted); font-size: var(--fs-xs); border-radius: 8px; background: color-mix(in srgb, var(--muted) 10%, transparent); }
   .value-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
   .value-grid article { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
   .value-grid small { display: block; font-size: var(--fs-xs); }

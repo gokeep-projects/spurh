@@ -1634,12 +1634,11 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     </div>
     <div class="app-actions">
       {#if aiStore.profiles.length}
-        <label class="model-switcher" title="切换 AI 模型">
-          <select value={aiStore.activeId} onchange={(event) => switchAiProfile(event.currentTarget.value)}>
-            {#each aiStore.profiles as profile}<option value={profile.id}>{profile.model || profile.name}</option>{/each}
-          </select>
-          {#if anyAiProcessing}<span class="ai-spin" title="AI 处理中"></span>{/if}
-        </label>
+        <button class="model-switcher" title="当前 AI 模型 · 点击打开设置" onclick={() => openSettings('ai')}>
+          <span class="ms-dot" class:busy={anyAiProcessing}></span>
+          <span class="ms-name">{aiStore.profiles.find((p) => p.id === aiStore.activeId)?.model || aiStore.profiles.find((p) => p.id === aiStore.activeId)?.name || 'AI 模型'}</span>
+          <span class="ms-arrow">{@html UI_ICONS.settings}</span>
+        </button>
       {/if}
       {#if appSettings.topBarFullscreen && fullscreenSupported}
         <button class="settings-button" onclick={toggleFullscreen} title={isFullscreen ? '退出全屏' : '全屏显示'}>

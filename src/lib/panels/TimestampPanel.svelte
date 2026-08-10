@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { UI_ICONS } from '../icons';
+  import { UI_ICONS, TOOL_ICONS } from '../icons';
   import type { PluginResult } from '../plugins/types';
   import { timestampPlugin } from '../plugins/builtin/timestamp';
 
@@ -99,6 +99,20 @@
     }
     onChangeAction(id);
   }
+
+  let tsClockTimer: ReturnType<typeof setInterval> | undefined;
+  let tsClock = $state('');
+  function tickTsClock(): void {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    tsClock = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+  $effect(() => {
+    tickTsClock();
+    tsClockTimer = setInterval(tickTsClock, 1000);
+    return () => { if (tsClockTimer) clearInterval(tsClockTimer); };
+  });
+
 </script>
 
 <div class="ts-panel">
@@ -129,17 +143,21 @@
     <p class="ts-tip">支持 10 位（秒）与 13 位（毫秒）时间戳，可直接从日志、数据库或 API 响应中复制粘贴。</p>
   {:else if session.actionId === 'to-unix'}
     <div class="ts-row">
-      <label class="ts-field">
+      <label class="ts-field ts-dtfield">
         <span>日期时间</span>
-        <input
-          value={pickText()}
-          placeholder="例如 2026-08-10 17:30"
-          spellcheck="false"
-          inputmode="numeric"
-          oninput={(e) => parseDateTimeText(e.currentTarget.value)}
-          onchange={(e) => parseDateTimeText(e.currentTarget.value)}
-        />
-        <small class="ts-field-hint">{session.options.pickDateTime ? '已选择：' + pickText() : ''}</small>
+        <div class="ts-input-wrap">
+          <i class="ts-input-ico">{@html TOOL_ICONS['spurh.timestamp']}</i>
+          <input
+            value={pickText()}
+            placeholder="例如 2026-08-10 17:30"
+            spellcheck="false"
+            inputmode="numeric"
+            oninput={(e) => parseDateTimeText(e.currentTarget.value)}
+            onchange={(e) => parseDateTimeText(e.currentTarget.value)}
+          />
+          <button class="ts-now-inline" onclick={() => quickPick('now')} title="填入当前时间">现在</button>
+        </div>
+        <small class="ts-field-hint" class:active={!!session.options.pickDateTime}>{session.options.pickDateTime ? '✓ 已选择：' + pickText() : '选择或填入日期时间，结果即时显示在右侧'}</small>
       </label>
       <div class="ts-quick">{#each QUICK_PRESETS as preset}<button class:active={session.options.pickDateTime === presetValue(preset.id)} onclick={() => quickPick(preset.id)}>{preset.label}</button>{/each}</div>
       <button class="ts-clear" onclick={onClear} title="清空">清空</button>
@@ -147,6 +165,7 @@
     <p class="ts-tip">转换结果即时显示在右侧，包含本地时间、UTC 与 Unix 秒 / 毫秒，点击即可复制。</p>
   {:else}
     <div class="ts-row ts-nowrow">
+      <span class="ts-live-clock"><i></i><b>{tsClock}</b><small>本地时间 · 实时</small></span>
       <span class="ts-live-label">结果实时显示在右侧</span>
       <button class="ts-now" onclick={refreshNow}><span>{@html UI_ICONS.refresh}</span>刷新</button>
     </div>
@@ -183,4 +202,18 @@
   .ts-tip { margin: 0; color: var(--muted-2); font-size: var(--fs-sm); line-height: 1.6; }
   .ts-nowrow { align-items: center; }
   .ts-live-label { color: var(--muted); font-size: var(--fs-sm); }
+
+  .ts-input-wrap { position: relative; display: flex; align-items: center; }
+  .ts-input-wrap input { padding-left: 34px; padding-right: 58px; }
+  .ts-input-ico { position: absolute; left: 10px; display: inline-flex; color: var(--muted-2); pointer-events: none; }
+  .ts-input-ico :global(svg) { width: 15px; height: 15px; }
+  .ts-now-inline { position: absolute; right: 5px; height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 7px; background: var(--accent-soft); transition: all .15s ease; }
+  .ts-now-inline:hover { background: color-mix(in srgb, var(--accent) 24%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 20%, transparent); }
+  .ts-field-hint.active { color: var(--c-green); }
+  .ts-live-clock { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
+  .ts-live-clock i { width: 7px; height: 7px; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 8px color-mix(in srgb, var(--c-green) 70%, transparent); animation: tsLive 2s ease infinite; }
+  @keyframes tsLive { 50% { opacity: .35; } }
+  .ts-live-clock b { font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; letter-spacing: .4px; font-variant-numeric: tabular-nums; }
+  .ts-live-clock small { color: var(--muted-2); font-size: var(--fs-xs); }
+
 </style>

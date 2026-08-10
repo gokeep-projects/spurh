@@ -111,7 +111,7 @@
         {#if busy}
           <div class="ai-stream">
             {#if reasoning}<div class="ai-reasoning"><small>推理</small><p>{reasoning}</p></div>{/if}
-            {#if content}<div class="ai-content"><small>回答</small><pre>{content}</pre></div>{/if}
+            {#if content}<div class="ai-content"><small>✦ 回答</small><pre class="ai-answer">{content}</pre></div>{/if}
             {#if !content}<div class="ai-waiting"><span class="spinner"></span>AI 正在思考…</div>{/if}
           </div>
         {:else if content}
@@ -133,7 +133,11 @@
   .ai-assist { position: relative; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: var(--radius); background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 8%, transparent); transition: border-color .2s ease, box-shadow .2s ease; }
   .ai-assist::before { content: ""; position: absolute; inset: -40% -20% auto; height: 60%; background: radial-gradient(40% 60% at 30% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%); pointer-events: none; }
   .ai-assist:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); box-shadow: 0 8px 30px color-mix(in srgb, var(--accent) 14%, transparent); }
-  .ai-head { position: relative; z-index: 1; min-height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 11px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 90%, var(--accent-soft)), var(--panel)); }
+    .ai-assist { position: relative; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-radius: var(--radius); background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 8%, transparent); transition: border-color .2s ease, box-shadow .2s ease; }
+  .ai-assist::before { content: ""; position: absolute; inset: 0; padding: 1px; border-radius: inherit; background: linear-gradient(120deg, transparent 12%, color-mix(in srgb, var(--c-cyan) 45%, transparent) 38%, color-mix(in srgb, var(--c-magenta) 45%, transparent) 62%, transparent 88%); background-size: 220% 100%; animation: aiBorderFlow 5s linear infinite; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; }
+  @keyframes aiBorderFlow { to { background-position: -220% 0; } }
+  .ai-assist:hover { border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 14%, transparent); }
+  .ai-head { display: flex; align-items: center; justify-content: center; gap: 9px; flex-wrap: wrap; padding: 8px 10px; }
   .ai-head::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 55%, transparent), transparent); }
   .ai-toggle { position: relative; height: 27px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 999px; background: linear-gradient(120deg, color-mix(in srgb, var(--c-cyan) 80%, var(--accent)), var(--accent) 55%, color-mix(in srgb, var(--c-magenta) 80%, var(--accent))); background-size: 180% 100%; box-shadow: 0 3px 12px color-mix(in srgb, var(--accent) 30%, transparent); transition: background-position .35s ease, transform .15s ease, box-shadow .2s ease; }
   .ai-toggle:hover { background-position: 100% 0; transform: translateY(-1px); box-shadow: 0 5px 18px color-mix(in srgb, var(--accent) 40%, transparent); }
@@ -157,11 +161,13 @@
   .ai-send { height: 31px; flex: 0 0 auto; padding: 0 16px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 10px; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); background-size: 180% 100%; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 24%, transparent); transition: background-position .3s ease, transform .15s ease; }
   .ai-send:hover:not(:disabled) { background-position: 100% 0; transform: translateY(-1px); }
   .ai-send:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
-  .ai-stream { min-width: 0; display: flex; flex-direction: column; gap: 7px; max-height: 320px; overflow-y: auto; padding: 2px; }
+  .ai-stream { min-width: 0; display: flex; flex-direction: column; gap: 7px; max-height: 340px; overflow-y: auto; padding: 2px; }
+  .ai-content { width: min(100%, 860px); align-self: center; }
+  .ai-reasoning { width: min(100%, 860px); align-self: center; }
   .ai-reasoning, .ai-content { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .ai-reasoning small, .ai-content small { color: var(--muted-2); font: 600 var(--fs-tiny) 'Cascadia Code', monospace; letter-spacing: .8px; }
   .ai-reasoning p { margin: 0; padding: 9px 12px; color: var(--muted); font-size: var(--fs-xs); line-height: 1.65; border: 1px solid var(--line); border-left: 2px solid var(--c-cyan); border-radius: 8px; background: color-mix(in srgb, var(--c-cyan) 4%, var(--bg)); }
-  .ai-content pre { margin: 0; padding: 11px 13px; overflow-x: auto; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; line-height: 1.65; white-space: pre-wrap; word-break: break-word; border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 6%, var(--bg)), var(--bg) 60%); }
+  .ai-content pre { margin: 0; padding: 13px 15px; overflow-x: auto; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; line-height: 1.7; white-space: pre-wrap; word-break: break-word; border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); border-radius: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--bg)), var(--bg) 60%); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent); }
   .ai-waiting { display: flex; align-items: center; gap: 8px; padding: 12px; color: var(--muted); font-size: var(--fs-xs); }
   .ai-result-actions { display: flex; justify-content: flex-end; gap: 6px; }
   .ai-result-actions button { height: 28px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); transition: all .15s ease; }
