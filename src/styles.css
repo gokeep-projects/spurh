@@ -3664,12 +3664,12 @@ kbd {
     -webkit-mask-composite: xor;
     mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     mask-composite: exclude;
-    animation: about-frame-spin 5s linear infinite;
+    animation: about-stage-frame-spin 5s linear infinite;
     opacity: .85;
     pointer-events: none;
   }
 }
-@keyframes about-frame-spin {
+@keyframes about-stage-frame-spin {
   to { --about-frame-angle: 360deg; }
 }
 .app.light .about-frame {
