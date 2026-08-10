@@ -1908,7 +1908,7 @@ fn run_users(profile: &SqlProfile) -> Result<Vec<SqlUserInfo>, String> {
                         SqlUserAttr { key: "可登录".into(), value: if row.get::<_, bool>(5) { "是" } else { "否" }.into() },
                         SqlUserAttr { key: "可建角色".into(), value: if row.get::<_, bool>(3) { "是" } else { "否" }.into() },
                         SqlUserAttr { key: "可建库".into(), value: if row.get::<_, bool>(4) { "是" } else { "否" }.into() },
-                        SqlUserAttr { key: "连接数限制".into(), value: row.get::<_, i64>(6).to_string() },
+                        SqlUserAttr { key: "连接数限制".into(), value: row.get::<_, Option<i32>>(6).map(|v| v.to_string()).unwrap_or_else(|| "-1".into()) },
                     ];
                     SqlUserInfo { name, host: None, attributes }
                 }).collect())
