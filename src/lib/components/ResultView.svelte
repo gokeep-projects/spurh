@@ -124,11 +124,6 @@
   let canTreeView = $derived(result.view === 'code' && isComplexJson(result.output, result.language));
   let useTreeView = $state(false);
   $effect(() => { if (!canTreeView) useTreeView = false; });
-  let logLevel = $state('');
-  let logSearch = $state('');
-
-  const logLevels = ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'];
-
   let sqlColumns = $derived(list(data.columns));
   let sqlRows = $derived(list(data.rows));
   /* SQL 结果高亮 + 状态标识样式 */
@@ -153,54 +148,8 @@
     sqlViewH = el.clientHeight;
     return () => ro.disconnect();
   });
-  let logEntries = $derived(list(data.entries));
-  let logCounts = $derived(record(data.counts));
-  let errorTotal = $derived(Number(logCounts.ERROR ?? 0) + Number(logCounts.FATAL ?? 0));
-  let filteredLogs = $derived(logEntries.filter((entry) => {
-    if (logLevel && record(entry).level !== logLevel) return false;
-    if (logSearch) {
-      const item = record(entry);
-      const haystack = ((item.message ?? '') + ' ' + (item.source ?? '') + ' ' + (item.raw ?? '') + ' ' + (Array.isArray(item.stack) ? item.stack : []).join(' ')).toLowerCase();
-      if (!haystack.includes(logSearch.toLowerCase())) return false;
-    }
-    return true;
-  }));
-
   function cell(row: unknown, index: number): unknown {
     return Array.isArray(row) ? row[index] : undefined;
-  }
-
-  function levelClass(level: unknown): string {
-    return String(level ?? '').toLowerCase() || 'none';
-  }
-
-  function stackText(value: unknown): string {
-    return Array.isArray(value) ? value.join('\n') : '';
-  }
-
-  function escapeHtml(text: string): string {
-    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  function highlightStack(text: string): string {
-    return text
-      .split('\n')
-      .map((line) => {
-        if (/Caused by:/i.test(line)) return '<span class="stack-cause">' + escapeHtml(line) + '</span>';
-        if (/\b(?:Error|Exception|Fatal)\b/.test(line)) return '<span class="stack-error">' + escapeHtml(line) + '</span>';
-        const at = line.match(/at\s+[\w.$<>]+(?:\.[\w$<>]+)+\(/);
-        if (at) {
-          // 先整体转义整行,再按原始位置插入高亮 span,避免行内其余部分被注入
-          const i = line.indexOf(at[0]);
-          return (
-            escapeHtml(line.slice(0, i)) +
-            '<span class="stack-at">' + escapeHtml(at[0]) + '</span>' +
-            escapeHtml(line.slice(i + at[0].length))
-          );
-        }
-        return escapeHtml(line);
-      })
-      .join('\n');
   }
 
 </script>
@@ -354,55 +303,7 @@
         <div class="structured-empty sql-empty"><span>✓</span><b>执行成功</b><small>{display(data.affected ?? 0)} 行受影响 · {display(data.elapsedMs)} ms</small></div>
       {/if}
     </div>
-  {:else if result.view === 'log' && Object.keys(data).length}
-    <div class="log-view">
-      <div class="log-overview">
-        <span class="log-format">{display(data.format).toUpperCase()}</span>
-        <b>{logEntries.length} 条记录</b>
-        {#if errorTotal > 0}<em class="log-errors">{errorTotal} 条错误</em>{/if}
-        <button class="copy-btn" onclick={() => copyText(result.output, 'log')}>{copiedKey === 'log' ? '已复制 ✓' : '复制原文'}</button>
-      </div>
-      {#if typeof data.rootCause === 'string' && data.rootCause}
-        <div class="log-root-cause">
-          <span>根因</span>
-          <code>{display(data.rootCause)}</code>
-          <button class="copy-btn" onclick={() => copyText(display(data.rootCause), 'root')}>{copiedKey === 'root' ? '已复制 ✓' : '复制'}</button>
-        </div>
-      {/if}
-      <div class="log-filters">
-        <button class:active={logLevel === ''} onclick={() => (logLevel = '')}>全部<span>{logEntries.length}</span></button>
-        {#each logLevels as level}
-          {@const count = Number(logCounts[level] ?? 0)}
-          {#if count > 0 || logLevel === level}
-            <button class:active={logLevel === level} class:lvl={level.toLowerCase()} onclick={() => (logLevel = logLevel === level ? '' : level)}>{level}<span>{count}</span></button>
-          {/if}
-        {/each}
-        <input class="log-search" bind:value={logSearch} placeholder="搜索消息 / 源码 / 堆栈…" />
-      </div>
-      {#if filteredLogs.length > 0}
-        <div class="log-list">
-          {#each filteredLogs as entry}
-            {@const e = record(entry)}
-            <article class="log-entry" class:error={e.level === 'ERROR' || e.level === 'FATAL'}>
-              <span class="log-line">{display(e.line)}</span>
-              {#if e.time}<time>{display(e.time)}</time>{/if}
-              {#if e.level}<b class="log-level {levelClass(e.level)}">{display(e.level)}</b>{/if}
-              {#if e.source}<small class="log-source">{display(e.source)}</small>{/if}
-              <p>{display(e.message)}</p>
-              {#if Array.isArray(e.stack) && e.stack.length}
-                <details class="log-stack">
-                  <summary>堆栈 · {e.stack.length} 帧</summary>
-                  <pre>{@html highlightStack(stackText(e.stack))}</pre>
-                </details>
-              {/if}
-            </article>
-          {/each}
-        </div>
-      {:else}
-        <div class="structured-empty"><span>∅</span><b>没有匹配的日志</b><small>调整级别过滤或搜索关键词。</small></div>
-      {/if}
-    </div>
-  {:else if isAiAnswer}
+    {:else if isAiAnswer}
     <div class="ai-answer">
       <header><span class="ai-answer-badge">✦</span><div><b>AI 处理结果</b><small>{display(result.meta?.['模型'])} · {display(result.meta?.['来源'])}</small></div></header>
       <div class="ai-answer-body">{@html aiHtml}</div>
@@ -520,42 +421,6 @@
   .sql-table tbody tr:nth-child(even):hover td { background: var(--hover); }
   .sql-empty { min-height: 150px; }
   .sql-empty > span { color: var(--accent); font-size: 26px; }
-  .log-view { display: flex; flex-direction: column; gap: 12px; min-height: 100%; }
-  .log-overview { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
-  .log-format { padding: 3px 8px; color: var(--blue); font: 700 var(--fs-xs) 'Cascadia Code', monospace; border-radius: 8px; background: color-mix(in srgb, var(--blue) 12%, transparent); }
-  .log-overview b { font-size: var(--fs-xs); }
-  .log-errors { padding: 3px 8px; color: var(--danger); font-size: var(--fs-sm); font-style: normal; border-radius: 8px; background: color-mix(in srgb, var(--danger) 12%, transparent); }
-  .log-overview .copy-btn { margin-left: auto; }
-  .log-root-cause { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 6%, var(--panel)); }
-  .log-root-cause > span { flex: 0 0 auto; padding: 3px 7px; color: var(--danger); font: 700 var(--fs-xs) 'Cascadia Code', monospace; border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); border-radius: 8px; }
-  .log-root-cause code { min-width: 0; flex: 1; overflow-wrap: anywhere; color: var(--text); font: 500 13.5px/1.6 'Cascadia Code', monospace; }
-  .log-filters { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-  .log-filters button { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: transparent; }
-  .log-filters button span { color: var(--muted-2); font: 500 var(--fs-xs) 'Cascadia Code', monospace; }
-  .log-filters button.active { color: var(--text); border-color: var(--line-2); background: var(--hover); }
-  :global(.log-filters button.lvl-error.active), :global(.log-filters button.lvl-fatal.active) { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); background: color-mix(in srgb, var(--danger) 9%, transparent); }
-  :global(.log-filters button.lvl-warn.active) { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); background: var(--warn-soft); }
-  :global(.log-filters button.lvl-info.active) { color: var(--blue); border-color: color-mix(in srgb, var(--blue) 45%, var(--line)); background: color-mix(in srgb, var(--blue) 9%, transparent); }
-  .log-filters .log-search { min-width: 160px; height: 25px; flex: 1; padding: 0 10.5px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--panel); }
-  .log-filters .log-search:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
-  .log-list { display: flex; flex-direction: column; gap: 7px; }
-  .log-entry { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); align-items: baseline; gap: 4px 10.5px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
-  .log-entry.error { border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); background: color-mix(in srgb, var(--danger) 4%, var(--panel)); }
-  .log-line { color: var(--muted-2); font: 500 var(--fs-xs) 'Cascadia Code', monospace; }
-  .log-entry time { color: var(--muted); font: 450 13px 'Cascadia Code', monospace; }
-  .log-level { padding: 2px 6px; color: var(--muted); font: 700 var(--fs-xs) 'Cascadia Code', monospace; border-radius: 4px; background: var(--hover); }
-  .log-level.error, .log-level.fatal { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
-  .log-level.warn { color: var(--warn); background: var(--warn-soft); }
-  .log-level.info { color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, transparent); }
-  .log-level.debug, .log-level.trace { color: var(--muted); background: var(--hover); }
-  .log-source { min-width: 0; overflow: hidden; color: var(--muted); font: 450 13px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
-  .log-entry p { min-width: 0; grid-column: 1 / -1; margin: 2px 0 0; color: var(--text); font: 450 13.5px/1.6 'Cascadia Code', monospace; overflow-wrap: anywhere; white-space: pre-wrap; }
-  .log-stack { grid-column: 1 / -1; margin-top: 4px; padding-top: 7px; border-top: 1px dashed var(--line); }
-  .log-stack summary { cursor: pointer; color: var(--muted); font-size: var(--fs-xs); }
-  .log-stack pre { margin: 7px 0 0; padding: 10px; overflow: auto; color: var(--muted); font: 450 13.5px/1.6 'Cascadia Code', monospace; white-space: pre-wrap; border-radius: 8px; background: var(--bg); }
-  :global(.log-stack .stack-cause) { color: var(--danger); font-weight: 650; }
-  :global(.log-stack .stack-error) { color: var(--danger); }
-  :global(.log-stack .stack-at) { color: var(--blue); }
   .color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
   .color-grid article { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
   .color-swatch { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 8px; border: 1px solid var(--line-2); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07); }

@@ -38,7 +38,6 @@ encoding_rs = "0.8"
 if-addrs = "0.15"
 gethostname = "1"
 default-net = "0.22"
-git2 = "0.21.0"
 rfd = "0.15"
 
 [target.'cfg(windows)'.dependencies]

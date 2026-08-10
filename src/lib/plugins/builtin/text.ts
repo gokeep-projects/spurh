@@ -53,109 +53,15 @@ function joinCase(input: string, separator: string): string {
   ).join(separator);
 }
 
-
-type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
-
-type LogEntry = {
-  line: number;
-  time?: string;
-  level?: LogLevel;
-  source?: string;
-  message: string;
-  stack?: string[];
-};
-
-const LOG_LEVEL_RE = /\b(FATAL|ERROR|WARN(?:ING)?|INFO|DEBUG|TRACE)\b/i;
-const LOG_TIME_RE = /\b(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:[.,]\d{1,6})?)?(?:Z|[+-]\d{2}:?\d{2})?)\b/;
-
-const MAX_LOG_ENTRIES = 2000;
-const MAX_LOG_LINE = 2000;
-
-/** 解析常见日志格式（时间戳 + 级别 + 消息 + 来源 + 堆栈），输出结构化结果 */
-function parseLogs(input: string): { entries: LogEntry[]; counts: Record<string, number>; rootCause?: string } {
-  const lines = input.split(/\r?\n/);
-  const entries: LogEntry[] = [];
-  const counts: Record<string, number> = {};
-  let current: LogEntry | null = null;
-  const rootCauses: string[] = [];
-
-  const append = (entry: LogEntry): LogEntry => {
-    if (entries.length < MAX_LOG_ENTRIES) {
-      entries.push(entry);
-      if (entry.level) counts[entry.level] = (counts[entry.level] ?? 0) + 1;
-      return entry;
-    }
-    return current ?? entry;
-  };
-
-  for (let index = 0; index < lines.length; index++) {
-    const text = lines[index].replace(/\s+$/, '').slice(0, MAX_LOG_LINE);
-    const trimmed = text.trim();
-    if (!trimmed) continue;
-
-    // 堆栈帧 / 异常链：挂到上一条记录
-    if (current && /^(at |\s+at |Caused by:|Suppressed:|\s*\.\.\.\s*\d+ more)/.test(trimmed)) {
-      if (/^Caused by:/i.test(trimmed)) {
-        rootCauses.push(trimmed.replace(/^Caused by:\s*/i, '').slice(0, 300));
-      }
-      if (!current.stack) current.stack = [];
-      if (current.stack.length < 24) current.stack.push(trimmed);
-      continue;
-    }
-
-    const timeMatch = text.match(LOG_TIME_RE);
-    const levelMatch = text.match(LOG_LEVEL_RE);
-    const time = timeMatch ? timeMatch[1] : undefined;
-    const level = levelMatch ? (levelMatch[1].toUpperCase().replace('WARNING', 'WARN') as LogLevel) : undefined;
-
-    if (!time && !level) {
-      // 无时间无级别的行：作为上一条消息的续行；没有上一条则单独成条
-      if (current) {
-        current.message = (current.message + '\n' + trimmed).slice(0, MAX_LOG_LINE);
-      } else {
-        current = append({ line: index + 1, message: trimmed });
-      }
-      continue;
-    }
-
-    let message = text;
-    if (time) message = message.replace(LOG_TIME_RE, '');
-    if (levelMatch) message = message.replace(LOG_LEVEL_RE, '');
-    // 去掉常见前缀装饰：[2024-...] [INFO] / INFO: / - 等
-    message = message
-      .replace(/^[\s\[\](){}:|-]+/, '')
-      .replace(/\s+\|?\s*$/, '')
-      .trim();
-    // 来源：形如 - com.foo.Bar:42 / at com.foo.Bar.main(Bar.java:42)
-    let source: string | undefined;
-    const srcMatch = message.match(/(?:-|at)\s*([\w.$]+(?:\([^)]*\))?:\d+(?::\d+)?)$/);
-    if (srcMatch) {
-      source = srcMatch[1];
-      message = message.slice(0, srcMatch.index).replace(/[\s-]+$/, '');
-    }
-    current = append({ line: index + 1, time, level, source, message: message.slice(0, MAX_LOG_LINE) });
-  }
-
-  let rootCause: string | undefined;
-  if (rootCauses.length) {
-    rootCause = rootCauses[rootCauses.length - 1];
-  } else {
-    const lastError = [...entries].reverse().find((entry) => entry.level === 'ERROR' || entry.level === 'FATAL');
-    if (lastError) rootCause = lastError.message.slice(0, 300);
-  }
-  return { entries, counts, rootCause };
-}
-
 export const textPlugin: SpurhPlugin = {
   id: 'spurh.text',
   name: '文本处理',
-  description: '日志解析、统计、换行、清理与特殊字符处理',
+  description: '统计、换行、清理与特殊字符处理',
   icon: ICONS['spurh.text'],
   version: '0.1.0',
   category: '数据',
   priority: 78,
   actions: [
-    { id: 'log-parse', label: '日志解析', description: '解析日志：时间/级别/来源/堆栈与错误统计' },
     { id: 'stats', label: '字符统计', description: '统计字符、单词、行数与字节' },
     { id: 'wrap', label: '自动换行', description: '按指定字符宽度自动换行' },
     { id: 'trim', label: '清理空白', description: '清理首尾空格和多余空行' },
@@ -177,32 +83,12 @@ export const textPlugin: SpurhPlugin = {
     { id: 'aiPrompt', label: 'AI 提示语', type: 'text', defaultValue: '', placeholder: '例如：润色语气，并保持原意' },
   ],
   detect(input) {
-    const trimmed = input.trim();
-    if (/^text:/i.test(trimmed)) return { confidence: 0.82, reason: '检测到文本处理指令', suggestedAction: 'stats' };
-    // 日志行：任意行同时出现时间戳 + 级别关键字（堆栈续行可不带级别）→ 建议日志解析
-    const lines = trimmed.split(/\r?\n/).filter((line) => line.trim());
-    const leveled = lines.filter((line) => LOG_LEVEL_RE.test(line));
-    const timed = lines.filter((line) => LOG_TIME_RE.test(line));
-    if (leveled.length >= 1 && timed.length >= 1) {
-      return { confidence: 0.88, reason: '检测到日志格式（时间戳 + 级别）', suggestedAction: 'log-parse' };
-    }
+    if (/^text:/i.test(input.trim())) return { confidence: 0.82, reason: '检测到文本处理指令', suggestedAction: 'stats' };
     return null;
   },
   execute(actionId, input, options = {}): PluginResult {
     if (input.length > 10_000_000) throw new Error('输入过大（超过 1000 万字符），请分片处理');
     const content = input.replace(/^text:\s*/i, '');
-    if (actionId === 'log-parse') {
-      const parsed = parseLogs(content);
-      const errorCount = (parsed.counts.ERROR ?? 0) + (parsed.counts.FATAL ?? 0);
-      return {
-        output: content,
-        language: 'text',
-        view: 'log',
-        data: { format: 'text', entries: parsed.entries, counts: parsed.counts, rootCause: parsed.rootCause },
-        summary: `${parsed.entries.length} 条记录 · ${errorCount} 条错误`,
-        meta: { 记录: parsed.entries.length, 错误: errorCount, 警告: parsed.counts.WARN ?? 0, INFO: parsed.counts.INFO ?? 0, 根因: parsed.rootCause ? '已提取' : '无' },
-      };
-    }
     if (actionId === 'stats') {
       const stats = {
         字符数: [...content].length,

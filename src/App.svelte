@@ -317,7 +317,7 @@
       { cls: 'cmd', text: '$ spurh --version' },
       { cls: 'out', text: 'Spurh v0.1.0 · 14 tools · 本地优先' },
       { cls: 'cmd', text: '$ spurh status' },
-      { cls: 'out', text: 'engine online · clipboard watching · ai ready' },
+      { cls: 'out', text: 'engine online · ai ready' },
       { cls: 'cmd', text: '$ spurh run json:format --input demo' },
       { cls: 'out', text: '✓ 格式化完成 · 结果已复制' },
       { cls: 'cmd', text: '$ spurh doctor' },
@@ -1610,7 +1610,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     </button>
     <div class="dispatcher">
         <span class="dispatcher-spark" class:active={dispatcherOpen}>{@html UI_ICONS.sparkle}</span>
-        <textarea rows="1" bind:this={dispatcherElement} bind:value={dispatcherInput} oninput={(event) => handleDispatcherInput(event.currentTarget.value)} onpaste={handleDispatcherPaste} onkeydown={handleDispatcherKeys} onfocus={() => (dispatcherOpen = true)} onblur={() => (dispatcherOpen = false)} placeholder="搜索工具或粘贴内容…（多行日志可直接粘贴，Shift+Enter 换行）"></textarea>
+        <textarea rows="1" bind:this={dispatcherElement} bind:value={dispatcherInput} oninput={(event) => handleDispatcherInput(event.currentTarget.value)} onpaste={handleDispatcherPaste} onkeydown={handleDispatcherKeys} onfocus={() => (dispatcherOpen = true)} onblur={() => (dispatcherOpen = false)} placeholder="搜索工具或粘贴内容…（Shift+Enter 换行）"></textarea>
         {#if dispatcherOpen}
           <div class="dispatch-matches" class:passive={!dispatcherInput.trim()} role="listbox" aria-label="工具候选列表" tabindex="-1" onmousedown={(event) => { if (!(event.target as HTMLElement).closest('button')) dispatcherElement?.blur(); }}>
             {#if dispatcherInput.trim()}
@@ -1639,7 +1639,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <span class="dispatch-idle-icon">{@html UI_ICONS.sparkle}</span>
                 <div class="dispatch-idle-copy"><b>Spurh 智能路由引擎</b><small>粘贴任意内容，自动识别类型并路由到正确工具 — 即输即转，无需选择</small></div>
                 <div class="idle-chips">
-                  {#each ['JSON 格式化', 'Unix 时间戳', 'Base64 编解码', 'SQL 美化', '日志解析', '正则测试', '密码生成', 'UUID', 'Cron 表达式', '哈希 / HMAC', 'URL 编解码', '端口探测'] as cap}<span class="idle-chip">{cap}</span>{/each}
+                  {#each ['JSON 格式化', 'Unix 时间戳', 'Base64 编解码', 'SQL 美化', '正则测试', '密码生成', 'UUID', 'Cron 表达式', '哈希 / HMAC', 'URL 编解码', '端口探测'] as cap}<span class="idle-chip">{cap}</span>{/each}
                 </div>
                 <div class="idle-hint"><span><kbd>↑</kbd><kbd>↓</kbd> 选择候选</span><span><kbd>↵</kbd> 执行</span><span><kbd>Esc</kbd> 关闭</span></div>
               </div>
