@@ -122,10 +122,9 @@
   .crypto-grp-label { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
   /* svelte-ignore css_unused_selector */
   .crypto-grp-label :global(svg) { width: 13px; height: 13px; }
-  .crypto-btns { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 4px; min-width: 0; flex: 1; }
-  .crypto-group.wide .crypto-btns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .crypto-group.wide .crypto-btns:has(> :nth-child(2)) { grid-template-columns: 1fr 1fr; }
-  .crypto-group button { position: relative; width: 100%; min-width: 0; height: 24px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid transparent; border-radius: 7px; background: transparent; white-space: nowrap; transition: all .15s ease; overflow: hidden; text-overflow: ellipsis; }
+  .crypto-btns { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; flex: 1; }
+  .crypto-group.wide .crypto-btns { display: flex; flex-wrap: wrap; }
+  .crypto-group button { position: relative; width: auto; min-width: 64px; flex: 0 0 auto; height: 26px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid transparent; border-radius: 7px; background: transparent; white-space: nowrap; transition: all .15s ease; overflow: hidden; text-overflow: ellipsis; }
   .crypto-group button:hover:not(.active) { color: var(--text); border-color: var(--line); background: var(--hover); }
   .crypto-group button.active { color: #fff; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); background-size: 180% 100%; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent); animation: cryptoGlow 2.4s ease infinite; }
   @keyframes cryptoGlow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }

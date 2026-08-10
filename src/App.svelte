@@ -159,6 +159,8 @@
   let category = $state<(typeof categories)[number]>('全部');
   let copied = $state(false);
   const initialSettings = loadAppSettings();
+  // 迁移：清理已移除功能(Git 仓库/剪贴板历史/旧主题键)的旧版本地数据
+  try { for (const legacyKey of ['spurh.git.recent', 'spurh.clip.deleted', 'spurh.theme.v1']) localStorage.removeItem(legacyKey); } catch { /* 忽略 */ }
   let appSettings = $state(initialSettings);
   // 窄窗口（≤850px）侧栏默认收起，避免覆盖工作区；用户手动切换会持久化
   let sidebarOpen = $state(typeof window !== 'undefined' ? (window.innerWidth > 850 && (initialSettings.sidebarOpen ?? true)) : true);
@@ -913,9 +915,23 @@
       const indentSource = cursorPart.length === 0 ? fullLine : cursorPart;
       const indentMatch = indentSource.match(/^[\t ]*/);
       let indent = indentMatch ? indentMatch[0] : '';
-      // 自动补全：未闭合引号 / 行尾开括号
+      // 括号深度：光标前未闭合的 { [ ( 数量(忽略字符串字面量)，决定回车后新行缩进层级
       const openQuote = (cursorPart.match(/"/g) || []).length % 2 === 1;
-      let extra = (!openQuote && /[{[(]$/.test(cursorPart.trimEnd())) ? '  ' : '';
+      let extra = '';
+      if (!openQuote) {
+        const depthOf = (src: string): number => {
+          let d = 0;
+          for (const ch of src) {
+            if (ch === '{' || ch === '[' || ch === '(') d++;
+            else if (ch === '}' || ch === ']' || ch === ')') d = Math.max(0, d - 1);
+          }
+          return d;
+        };
+        const stripStr = (src: string): string => src.replace(/"(\.|[^"\\])*"/g, '');
+        const dCursor = depthOf(stripStr(value.slice(0, start)));
+        const dLine = depthOf(stripStr(value.slice(0, lineStart)));
+        extra = '  '.repeat(Math.max(0, dCursor - dLine));
+      }
       // 光标后紧跟闭合括号（自动配对插入）：闭合括号换行到外层缩进，光标停在中间行
       const closeAfter = value.slice(end).match(/^[}\])]/);
       if (closeAfter) {
@@ -1083,14 +1099,8 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
         dispatchIndex = 0;
         return;
       }
-      // 高置信度内容：停顿后再路由并清空输入框（避免输入中途被误路由打断）
-      dispatcherRouteTimer = setTimeout(() => {
-        if (dispatcherInput.trim() === value.trim()) {
-          routeLive(match.plugin.id, value, match.suggestedAction);
-          dispatcherInput = '';
-          dispatchIndex = 0;
-        }
-      }, 450);
+      // 高信度内容: 实时路由到工具区, 保留输入框内容(回车确认后清空)
+      routeLive(match.plugin.id, value, match.suggestedAction);
     } else if (match && match.confidence >= 0.5 && !SELF_CONTAINED_PANELS.has(match.plugin.id)) {
       routeLive(match.plugin.id, value, match.suggestedAction);
     }

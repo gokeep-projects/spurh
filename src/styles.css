@@ -3295,7 +3295,7 @@ kbd {
 
 
 
-.highlighted { background: rgba(251, 191, 36, .22); border-radius: 3px; box-shadow: 0 0 0 2px rgba(251, 191, 36, .18); }
+/* .highlighted ???????? JSON ?? pre ?????????? */
 
 
 
@@ -3413,6 +3413,8 @@ kbd {
 }
 /* 等宽对齐：font 简写会重置 font-variant-ligatures，此处覆盖 */
 .result-view > pre, .editor-input pre, .editor-pane pre, .input-hl, pre.highlighted { font-variant-ligatures: none !important; font-kerning: none !important; }
+@property --ai-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition-duration: .001s !important; }
 }
