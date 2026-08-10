@@ -113,14 +113,27 @@ pub async fn net_tcp_write(
             .map_err(|error| format!("发送失败：{error}"))?;
         sent = bytes.len();
     }
+    // 读取响应：收到首字节后进入“空闲 250ms”模式，避免空等满超时；总超时仍兜底
     let deadline = tokio::time::Instant::now() + timeout;
+    let idle = Duration::from_millis(250);
     let mut buf: Vec<u8> = Vec::with_capacity(1024);
     let mut chunk = [0u8; 2048];
+    let mut got_data = false;
     loop {
-        match tokio::time::timeout_at(deadline, stream.read(&mut chunk)).await {
+        let now = tokio::time::Instant::now();
+        if now >= deadline {
+            break;
+        }
+        let read_deadline = if got_data {
+            std::cmp::min(now + idle, deadline)
+        } else {
+            deadline
+        };
+        match tokio::time::timeout_at(read_deadline, stream.read(&mut chunk)).await {
             Ok(Ok(0)) => break,
             Ok(Ok(n)) => {
                 buf.extend_from_slice(&chunk[..n]);
+                got_data = true;
                 if buf.len() > 65536 {
                     break;
                 }
@@ -184,15 +197,27 @@ pub async fn net_tcp_send(
                     .map_err(|error| format!("发送失败：{error}"))?;
                 sent = bytes.len();
             }
-            // 读取响应（最多 64KB，空闲 800ms 或总超时即结束；总超时防止慢速服务器无限拖长）
+            // 读取响应（收到首字节后空闲 250ms 即结束，避免空等满超时；总超时仍兜底）
             let deadline = tokio::time::Instant::now() + timeout;
+            let idle = Duration::from_millis(250);
             let mut buf: Vec<u8> = Vec::with_capacity(1024);
             let mut chunk = [0u8; 2048];
+            let mut got_data = false;
             loop {
-                match tokio::time::timeout_at(deadline, stream.read(&mut chunk)).await {
+                let now = tokio::time::Instant::now();
+                if now >= deadline {
+                    break;
+                }
+                let read_deadline = if got_data {
+                    std::cmp::min(now + idle, deadline)
+                } else {
+                    deadline
+                };
+                match tokio::time::timeout_at(read_deadline, stream.read(&mut chunk)).await {
                     Ok(Ok(0)) => break,
                     Ok(Ok(n)) => {
                         buf.extend_from_slice(&chunk[..n]);
+                        got_data = true;
                         if buf.len() > 65536 {
                             break;
                         }
