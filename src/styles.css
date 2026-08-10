@@ -2022,6 +2022,20 @@ kbd {
   background: var(--grad-main);
   box-shadow: 0 5px 18px rgba(129, 140, 248, .4);
 }
+.settings-ai-empty {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 18px;
+  border: 1px dashed color-mix(in srgb, var(--c-cyan) 40%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--c-cyan) 5%, var(--w-04));
+}
+.settings-ai-empty > span { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 auto; color: var(--c-cyan); border: 1px solid color-mix(in srgb, var(--c-cyan) 30%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--c-cyan) 8%, transparent); }
+.settings-ai-empty > span svg { width: 22px; height: 22px; }
+.settings-ai-empty > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.settings-ai-empty b { font-size: var(--fs-sm); }
+.settings-ai-empty small { color: var(--muted); font-size: var(--fs-xs); line-height: 1.6; }
 .settings-ai-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .settings-ai-actions button:disabled { cursor: default; opacity: .4; }
 .test-result { font-size: var(--fs-xs); padding: 4px 0 0; }
