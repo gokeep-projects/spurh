@@ -135,18 +135,18 @@ button { cursor: pointer; border: 0; background: none; }
   opacity: .6;
 }
 .app.light {
-  --bg0: #aebdd9;
-  --bg1: #c9d6ee;
+  --bg0: #a2b3d6;
+  --bg1: #c0cee9;
   --bg2: #ffffff;
-  --bg3: #c3cfe8;
-  --line: rgba(58, 76, 150, .5);
-  --line-strong: rgba(58, 76, 150, .74);
+  --bg3: #b7c7e3;
+  --line: rgba(58, 76, 150, .58);
+  --line-strong: rgba(58, 76, 150, .8);
   --text: #0b1030;
   --muted: #333e6b;
-  --muted-2: #46538a;
+  --muted-2: #3d4a80;
   --hover: rgba(28, 38, 84, .09);
-  --glass: rgba(246, 249, 255, .84);
-  --glass-strong: rgba(250, 252, 255, .94);
+  --glass: rgba(240, 246, 255, .9);
+  --glass-strong: rgba(246, 250, 255, .97);
   --w-02: rgba(28, 38, 84, .03);
   --w-025: rgba(28, 38, 84, .035);
   --w-03: rgba(28, 38, 84, .045);
@@ -380,12 +380,13 @@ button { cursor: pointer; border: 0; background: none; }
   height: 24px;
   flex: 0 0 auto;
   color: var(--c-cyan);
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, .45));
   animation: spark-pulse 2.6s ease-in-out infinite;
 }
 .dispatcher-spark svg { width: 15px; height: 15px; }
 @keyframes spark-pulse {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(34, 211, 238, .6)); }
-  50% { transform: scale(1.14); filter: drop-shadow(0 0 8px rgba(232, 121, 249, .8)); }
+  0%, 100% { transform: scale(1); opacity: .75; }
+  50% { transform: scale(1.16); opacity: 1; }
 }
 .dispatcher input {
   flex: 1;
@@ -3312,6 +3313,7 @@ kbd {
 }
 @media (max-height: 760px) {
   .app-bar { flex-basis: 52px; }
+  .cron-actions, .regex-actions { position: static; }
   .tool-header { padding: 9px 4px 7px; }
   .tool-list button { min-height: 44px; }
   .tool-name small, .tool-identity p { display: none; }
@@ -3541,35 +3543,35 @@ kbd {
 
 /* —— 浅色：灰蓝框架 + 白色卡片 + 淡蓝输入 —— */
 .app.light {
-  --glass: rgba(255, 255, 255, .88);
-  --glass-strong: rgba(255, 255, 255, .96);
+  --glass: rgba(242, 247, 255, .92);
+  --glass-strong: rgba(247, 250, 255, .97);
 }
 .app.light .app-bar {
-  background: linear-gradient(180deg, #eef4fd 0%, #dbe5f6 100%);
+  background: linear-gradient(180deg, #e4edfa 0%, #cad9f1 100%);
   border-bottom-color: rgba(35, 58, 122, .4);
   box-shadow: 0 8px 26px rgba(35, 58, 122, .22);
 }
 .app.light .sidebar {
-  background: linear-gradient(180deg, #e1eafa 0%, #bfcce6 100%);
+  background: linear-gradient(180deg, #d4e0f4 0%, #adbfdb 100%);
   border-right-color: rgba(35, 58, 122, .4);
 }
 .app.light .tool-controls,
 .app.light .editor-grid {
-  background: #c3cfe6;
-  border-color: rgba(35, 58, 122, .45);
+  background: #b6c5e2;
+  border-color: rgba(35, 58, 122, .5);
 }
 .app.light .editor-grid {
   box-shadow: 0 18px 48px rgba(35, 58, 122, .18);
 }
-.app.light .editor-pane { background: #ffffff; border: 1px solid rgba(35, 58, 122, .2); }
-.app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .32); }
+.app.light .editor-pane { background: #f6f9fe; border: 1px solid rgba(35, 58, 122, .3); }
+.app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .4); }
 .app.light .editor-pane > header {
-  background: rgba(35, 58, 122, .05);
-  border-bottom-color: rgba(35, 58, 122, .14);
+  background: rgba(35, 58, 122, .07);
+  border-bottom-color: rgba(35, 58, 122, .18);
 }
-.app.light .editor-input { background: #ffffff; }
-.app.light .result-view { background: #e2eaf7; }
-.app.light .json-tree { background: #e2eaf7; }
+.app.light .editor-input { background: #fbfdff; }
+.app.light .result-view { background: #dbe5f4; }
+.app.light .json-tree { background: #dbe5f4; }
 .app.light .workspace { padding: 14px 18px 16px; }
 .app.light .workspace .tool-controls { border-radius: var(--radius) var(--radius) 0 0; }
 /* 浅色其他输入框统一淡蓝灰底 */
@@ -3581,15 +3583,18 @@ kbd {
 .app.light .net-field input, .app.light .remote-search input,
 .app.light .clip-search input, .app.light .sql-form input, .app.light .sql-form select,
 .app.light .rt-input, .app.light .form-input, .app.light .rt-connect input {
-  background: #eef3fc;
-  border-color: rgba(35, 58, 122, .26);
+  background: #e6edf9;
+  border-color: rgba(35, 58, 122, .32);
 }
 
 /* —— 关于页：浅色压住粉紫扫光，深色保留氛围但更克制 —— */
-.app.light .about-aurora::after { opacity: .08; filter: blur(0); }
+.app.light .about-aurora::after { opacity: .2; filter: blur(0); }
 .app.light .about-stage {
-  background: rgba(255, 255, 255, .6);
+  background: rgba(247, 250, 255, .72);
   box-shadow: 0 0 0 1px rgba(35, 58, 122, .16), 0 18px 60px rgba(35, 58, 122, .2);
+}
+.app.light .about-stage::after {
+  background: linear-gradient(105deg, transparent, rgba(79, 70, 229, .12), transparent);
 }
 .app.light .about-spark {
   background: rgba(35, 58, 122, .05);
@@ -3639,6 +3644,38 @@ kbd {
   opacity: .09;
   animation-name: none;
 }
+
+/* 旋转流光边框：conic 渐变沿舞台边缘流转（仅支持 mask-composite 的引擎启用） */
+@property --about-frame-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@supports (mask-composite: exclude) or (-webkit-mask-composite: xor) {
+  .about-stage { border-color: transparent; }
+  .about-frame {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    padding: 1.6px;
+    background: conic-gradient(from var(--about-frame-angle), #22d3ee, #6366f1 25%, #a855f7 50%, #ec4899 75%, #22d3ee);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    animation: about-frame-spin 5s linear infinite;
+    opacity: .85;
+    pointer-events: none;
+  }
+}
+@keyframes about-frame-spin {
+  to { --about-frame-angle: 360deg; }
+}
+.app.light .about-frame {
+  opacity: .65;
+}
+
 .about-title {
   filter: drop-shadow(0 0 16px rgba(139, 92, 246, .4));
 }
@@ -3926,7 +3963,7 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 
 /* ================= ???????????????????????? ================= */
 .app.light .app-bar {
-  background: rgba(246, 249, 255, .92);
+  background: rgba(228, 237, 250, .95);
   box-shadow: 0 8px 30px rgba(35, 58, 122, .12);
 }
 .app.light .sidebar {
@@ -3937,24 +3974,24 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app.light .workspace {
   background:
     radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .16), transparent 60%),
-    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .13), transparent 58%),
-    #cdd9ea;
+    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .16), transparent 58%),
+    #b9c7e2;
 }
 .app.light .tool-controls {
-  background: #c7d3e8;
-  border-color: rgba(35, 58, 122, .45);
+  background: #b6c5e2;
+  border-color: rgba(35, 58, 122, .5);
 }
 .app.light .editor-grid {
-  border-color: rgba(35, 58, 122, .42);
+  border-color: rgba(35, 58, 122, .52);
   box-shadow: 0 16px 40px rgba(35, 58, 122, .22);
 }
 .app.light .editor-pane {
-  background: #ffffff;
-  border: 1px solid rgba(35, 58, 122, .26);
+  background: #f4f8fd;
+  border: 1px solid rgba(35, 58, 122, .32);
 }
-.app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .32); }
+.app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .4); }
 .app.light .result-view,
-.app.light .json-tree { background: #e3eaf7; }
+.app.light .json-tree { background: #d9e3f3; }
 .app.light .side-heading small { color: #45507f; }
 .app.light .tool-kbd { color: #46538a; }
 

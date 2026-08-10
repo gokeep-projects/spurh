@@ -2150,6 +2150,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
             {#if settingsTab === 'about'}
               <div class="about-stage" bind:this={aboutStageEl}>
                 <div class="about-aurora" aria-hidden="true"></div>
+                <div class="about-frame" aria-hidden="true"></div>
                 <div class="about-orb about-orb-a" aria-hidden="true"></div>
                 <div class="about-orb about-orb-b" aria-hidden="true"></div>
                 <div class="about-particles" aria-hidden="true"><i style="--px:12%;--pd:.0s;--ps:9px"></i><i style="--px:26%;--pd:1.3s;--ps:5px"></i><i style="--px:42%;--pd:.6s;--ps:7px"></i><i style="--px:58%;--pd:2s;--ps:6px"></i><i style="--px:72%;--pd:.9s;--ps:8px"></i><i style="--px:86%;--pd:1.7s;--ps:5px"></i><i style="--px:34%;--pd:2.6s;--ps:4px"></i><i style="--px:64%;--pd:3.1s;--ps:6px"></i><i style="--px:18%;--pd:3.8s;--ps:5px"></i><i style="--px:80%;--pd:2.3s;--ps:7px"></i></div>
