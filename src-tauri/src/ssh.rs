@@ -1,11 +1,11 @@
 // SSH 远程终端：连接、读写、尺寸调整（配合前端 xterm.js）
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
-use russh::{client, ChannelMsg};
+use russh::{client, ChannelMsg, client::KeyboardInteractiveAuthResponse};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tauri::ipc::Channel;
 use tauri::Manager;
@@ -226,7 +226,7 @@ pub async fn ssh_connect(
     .map_err(|_| format!("连接超时（{CONNECT_TIMEOUT_SECS} 秒），请检查主机地址和端口"))?
     .map_err(|error| format!("SSH 连接失败：{error}"))?;
 
-    let auth_result = match profile.auth_type.as_str() {
+    let auth_success = match profile.auth_type.as_str() {
         "key" => {
             let key_path = profile
                 .key_path
@@ -243,12 +243,14 @@ pub async fn ssh_connect(
                 .await
                 .map_err(|error| format!("协商签名算法失败：{error}"))?
                 .flatten();
-            handle
+            let result = handle
                 .authenticate_publickey(
                     &profile.user,
                     russh::keys::PrivateKeyWithHashAlg::new(Arc::new(key), hash_alg),
                 )
                 .await
+                .map_err(|error| format!("SSH 认证失败：{error}"))?;
+            result.success()
         }
         _ => {
             let password = profile
@@ -256,12 +258,62 @@ pub async fn ssh_connect(
                 .clone()
                 .filter(|value| !value.is_empty())
                 .ok_or("请输入密码")?;
-            handle.authenticate_password(&profile.user, password).await
+            let password_ok = handle
+                .authenticate_password(&profile.user, password.clone())
+                .await
+                .map_err(|error| format!("SSH 认证失败：{error}"))?
+                .success();
+            if password_ok {
+                true
+            } else {
+                // 部分服务器（如 PAM、两步验证）仅开放 keyboard-interactive 认证：
+                // 密码认证失败后回退尝试，按提示自动应答密码。
+                let mut ki = handle
+                    .authenticate_keyboard_interactive_start(&profile.user, None)
+                    .await
+                    .map_err(|error| format!("SSH 认证失败：{error}"))?;
+                let mut rounds = 0;
+                let ki_success = loop {
+                    match &ki {
+                        KeyboardInteractiveAuthResponse::InfoRequest { prompts, .. } => {
+                            if rounds >= 8 {
+                                break false;
+                            }
+                            let answers = prompts
+                                .iter()
+                                .map(|prompt| {
+                                    let lower = prompt.prompt.to_ascii_lowercase();
+                                    if prompt.echo
+                                        || !(lower.contains("password")
+                                            || lower.contains("passcode")
+                                            || lower.contains("密码")
+                                            || lower.contains("口令"))
+                                    {
+                                        String::new()
+                                    } else {
+                                        password.clone()
+                                    }
+                                })
+                                .collect::<Vec<_>>();
+                            rounds += 1;
+                            match handle
+                                .authenticate_keyboard_interactive_respond(answers)
+                                .await
+                            {
+                                Ok(next) => ki = next,
+                                Err(_) => break false,
+                            }
+                        }
+                        KeyboardInteractiveAuthResponse::Success => break true,
+                        _ => break false,
+                    }
+                };
+                ki_success
+            }
         }
-    }
-    .map_err(|error| format!("SSH 认证失败：{error}"))?;
+    };
 
-    if !auth_result.success() {
+    if !auth_success {
         return Err("认证失败：用户名、密码或密钥不正确".into());
     }
 
@@ -286,9 +338,43 @@ pub async fn ssh_connect(
         .await
         .map_err(|error| format!("启动 shell 失败：{error}"))?;
 
+    // 等待服务器对 PTY/Shell 请求的确认：OpenSSH 会对两个请求分别回复 Success。
+    // 若被拒绝或通道立即关闭，在此返回可读错误，避免前端“已连接但终端无响应”。
+    // 期间到达的启动输出先缓冲，会话建立后补发给前端。
+    let mut replies = 0u32;
+    let mut boot_data: Vec<u8> = Vec::new();
+    let reply_deadline = Instant::now() + Duration::from_secs(4);
+    loop {
+        if replies >= 2 {
+            break;
+        }
+        let remaining = reply_deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match tokio::time::timeout(remaining, channel.wait()).await {
+            Ok(Some(ChannelMsg::Success)) => replies += 1,
+            Ok(Some(ChannelMsg::Failure)) => {
+                return Err("服务器拒绝了终端请求（PTY/Shell 未开启）".into());
+            }
+            Ok(Some(ChannelMsg::Data { data })) => boot_data.extend_from_slice(data.as_ref()),
+            Ok(Some(ChannelMsg::ExtendedData { data, .. })) => boot_data.extend_from_slice(data.as_ref()),
+            Ok(Some(ChannelMsg::Eof)) | Ok(Some(ChannelMsg::Close)) | Ok(None) => {
+                return Err("服务器在终端建立后立即关闭了连接".into());
+            }
+            Ok(Some(_)) => {}
+            Err(_) => break, // 响应超时：部分服务器回复较慢，不阻塞连接流程
+        }
+    }
+
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<SshCommand>();
     let out_task = out.clone();
     let task = tauri::async_runtime::spawn(async move {
+        let mut exit_status: Option<u32> = None;
+        // 连接建立期间缓冲的启动输出（motd / 欢迎语）先补发，再进入事件循环
+        if !boot_data.is_empty() {
+            let _ = emit(&out_task, "data", Some(BASE64.encode(&boot_data)), None);
+        }
         loop {
             tokio::select! {
                 message = channel.wait() => {
@@ -299,8 +385,15 @@ pub async fn ssh_connect(
                         Some(ChannelMsg::ExtendedData { data, .. }) => {
                             if !emit(&out_task, "data", Some(BASE64.encode(data.as_ref())), None) { break; }
                         }
+                        Some(ChannelMsg::ExitStatus { exit_status: status }) => {
+                            exit_status = Some(status);
+                        }
                         Some(ChannelMsg::Eof) | Some(ChannelMsg::Close) | None => {
-                            let _ = emit(&out_task, "exit", None, Some("连接已关闭".into()));
+                            let message = match exit_status {
+                                Some(status) => format!("连接已关闭（退出码 {status}）"),
+                                None => "连接已关闭".to_string(),
+                            };
+                            let _ = emit(&out_task, "exit", None, Some(message));
                             break;
                         }
                         Some(_) => {}

@@ -1,4 +1,4 @@
-﻿use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
     process::Command,
@@ -125,6 +125,24 @@ fn authorized(call: reqwest::RequestBuilder, api_key: &str) -> reqwest::RequestB
     }
 }
 
+/// 把 reqwest 网络错误翻译成可读的中文排查建议
+fn friendly_network_error(error: &reqwest::Error) -> String {
+    if error.is_timeout() {
+        return "连接超时：模型服务在 10 秒内未响应，请检查网络是否正常，或换用更快的服务地址".into();
+    }
+    if error.is_connect() {
+        return "无法连接到模型服务：请确认「服务地址」与端口正确、服务已启动；如使用代理，请先放行该地址".into();
+    }
+    if error.is_request() {
+        return format!("请求未完成：{error}");
+    }
+    if error.is_body() {
+        return format!("读取响应中断：{error}");
+    }
+    format!("网络错误：{error}")
+}
+
+
 /// 前端运行时错误转发到 stderr（tauri dev 终端可见），用于诊断「无输出」类问题
 #[tauri::command]
 fn app_log_error(message: String) {
@@ -132,22 +150,98 @@ fn app_log_error(message: String) {
 }
 
 #[tauri::command]
+fn get_process_stats() -> Result<serde_json::Value, String> {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Foundation::FILETIME;
+        use windows_sys::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS, PROCESS_MEMORY_COUNTERS_EX};
+        use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, GetSystemTimes};
+
+        static LAST_CPU: std::sync::Mutex<Option<(u128, u64, u64)>> = std::sync::Mutex::new(None);
+
+        let h = unsafe { GetCurrentProcess() };
+        let mut pmc: PROCESS_MEMORY_COUNTERS_EX = unsafe { std::mem::zeroed() };
+        let mem_ok = unsafe { GetProcessMemoryInfo(h, &mut pmc as *mut _ as *mut PROCESS_MEMORY_COUNTERS, std::mem::size_of::<PROCESS_MEMORY_COUNTERS_EX>() as u32) } != 0;
+
+        let mut ms: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
+        ms.dwLength = std::mem::size_of::<MEMORYSTATUSEX>() as u32;
+        let _ = unsafe { GlobalMemoryStatusEx(&mut ms) };
+
+        let ft_ms = |f: FILETIME| {
+            (((f.dwHighDateTime as u64) << 32) | f.dwLowDateTime as u64) / 10_000
+        };
+        let mut sys_idle = FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
+        let mut sys_kern = FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
+        let mut sys_user = FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
+        let sys_ok = unsafe { GetSystemTimes(&mut sys_idle, &mut sys_kern, &mut sys_user) } != 0;
+        let (idle_ms, total_ms) = if sys_ok {
+            (ft_ms(sys_idle), ft_ms(sys_kern) + ft_ms(sys_user))
+        } else {
+            (0, 0)
+        };
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0);
+        let mut last = LAST_CPU.lock().unwrap();
+        let cpu_pct = match *last {
+            Some((t0, i0, c0)) if now > t0 && total_ms >= c0 => {
+                let dtotal = (total_ms - c0) as f64;
+                let didle = (idle_ms - i0) as f64;
+                if dtotal > 0.0 {
+                    ((dtotal - didle) / dtotal * 100.0).clamp(0.0, 100.0)
+                } else {
+                    0.0
+                }
+            }
+            _ => 0.0,
+        };
+        *last = Some((now, idle_ms, total_ms));
+
+        Ok(serde_json::json!({
+            "rssMB": if mem_ok { pmc.WorkingSetSize / 1024 / 1024 } else { 0 },
+            "privateMB": if mem_ok { pmc.PrivateUsage / 1024 / 1024 } else { 0 },
+            "systemTotalMB": if sys_ok { ms.ullTotalPhys / 1024 / 1024 } else { 0 },
+            "systemFreeMB": if sys_ok { ms.ullAvailPhys / 1024 / 1024 } else { 0 },
+            "cpuPercent": (cpu_pct * 10.0).round() / 10.0,
+        }))
+    }
+    #[cfg(not(windows))]
+    {
+        let rss_kb = std::fs::read_to_string("/proc/self/statm").ok().and_then(|s| {
+            let mut it = s.split_whitespace();
+            let _ = it.next()?;
+            it.next()?.parse::<u64>().ok()
+        });
+        Ok(serde_json::json!({
+            "rssMB": rss_kb.map(|kb| kb / 1024).unwrap_or(0),
+            "cpuPercent": 0.0,
+        }))
+    }
+}
+
+#[tauri::command]
 async fn ai_list_models(request: AiRequest) -> Result<Vec<AiModel>, String> {
     let url = endpoint_url(&request.endpoint, "models")?;
-    let response = authorized(client(20)?.get(url), &request.api_key)
+    let response = authorized(client(10)?.get(url), &request.api_key)
         .send()
         .await
-        .map_err(|error| format!("拉取模型失败：{error}"))?;
+        .map_err(|error| format!("拉取模型失败：{}", friendly_network_error(&error)))?;
     let status = response.status();
     let text = response
         .text()
         .await
         .map_err(|error| format!("读取模型列表失败：{error}"))?;
     if !status.is_success() {
-        return Err(format!(
-            "模型服务返回 HTTP {status}：{}",
-            text.chars().take(240).collect::<String>()
-        ));
+        let hint = match status.as_u16() {
+            401 | 403 => "。API Key 缺失或无效，请在设置中检查密钥",
+            404 => "。服务地址不正确，或该服务不支持 /models 接口",
+            429 => "。请求过于频繁已被限流，请稍后重试",
+            _ => "",
+        };
+        return Err(format!("模型服务返回 HTTP {status}{hint}：{}", text.chars().take(240).collect::<String>()));
     }
     let value: Value = serde_json::from_str(&text)
         .map_err(|_| "服务没有返回 OpenAI 兼容的模型列表".to_string())?;
@@ -333,6 +427,22 @@ fn autostart_registry(_enabled: bool) -> Result<bool, String> {
 #[tauri::command]
 fn set_autostart(enabled: bool) -> Result<bool, String> {
     autostart_registry(enabled)
+}
+
+/// 绉诲嚭鏂囦欢锛氬脊鍑哄師鐢熶繚瀛樺璇濇骞跺啓鍏ユ枃浠讹紝闃叉浜嬩欢绾跨▼鍫电獝 UI
+#[tauri::command]
+async fn save_text_file(name: String, content: String) -> Result<Option<String>, String> {
+    let path = tauri::async_runtime::spawn_blocking(move || {
+        rfd::FileDialog::new()
+            .set_title("鍏蜂綋淇濆瓨鏂囦欢")
+            .set_file_name(&name)
+            .save_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let Some(path) = path else { return Ok(None) };
+    std::fs::write(&path, content).map_err(|e| e.to_string())?;
+    Ok(Some(path.display().to_string()))
 }
 
 #[tauri::command]
@@ -526,6 +636,95 @@ fn show_main_window(app: &tauri::AppHandle) {
     }
 }
 
+/// Keeps the window inside the current monitor's work area.
+/// Windows may restore the previous session's bounds after creation on high-DPI
+/// / remote screens, so this is invoked both at startup and on every resize.
+/// Uses Win32 directly (real pixel rect incl. window frame) to avoid unit
+/// mismatches between Tauri's window size and monitor metrics.
+#[cfg(windows)]
+fn fit_window_win32(hwnd: windows::Win32::Foundation::HWND) {
+    use windows::Win32::Foundation::RECT;
+    use windows::Win32::Graphics::Gdi::{
+        GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    };
+    use windows::Win32::UI::HiDpi::GetDpiForWindow;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetWindowRect, SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER,
+    };
+    unsafe {
+        let mut rc = RECT::default();
+        if GetWindowRect(hwnd, &mut rc).is_err() {
+            return;
+        }
+        let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        let mut info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        if !GetMonitorInfoW(monitor, &mut info).as_bool() {
+            return;
+        }
+        let wa = info.rcWork;
+        let dpi = GetDpiForWindow(hwnd);
+        let min_w = (720 * dpi / 96) as i32;
+        let min_h = (640 * dpi / 96) as i32;
+        let cur_w = rc.right - rc.left;
+        let cur_h = rc.bottom - rc.top;
+        let mut w = cur_w.min(wa.right - wa.left);
+        let mut h = cur_h.min(wa.bottom - wa.top);
+        if w < min_w {
+            w = min_w;
+        }
+        if h < min_h {
+            h = min_h;
+        }
+        if w != cur_w || h != cur_h {
+            let x = wa.left + (wa.right - wa.left - w) / 2;
+            let y = wa.top + (wa.bottom - wa.top - h) / 2;
+            let _ = SetWindowPos(hwnd, None, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+    }
+}
+
+#[cfg(windows)]
+fn fit_window_to_work_area(window: &tauri::WebviewWindow) {
+    if let Ok(hwnd) = window.hwnd() {
+        fit_window_win32(hwnd);
+    }
+}
+
+#[cfg(windows)]
+fn fit_window_event(window: &tauri::Window) {
+    if let Ok(hwnd) = window.hwnd() {
+        fit_window_win32(hwnd);
+    }
+}
+
+#[cfg(not(windows))]
+fn fit_window_to_work_area(window: &tauri::WebviewWindow) {
+    if let Ok(Some(monitor)) = window.current_monitor() {
+        let wa = monitor.work_area();
+        if let Ok(size) = window.outer_size() {
+            let mut w = size.width.min(wa.size.width);
+            let mut h = size.height.min(wa.size.height);
+            if w < 720 {
+                w = 720;
+            }
+            if h < 640 {
+                h = 640;
+            }
+            if w != size.width || h != size.height {
+                let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+            }
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn fit_window_event(window: &tauri::Window) {
+    fit_window_to_work_area(&tauri::WebviewWindow::from(window.clone()));
+}
+
 #[cfg(desktop)]
 fn emit_hotkey(app: &tauri::AppHandle, kind: &str, index: Option<usize>) {
     let _ = app.emit("spurh:hotkey", HotkeyEvent { kind: kind.to_string(), index });
@@ -692,8 +891,41 @@ async fn apply_hotkeys(
     Ok(results)
 }
 
+/// ?????panic=abort ?? panic ????????????
+fn install_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let msg = if let Some(s) = info.payload().downcast_ref::<&str>() {
+            (*s).to_string()
+        } else if let Some(s) = info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "unknown panic payload".to_string()
+        };
+        let loc = info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()))
+            .unwrap_or_default();
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let base = std::env::var_os("APPDATA")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(std::env::temp_dir);
+        let dir = base.join("spurh");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("panic.log");
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+            use std::io::Write;
+            let _ = writeln!(f, "[{ts}] PANIC: {msg} @ {loc}");
+        }
+        eprintln!("PANIC: {msg} @ {loc}");
+    }));
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run(cli_args: Vec<String>) {
+    install_panic_hook();
     let mut open_file_path: Option<String> = None;
     let mut open_dir_path: Option<String> = None;
     let mut args = cli_args.iter();
@@ -741,19 +973,33 @@ pub fn run(cli_args: Vec<String>) {
                 *app.state::<PendingOpen>().0.lock().unwrap() = Some((path, is_dir));
                 show_main_window(app.handle());
             }
+
+            // Fit the main window into the current monitor work area so it is never clipped on small / remote screens.
+            if let Some(window) = app.get_webview_window("main") {
+                fit_window_to_work_area(&window);
+                let _ = window.center();
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let state = window.state::<TrayState>();
-                if state.0.load(Ordering::Relaxed) {
-                    api.prevent_close();
-                    let _ = window.hide();
+            match event {
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    let state = window.state::<TrayState>();
+                    if state.0.load(Ordering::Relaxed) {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
                 }
+                // Windows may restore the last session's window bounds after creation;
+                // clamp again so the window never extends beyond the work area.
+                tauri::WindowEvent::Resized(_) => fit_window_event(window),
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![
             app_log_error,
+            get_process_stats,
+            save_text_file,
             ai_list_models,
             ai_analyze_stream,
             set_autostart,
@@ -800,7 +1046,6 @@ sql::sql_alter_table,
             net::net_session_open,
             net::net_session_send,
             net::net_session_close,
-            net::net_ip_geo,
             ssh::ssh_connect,
             ssh::ssh_write,
             ssh::ssh_exec,

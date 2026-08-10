@@ -239,7 +239,7 @@ describe('PluginRuntime', () => {
   });
 
   it('cron rejects zero-step ranges instead of hanging', async () => {
-    await expect(runtime.execute('spurh.cron', 'next', '0 0 * * 6-7/0', {})).rejects.toThrow('字段值域非法');
+    await expect(runtime.execute('spurh.cron', 'next', '0 0 * * 6-7/0', {})).rejects.toThrow('步进必须为正整数');
   });
 
   it('cron 0-7 weekday matches every day', async () => {
@@ -378,7 +378,11 @@ describe('PluginRuntime', () => {
 
   it('random color and ulid', async () => {
     const color = await runtime.execute('spurh.random', 'color', '', {});
-    expect(color.output).toMatch(/^#[0-9a-f]{6}$/i);
+    // 默认生成 5 个颜色，每行一个合法 hex
+    const colors = color.output.split('\n');
+    expect(colors.length).toBe(5);
+    for (const hex of colors) expect(hex).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(color.view).toBe('colors');
     const ulid = await runtime.execute('spurh.random', 'ulid', '', {});
     expect(ulid.output).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
   });

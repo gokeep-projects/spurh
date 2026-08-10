@@ -1,4 +1,4 @@
-﻿import { TOOL_ICONS as ICONS } from '../../icons';
+import { TOOL_ICONS as ICONS } from '../../icons';
 import type { PluginResult, SpurhPlugin } from '../types';
 
 export type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL' | '';

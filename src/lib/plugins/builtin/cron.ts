@@ -17,19 +17,63 @@ type CronFields = {
   year: string | null;
 };
 
+/** 校验单个 Cron 字段的取值是否在合法范围内，非法时抛出可读错误 */
+function assertRange(field: string, min: number, max: number, label: string, specials?: RegExp): void {
+  const tokens = field.split(',');
+  for (const token of tokens) {
+    const t = token.trim();
+    if (t === '*' || t === '?') continue;
+    if (specials && specials.test(t)) {
+      const nums = t.match(/\d+/g)?.map(Number) ?? [];
+      for (const n of nums) {
+        if (n < min || n > max) {
+          throw new Error(`${label}字段取值超出范围 ${min}-${max}：「${t}」`);
+        }
+      }
+      continue;
+    }
+    if (!/^(\d+|\*)(?:-(\d+|\*))?(?:\/(\d+))?$/.test(t)) {
+      throw new Error(`${label}字段无法识别：「${t}」（支持数值、范围、步进与通配符）`);
+    }
+    const nums = t.match(/\d+/g)?.map(Number) ?? [];
+    for (const n of nums) {
+      if (n < min || n > max) {
+        throw new Error(`${label}字段取值超出范围 ${min}-${max}：「${t}」`);
+      }
+    }
+    const stepRaw = t.split('/')[1];
+    if (stepRaw !== undefined) {
+      const step = Number(stepRaw);
+      if (!Number.isInteger(step) || step < 1) {
+        throw new Error(`${label}字段步进必须为正整数：「${t}」`);
+      }
+    }
+  }
+}
+
 export function parseCron(expr: string): CronFields {
   const parts = expr.trim().split(/\s+/);
   if (parts.length < 5 || parts.length > 7) throw new Error('Cron 需要 5~7 段：秒(可选) 分 时 日 月 周 [年(可选)]');
+  let fields: CronFields;
   if (parts.length === 6) {
     const [s, m, h, d, mo, w] = parts;
-    return { hasSeconds: true, seconds: s, minutes: m, hours: h, dom: d, month: mo, dow: w, year: null };
-  }
-  if (parts.length === 7) {
+    fields = { hasSeconds: true, seconds: s, minutes: m, hours: h, dom: d, month: mo, dow: w, year: null };
+  } else if (parts.length === 7) {
     const [s, m, h, d, mo, w, y] = parts;
-    return { hasSeconds: true, seconds: s, minutes: m, hours: h, dom: d, month: mo, dow: w, year: y };
+    fields = { hasSeconds: true, seconds: s, minutes: m, hours: h, dom: d, month: mo, dow: w, year: y };
+  } else {
+    const [m, h, d, mo, w] = parts;
+    fields = { hasSeconds: false, seconds: '0', minutes: m, hours: h, dom: d, month: mo, dow: w, year: null };
   }
-  const [m, h, d, mo, w] = parts;
-  return { hasSeconds: false, seconds: '0', minutes: m, hours: h, dom: d, month: mo, dow: w, year: null };
+  // 取值越界直接报错，避免生成无意义的执行时间或误导性描述
+  assertRange(fields.seconds, 0, 59, '秒');
+  assertRange(fields.minutes, 0, 59, '分');
+  assertRange(fields.hours, 0, 23, '时');
+  assertRange(fields.dom, 1, 31, '日', /^(L|LW|L-\d+|\d+W)$/i);
+  assertRange(expandNames(fields.month, MONTH_NAMES), 1, 12, '月');
+  assertRange(expandNames(fields.dow, DAY_NAMES), 0, 7, '周', /^(L|\d+L|\d+#\d+)$/i);
+  if (fields.year) assertRange(fields.year, 1970, 2199, '年');
+  return fields;
 }
 
 function expandNames(token: string, names: Record<string, number>): string {

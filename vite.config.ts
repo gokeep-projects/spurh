@@ -18,9 +18,13 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        // icons.ts 被主界面与多个懒加载面板共享:固定为独立 chunk,保持主包体积
+        // 共享模块固定为独立 chunk,避免懒加载面板静态导入主入口形成模块循环死锁(WebView2 下会挂起)
         manualChunks(id) {
           if (id.includes('/src/lib/icons.ts')) return 'icons';
+          if (id.includes('/src/lib/ai.ts')) return 'ai';
+          if (id.includes('/src/lib/secrets.ts')) return 'secrets';
+          if (id.includes('/src/lib/clipHistory.ts')) return 'clip-history';
+          if (id.includes('/src/lib/plugins/index.ts')) return 'plugins';
         },
       },
     },

@@ -69,7 +69,8 @@
   }
 
   async function copyOutput(): Promise<void> {
-    try { await navigator.clipboard.writeText(content); } catch { return; }
+    const { copyText } = await import('../env');
+    await copyText(content);
     copied = true;
     setTimeout(() => (copied = false), 1100);
   }
@@ -95,7 +96,7 @@
       {#if !configured}
         <div class="ai-notice">
           <span>{@html UI_ICONS.sparkle}</span>
-          <p>尚未配置 AI 模型。请先在右上角「设置 → AI 模型」中添加并启用。</p>
+          <p>未配置 AI 模型，AI 功能暂不可用。可在「设置 → AI 模型」中一键添加。</p>
         </div>
       {:else}
         <div class="ai-prompt-row">
@@ -141,16 +142,16 @@
   @keyframes aiPulse { 50% { opacity: .35; } }
   .ai-presets { display: flex; align-items: center; gap: 5px; overflow-x: auto; scrollbar-width: none; }
   .ai-presets::-webkit-scrollbar { display: none; }
-  .ai-preset { height: 22px; flex: 0 0 auto; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .15s ease; }
+  .ai-preset { height: 26px; flex: 0 0 auto; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .15s ease; }
   .ai-preset:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
   .ai-body { min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 10.5px; }
   .ai-notice { display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: var(--muted); font-size: var(--fs-xs); border: 1px dashed var(--line-2); border-radius: 8px; background: var(--bg); }
   .ai-notice span { display: inline-flex; color: var(--warn); }
   :global(.ai-notice span svg) { width: 14px; height: 14px; }
   .ai-prompt-row { display: flex; gap: 7px; }
-  .ai-prompt-row input { min-width: 0; flex: 1; height: 32px; padding: 0 11px; color: var(--text); font: 500 13px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
+  .ai-prompt-row input { min-width: 0; flex: 1; height: 32px; padding: 0 11px; color: var(--text); font: 500 13px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .ai-prompt-row input:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .ai-send { height: 32px; flex: 0 0 auto; padding: 0 14px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 22%, transparent); transition: all .15s ease; }
+  .ai-send { height: 30px; flex: 0 0 auto; padding: 0 14px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 8px; background: var(--btn-gradient); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 22%, transparent); transition: all .15s ease; }
   .ai-send:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
   .ai-stream { min-width: 0; display: flex; flex-direction: column; gap: 7px; max-height: 300px; overflow-y: auto; padding: 2px; }
   .ai-reasoning, .ai-content { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -159,8 +160,8 @@
   .ai-content pre { margin: 0; padding: 10px 12px; overflow-x: auto; color: var(--text); font: 500 13.5px 'Cascadia Code', monospace; line-height: 1.65; white-space: pre-wrap; word-break: break-word; border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--accent) 4%, var(--bg)); }
   .ai-waiting { display: flex; align-items: center; gap: 8px; padding: 12px; color: var(--muted); font-size: var(--fs-xs); }
   .ai-result-actions { display: flex; justify-content: flex-end; gap: 6px; }
-  .ai-result-actions button { height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 6px; background: var(--bg); transition: all .15s ease; }
+  .ai-result-actions button { height: 28px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); transition: all .15s ease; }
   .ai-result-actions button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
-  .ai-error { display: flex; align-items: center; gap: 7px; padding: 8px 10px; color: var(--danger); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--line)); border-radius: 7px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
+  .ai-error { display: flex; align-items: center; gap: 7px; padding: 8px 10px; color: var(--danger); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
   .ai-error i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--danger); }
 </style>

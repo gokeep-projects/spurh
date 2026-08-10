@@ -107,6 +107,18 @@ npm run dev
 npm run tauri dev
 ```
 
+### 生产构建（独立可运行的 exe）
+
+```bash
+npm run build   # 前端产物 -> dist/
+# 必须启用 custom-protocol，否则 release 版会回退加载 devUrl，无法独立运行
+cargo build --release --features custom-protocol --manifest-path src-tauri/Cargo.toml
+# 或直接用 Tauri CLI（自动处理 feature）
+npm run tauri build
+```
+
+产物位于 `src-tauri/target/release/spurh.exe`。
+
 ### 质量保证
 
 ```bash

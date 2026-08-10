@@ -1,4 +1,4 @@
-﻿import { TOOL_ICONS as ICONS } from '../../icons';
+import { TOOL_ICONS as ICONS } from '../../icons';
 import type { PluginResult, SpurhPlugin } from '../types';
 
 // 网络工具是面板型工具：真正的逻辑在 NetworkPanel（直接调用 Rust 命令），

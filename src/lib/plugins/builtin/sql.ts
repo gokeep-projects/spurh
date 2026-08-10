@@ -1,4 +1,4 @@
-﻿import { TOOL_ICONS as ICONS } from '../../icons';
+import { TOOL_ICONS as ICONS } from '../../icons';
 import { safeInvoke } from '../../env';
 import type { PluginResult, SpurhPlugin } from '../types';
 

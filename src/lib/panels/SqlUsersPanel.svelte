@@ -319,16 +319,16 @@
 <style>
   .sql-users { display: flex; flex-direction: column; gap: 10px; }
   .sql-users-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-  .sql-users-empty { padding: 34px 16px; color: var(--muted); font-size: var(--fs-xs); text-align: center; border: 1px dashed var(--line-2); border-radius: 10px; }
+  .sql-users-empty { padding: 34px 16px; color: var(--muted); font-size: var(--fs-xs); text-align: center; border: 1px dashed var(--line-2); border-radius: 8px; }
   .sql-users-list { display: flex; flex-direction: column; gap: 8px; }
   .sql-user-card { border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
   .sql-user-head { display: flex; align-items: center; gap: 12px; padding: 10px 12px; flex-wrap: wrap; }
-  .sql-user-avatar { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); font: 700 14px 'Cascadia Code', monospace; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 9px; background: var(--accent-soft); }
+  .sql-user-avatar { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); font: 700 14px 'Cascadia Code', monospace; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
   .sql-user-id { min-width: 120px; display: flex; flex-direction: column; gap: 2px; }
   .sql-user-id b { font-size: var(--fs-xs); }
-  .sql-user-id small { color: var(--muted); font: 500 12.5px 'Cascadia Code', monospace; }
+  .sql-user-id small { color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', monospace; }
   .sql-user-attrs { display: flex; gap: 5px; flex-wrap: wrap; }
-  .sql-user-attrs em { padding: 2px 7px; color: var(--muted); font-size: var(--fs-xs); font-style: normal; border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); }
+  .sql-user-attrs em { padding: 2px 7px; color: var(--muted); font-size: var(--fs-xs); font-style: normal; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
   .sql-user-actions { display: flex; gap: 6px; margin-left: auto; }
   .sql-user-panel { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-top: 1px solid var(--line); background: var(--panel-2); }
   .sql-user-panel label { display: flex; flex-direction: column; gap: 4px; min-width: 220px; flex: 1; }
@@ -336,19 +336,26 @@
   .sql-user-panel.grants { flex-direction: column; align-items: stretch; }
   .sql-grants-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .sql-grants-head b { font-size: var(--fs-xs); }
-  .sql-grants-head select { height: 30px; padding: 0 8px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line-2); border-radius: 7px; background: var(--panel); outline: 0; }
+  .sql-grants-head select { height: 30px; padding: 0 8px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); outline: 0; }
   .sql-privs { display: flex; gap: 4px 10px; flex-wrap: wrap; }
   .sql-privs label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--fs-xs); flex: 0 0 auto; min-width: 0; }
   .sql-privs input { width: auto; }
   .sql-grants-msg { color: var(--accent); font-size: var(--fs-xs); }
   .sql-grants-lines { display: flex; flex-direction: column; gap: 3px; max-height: 220px; overflow: auto; }
-  .sql-grants-lines code { padding: 4px 8px; color: var(--text); font: 450 12.5px/1.5 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); white-space: pre-wrap; word-break: break-all; }
+  .sql-grants-lines code { padding: 4px 8px; color: var(--text); font: 450 var(--fs-xs)/1.5 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); white-space: pre-wrap; word-break: break-all; }
   .sql-user-create { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; padding: 12px; border: 1px dashed var(--line-2); border-radius: 11px; background: var(--panel-2); }
   .sql-user-create > b { width: 100%; font-size: var(--fs-xs); }
   .sql-user-create label { display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1; }
   .sql-user-create label span { color: var(--muted); font-size: var(--fs-xs); }
-  .sql-user-create .sql-secret { display: flex; align-items: center; gap: 6px; }
-  .sql-user-panel .sql-secret { display: flex; align-items: center; gap: 6px; }
-  .sql-user-create input[type='text'], .sql-user-create input[type='password'], .sql-user-panel input[type='text'], .sql-user-panel input[type='password'] { height: 32px; padding: 0 10px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); outline: 0; }
+  .sql-user-create .sql-secret { display: flex; align-items: center; gap: 6px; position: relative; }
+  .sql-user-panel .sql-secret { display: flex; align-items: center; gap: 6px; position: relative; }
+  .sql-user-create .sql-secret input, .sql-user-panel .sql-secret input { padding-right: 34px; }
+  .sql-secret-toggle { position: absolute; right: 5px; width: 24px; height: 24px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); border: 0; border-radius: 8px; background: transparent; }
+  .sql-secret-toggle:hover { color: var(--text); background: var(--hover); }
+  .sql-user-create input[type='text'], .sql-user-create input[type='password'], .sql-user-panel input[type='text'], .sql-user-panel input[type='password'] { height: 30px; padding: 0 10px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); outline: 0; }
   .sql-user-create input:focus, .sql-user-panel input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line-2)); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .sql-error { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; color: var(--danger); font-size: var(--fs-xs); line-height: 1.5; border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
+  .sql-error i { width: 6px; height: 6px; flex: 0 0 auto; margin-top: 4px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  .sql-ok { display: flex; align-items: center; gap: 8px; padding: 7px 12px; color: var(--accent); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
+  .sql-ok i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 </style>

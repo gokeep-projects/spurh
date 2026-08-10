@@ -1,6 +1,5 @@
 // 网络小工具：端口探测 / DNS 查询 / TCP/UDP 发送 / 路由追踪
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde::Serialize;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -22,7 +21,30 @@ pub struct TcpSendResult {
     pub ok: bool,
     pub message: String,
     pub response: String,
+    pub response_hex: String,
     pub elapsed_ms: u64,
+}
+
+/// 解析 HEX 字符串为字节（容忍空格/逗号等分隔符），供 TCP/UDP 发送二进制数据使用
+fn parse_hex_payload(text: &str) -> Result<Vec<u8>, String> {
+    let clean: String = text.chars().filter(|c| c.is_ascii_hexdigit()).collect();
+    if clean.is_empty() {
+        return Err("HEX 数据为空".into());
+    }
+    if clean.len() % 2 != 0 {
+        return Err("HEX 数据必须为偶数位".into());
+    }
+    let mut bytes = Vec::with_capacity(clean.len() / 2);
+    let chars: Vec<char> = clean.chars().collect();
+    for pair in chars.chunks(2) {
+        let hex: String = pair.iter().collect();
+        bytes.push(u8::from_str_radix(&hex, 16).map_err(|_| format!("HEX 数据无效：{hex}"))?);
+    }
+    Ok(bytes)
+}
+
+fn hex_string(data: &[u8]) -> String {
+    data.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -40,6 +62,7 @@ pub async fn net_tcp_send(
     port: u16,
     protocol: String,
     data: Option<String>,
+    hex: Option<bool>,
     timeout_ms: Option<u64>,
 ) -> Result<TcpSendResult, String> {
     let host = host.trim().to_string();
@@ -51,8 +74,12 @@ pub async fn net_tcp_send(
     }
     let timeout = Duration::from_millis(timeout_ms.unwrap_or(3000).clamp(500, 15_000));
     let started = Instant::now();
-    let payload = data.unwrap_or_default();
-    let bytes = payload.as_bytes();
+    let raw = data.unwrap_or_default();
+    let bytes = if hex.unwrap_or(false) {
+        parse_hex_payload(&raw)?
+    } else {
+        raw.into_bytes()
+    };
 
     match protocol.as_str() {
         "tcp" => {
@@ -60,11 +87,13 @@ pub async fn net_tcp_send(
                 .await
                 .map_err(|_| format!("连接超时（{} ms）", timeout.as_millis()))?
                 .map_err(|error| format!("连接失败：{error}"))?;
+            let mut sent = 0usize;
             if !bytes.is_empty() {
                 stream
-                    .write_all(bytes)
+                    .write_all(&bytes)
                     .await
                     .map_err(|error| format!("发送失败：{error}"))?;
+                sent = bytes.len();
             }
             // 读取响应（最多 64KB，空闲 800ms 或总超时即结束；总超时防止慢速服务器无限拖长）
             let deadline = tokio::time::Instant::now() + timeout;
@@ -85,8 +114,9 @@ pub async fn net_tcp_send(
             let response = String::from_utf8_lossy(&buf).to_string();
             Ok(TcpSendResult {
                 ok: true,
-                message: format!("TCP 发送完成，收到 {} 字节响应", buf.len()),
+                message: format!("TCP 连接成功，发送 {sent} 字节，收到 {} 字节响应", buf.len()),
                 response,
+                response_hex: hex_string(&buf),
                 elapsed_ms: started.elapsed().as_millis() as u64,
             })
         }
@@ -98,28 +128,30 @@ pub async fn net_tcp_send(
                 .connect((host.as_str(), port))
                 .await
                 .map_err(|error| format!("连接失败：{error}"))?;
+            let mut sent = 0usize;
             if !bytes.is_empty() {
                 socket
-                    .send(bytes)
+                    .send(&bytes)
                     .await
                     .map_err(|error| format!("发送失败：{error}"))?;
+                sent = bytes.len();
             }
             let mut buf = [0u8; 2048];
-            let received = tokio::time::timeout(timeout, socket.recv(&mut buf))
+            let received_len = tokio::time::timeout(timeout, socket.recv(&mut buf))
                 .await
-                .map(|result| {
-                    result.map(|n| String::from_utf8_lossy(&buf[..n]).to_string())
-                })
-                .unwrap_or(Ok(String::new()))
-                .map_err(|error| format!("接收失败：{error}"))?;
+                .map(|result| result.unwrap_or(0))
+                .unwrap_or(0)
+                .min(buf.len());
+            let response = String::from_utf8_lossy(&buf[..received_len]).to_string();
             Ok(TcpSendResult {
                 ok: true,
-                message: if received.is_empty() {
-                    "UDP 数据已发送，未收到响应（目标可能无监听或已丢弃）".into()
+                message: if received_len == 0 {
+                    format!("UDP 数据已发送 {sent} 字节，未收到响应（目标可能无监听或已丢弃）")
                 } else {
-                    format!("UDP 发送完成，收到响应 {} 字节", received.len())
+                    format!("UDP 发送完成 {sent} 字节，收到 {received_len} 字节响应")
                 },
-                response: received,
+                response,
+                response_hex: hex_string(&buf[..received_len]),
                 elapsed_ms: started.elapsed().as_millis() as u64,
             })
         }
@@ -630,98 +662,7 @@ pub async fn net_dns_lookup(host: String, record_type: String) -> Result<Vec<Dns
     Ok(records)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GeoInfo {
-    pub query: String,
-    pub status: String,
-    pub message: Option<String>,
-    pub country: Option<String>,
-    pub country_code: Option<String>,
-    pub region_name: Option<String>,
-    pub city: Option<String>,
-    pub isp: Option<String>,
-    pub org: Option<String>,
-    pub asn: Option<String>,
-    pub lat: Option<f64>,
-    pub lon: Option<f64>,
-    pub timezone: Option<String>,
-}
-
-/// 构造 ip-api.com 查询 URL（免费版仅保证 HTTP，HTTPS 优先尝试后自动回退）
-fn geo_api_url(ip: &str, scheme: &str) -> String {
-    format!(
-        "{scheme}://ip-api.com/json/{ip}?lang=zh-CN&fields=status,message,country,countryCode,regionName,city,isp,org,as,lat,lon,timezone,query"
-    )
-}
-
-#[tauri::command]
-pub async fn net_ip_geo(target: String) -> Result<GeoInfo, String> {
-    let target = target.trim().to_string();
-    if target.is_empty() {
-        return Err("请输入 IP 地址或域名".into());
-    }
-    let ip = if target.parse::<std::net::IpAddr>().is_ok() {
-        target.clone()
-    } else {
-        let resolver = hickory_resolver::Resolver::builder_tokio()
-            .map_err(|error| format!("DNS 解析器初始化失败：{error}"))?
-            .build()
-            .map_err(|error| format!("DNS 解析器初始化失败：{error}"))?;
-        let lookup = resolver
-            .lookup_ip(&target)
-            .await
-            .map_err(|error| format!("域名解析失败：{error}"))?;
-        lookup
-            .iter()
-            .next()
-            .map(|address| address.to_string())
-            .ok_or_else(|| "域名没有解析结果".to_string())?
-    };
-
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-        .map_err(|error| format!("创建查询客户端失败：{error}"))?;
-    let mut last_error: Option<String> = None;
-    let mut info: Option<GeoInfo> = None;
-    for scheme in ["https", "http"] {
-        let response = match client.get(geo_api_url(&ip, scheme)).send().await {
-            Ok(response) => response,
-            Err(error) => {
-                last_error = Some(format!("IP 归属地查询失败（{scheme}）：{error}"));
-                continue;
-            }
-        };
-        if !response.status().is_success() {
-            last_error = Some(format!("IP 归属地查询失败（{scheme}，HTTP {}）", response.status()));
-            continue;
-        }
-        let value: Value = match response.json().await {
-            Ok(value) => value,
-            Err(error) => {
-                last_error = Some(format!("返回数据解析失败（{scheme}）：{error}"));
-                continue;
-            }
-        };
-        match serde_json::from_value(value) {
-            Ok(parsed) => {
-                info = Some(parsed);
-                break;
-            }
-            Err(error) => {
-                last_error = Some(format!("返回数据格式异常（{scheme}）：{error}"));
-            }
-        }
-    }
-    let info = info.ok_or_else(|| last_error.unwrap_or_else(|| "IP 归属地查询失败".into()))?;
-    if info.status == "fail" {
-        return Err(info.message.clone().unwrap_or_else(|| "查询失败，请确认输入的是合法 IP 或域名".into()));
-    }
-    Ok(info)
-}
-
-// ?????????????? ?????????? / IPv4 / ????? ??????????????
+// 网络会话事件：发送/接收数据流，支持 IPv4 / IPv6 与 TCP / UDP
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalNetInfo {
@@ -786,7 +727,7 @@ pub async fn net_traceroute_stream(
 #[serde(rename_all = "camelCase")]
 pub struct NetSessionEvent {
     pub kind: String, // "data" | "closed" | "error"
-    pub data: String, // UTF-8 ?????????????
+    pub data: String, // UTF-8 文本表示
     pub hex: String,
     pub bytes: usize,
 }
@@ -820,7 +761,7 @@ fn emit_session(
     .is_ok()
 }
 
-/// ?? TCP/UDP ?????????? channel ?????????????
+/// 打开 TCP/UDP 交互式会话，通过 channel 推送实时事件
 #[tauri::command]
 pub async fn net_session_open(
     host: String,
@@ -831,10 +772,10 @@ pub async fn net_session_open(
 ) -> Result<u64, String> {
     let host = host.trim().to_string();
     if host.is_empty() {
-        return Err("???????".into());
+        return Err("主机地址不能为空".into());
     }
     if port == 0 {
-        return Err("????".into());
+        return Err("端口无效".into());
     }
     let timeout = Duration::from_millis(timeout_ms.unwrap_or(4000).clamp(500, 15_000));
     let session_id = NEXT_SESSION_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -844,8 +785,8 @@ pub async fn net_session_open(
         "tcp" => {
             let stream = tokio::time::timeout(timeout, tokio::net::TcpStream::connect((host.as_str(), port)))
                 .await
-                .map_err(|_| format!("?????{} ms?", timeout.as_millis()))?
-                .map_err(|error| format!("?????{error}"))?;
+                .map_err(|_| format!("连接超时（{} ms）", timeout.as_millis()))?
+                .map_err(|error| format!("TCP 连接失败：{error}"))?;
             let (mut rd, mut wr) = stream.into_split();
             tokio::spawn(async move {
                 let mut buf = [0u8; 8192];
@@ -863,7 +804,7 @@ pub async fn net_session_open(
                                     }
                                 }
                                 Err(error) => {
-                                    let _ = emit_session(&out, "error", format!("?????{error}").as_bytes());
+                                    let _ = emit_session(&out, "error", format!("TCP 发送错误：{error}").as_bytes());
                                     break;
                                 }
                             }
@@ -872,11 +813,11 @@ pub async fn net_session_open(
                             match pkt {
                                 Some(pkt) => {
                                     if let Err(error) = wr.write_all(&pkt).await {
-                                        let _ = emit_session(&out, "error", format!("?????{error}").as_bytes());
+                                        let _ = emit_session(&out, "error", format!("TCP 发送错误：{error}").as_bytes());
                                         break;
                                     }
                                 }
-                                None => break, // ?????
+                                None => break, // 发送通道关闭，退出
                             }
                         }
                     }
@@ -886,11 +827,11 @@ pub async fn net_session_open(
         "udp" => {
             let socket = tokio::net::UdpSocket::bind("0.0.0.0:0")
                 .await
-                .map_err(|error| format!("?? UDP ??????{error}"))?;
+                .map_err(|error| format!("UDP 套接字初始化失败：{error}"))?;
             socket
                 .connect((host.as_str(), port))
                 .await
-                .map_err(|error| format!("?????{error}"))?;
+                .map_err(|error| format!("UDP 连接失败：{error}"))?;
             let socket = std::sync::Arc::new(socket);
             let send_socket = socket.clone();
             tokio::spawn(async move {
@@ -906,7 +847,7 @@ pub async fn net_session_open(
                                     }
                                 }
                                 Err(error) => {
-                                    let _ = emit_session(&out, "error", format!("?????{error}").as_bytes());
+                                    let _ = emit_session(&out, "error", format!("UDP 读取错误：{error}").as_bytes());
                                     break;
                                 }
                             }
@@ -915,25 +856,25 @@ pub async fn net_session_open(
                             match pkt {
                                 Some(pkt) => {
                                     if let Err(error) = send_socket.send(&pkt).await {
-                                        let _ = emit_session(&out, "error", format!("?????{error}").as_bytes());
+                                        let _ = emit_session(&out, "error", format!("UDP 读取错误：{error}").as_bytes());
                                         break;
                                     }
                                 }
-                                None => break, // ?????
+                                None => break, // 发送通道关闭，退出
                             }
                         }
                     }
                 }
             });
         }
-        _ => return Err("????? tcp / udp".into()),
+        _ => return Err("不支持的协议，仅支持 tcp / udp".into()),
     }
 
     sessions().lock().unwrap().insert(session_id, NetSession { tx });
     Ok(session_id)
 }
 
-/// ???????????
+/// 向指定会话发送数据
 #[tauri::command]
 pub async fn net_session_send(session_id: u64, data: String) -> Result<usize, String> {
     let tx = sessions()
@@ -941,50 +882,85 @@ pub async fn net_session_send(session_id: u64, data: String) -> Result<usize, St
         .unwrap()
         .get(&session_id)
         .map(|session| session.tx.clone())
-        .ok_or("?????????")?;
+        .ok_or("会话不存在或已关闭")?;
     let bytes = data.into_bytes();
     let len = bytes.len();
-    tx.send(bytes).await.map_err(|_| "?????".to_string())?;
+    tx.send(bytes).await.map_err(|_| "发送失败：会话已关闭".to_string())?;
     Ok(len)
 }
 
-/// ????
+/// 关闭指定会话，释放连接
 #[tauri::command]
 pub async fn net_session_close(session_id: u64) -> Result<(), String> {
     let removed = sessions().lock().unwrap().remove(&session_id);
     if let Some(session) = removed {
-        drop(session.tx); // ?????????????
+        drop(session.tx); // 触发读取循环退出，释放连接
     }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{geo_api_url, net_local_info};
-
-    #[test]
-    fn geo_url_keeps_scheme_ip_and_fields() {
-        let url = geo_api_url("8.8.8.8", "https");
-        assert!(url.starts_with("https://ip-api.com/json/8.8.8.8?"));
-        assert!(url.contains("lang=zh-CN"));
-        assert!(url.contains("fields=status"));
-        assert!(url.contains("query"));
-        let http = geo_api_url("1.1.1.1", "http");
-        assert!(http.starts_with("http://ip-api.com/json/1.1.1.1?"));
-    }
+    use super::{net_local_info, net_tcp_send, parse_hex_payload};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     #[tokio::test]
     async fn local_info_collects_hostname_and_ips() {
-        let info = net_local_info().await.expect("net_local_info ???");
+        let info = net_local_info().await.expect("net_local_info ????");
         assert!(!info.hostname.is_empty(), "???????");
         assert!(!info.ips.is_empty(), "?????? IP");
-        assert!(info.ips.iter().any(|ip| ip.parse::<std::net::Ipv4Addr>().is_ok()), "IP ???? IPv4");
+        assert!(info.ips.iter().any(|ip| ip.parse::<std::net::Ipv4Addr>().is_ok()), "IP ????? IPv4");
+    }
+
+    #[tokio::test]
+    async fn tcp_send_roundtrip_local() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("???????");
+        let addr = listener.local_addr().expect("??????");
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("accept ??");
+            let mut buf = [0u8; 1024];
+            let n = stream.read(&mut buf).await.expect("read ??");
+            let received = String::from_utf8_lossy(&buf[..n]).to_string();
+            stream.write_all(b"PONG:").await.expect("write ??");
+            stream.write_all(&buf[..n]).await.expect("write ??");
+            stream.flush().await.ok();
+            received
+        });
+        let result = net_tcp_send("127.0.0.1".into(), addr.port(), "tcp".into(), Some("HELLO".into()), Some(false), Some(3000))
+            .await
+            .expect("net_tcp_send ??");
+        assert!(result.ok, "TCP ?????");
+        assert_eq!(result.response, "PONG:HELLO", "??????");
+        assert_eq!(result.response_hex, "504f4e473a48454c4c4f", "HEX ????");
+        let echoed = server.await.expect("server ????");
+        assert_eq!(echoed, "HELLO", "??????????");
+    }
+
+    #[tokio::test]
+    async fn udp_send_roundtrip_local() {
+        let socket = tokio::net::UdpSocket::bind("127.0.0.1:0").await.expect("?? UDP ??");
+        let addr = socket.local_addr().expect("??????");
+        let server = tokio::spawn(async move {
+            let mut buf = [0u8; 1024];
+            let (n, peer) = socket.recv_from(&mut buf).await.expect("recv ??");
+            let received = String::from_utf8_lossy(&buf[..n]).to_string();
+            socket.send_to(b"UDP-ACK", peer).await.expect("send_to ??");
+            received
+        });
+        let result = net_tcp_send("127.0.0.1".into(), addr.port(), "udp".into(), Some("PING".into()), Some(false), Some(3000))
+            .await
+            .expect("net_tcp_send(udp) ??");
+        assert!(result.ok, "UDP ?????");
+        assert_eq!(result.response, "UDP-ACK", "UDP ????");
+        let echoed = server.await.expect("server ????");
+        assert_eq!(echoed, "PING", "UDP ???????");
     }
 
     #[test]
-    fn geo_url_accepts_ipv6() {
-        // IPv6 地址同样可用于路径（IpAddr::to_string 输出不含非法路径字符）
-        let url = geo_api_url("2001:db8::1", "https");
-        assert!(url.contains("/json/2001:db8::1?"));
+    fn hex_payload_parses_and_rejects() {
+        let parsed = parse_hex_payload("48 65 6C 6C 6F").expect("HEX ????");
+        assert_eq!(parsed, b"Hello");
+        assert!(parse_hex_payload("4").is_err(), "??????");
+        assert!(parse_hex_payload("").is_err(), "????");
     }
 }

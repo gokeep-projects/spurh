@@ -34,3 +34,40 @@ export async function safeInvoke<T>(
   const { invoke } = await import('@tauri-apps/api/core');
   return invoke<T>(command, args);
 }
+
+/**
+ * 复制文本：桌面端走原生剪贴板命令（免 WebView2 权限弹窗），
+ * 浏览器模式回退 navigator.clipboard。返回是否成功。
+ */
+export async function copyText(text: string): Promise<boolean> {
+  if (isTauri) {
+    try {
+      await safeInvoke('clipboard_write_text', { text });
+      return true;
+    } catch {
+      // 原生写入失败时回退 Web API
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 读取剪贴板文本：桌面端走原生命令，浏览器模式回退 Web API。 */
+export async function readClipboardText(): Promise<string> {
+  if (isTauri) {
+    try {
+      return (await safeInvoke<string>('read_clipboard')) ?? '';
+    } catch {
+      // fallthrough
+    }
+  }
+  try {
+    return await navigator.clipboard.readText();
+  } catch {
+    return '';
+  }
+}

@@ -495,7 +495,7 @@
   .git-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
   .git-btn:disabled { opacity: .45; cursor: not-allowed; }
   .git-btn.primary {
-    background: linear-gradient(135deg, var(--accent), var(--c-blue));
+    background: var(--btn-gradient);
     color: #fff; border: none; font-weight: 600;
   }
   .git-btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
@@ -546,7 +546,7 @@
     background: transparent; border: none; color: var(--muted-2); font-size: var(--fs-sm);
     padding: 6px 12px; border-radius: 8px; cursor: pointer;
   }
-  .git-tabs button:hover { color: var(--text); background: var(--bg2); }
+  .git-tabs button:hover { color: var(--text); background: var(--hover); }
   .git-tabs button.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 600; }
   .git-split { display: grid; grid-template-columns: minmax(240px, 34%) 1fr; gap: 10px; min-height: 320px; height: 100%; }
   .git-files {
@@ -568,7 +568,7 @@
   .git-file-main { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding: 0;
     background: none; border: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
   .git-file-main:hover .git-file-path { color: var(--c-cyan); }
-  .git-file-row:hover { background: var(--bg2); }
+  .git-file-row:hover { background: var(--hover); }
   .git-file-row.selected { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   .git-file-mark { color: var(--muted-2); font-size: var(--fs-xs); }
   .git-file-mark.staged { color: var(--c-green); }

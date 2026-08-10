@@ -39,6 +39,7 @@
     { label: '邮箱', pattern: '[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+' },
     { label: 'URL', pattern: 'https?://[\\w\\-._~:/?#\\[\\]@!$&\'()*+,;=%]+' },
     { label: '手机号', pattern: '1[3-9]\\d{9}' },
+    { label: '身份证', pattern: '\\d{17}[\\dXx]' },
     { label: 'IPv4', pattern: '(?:\\d{1,3}\\.){3}\\d{1,3}' },
     { label: 'IPv6', pattern: '(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}' },
     { label: 'MAC 地址', pattern: '(?:[0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}' },
@@ -108,7 +109,8 @@
   }
 
   async function copySample(sample: string, key: string): Promise<void> {
-    try { await navigator.clipboard.writeText(sample); } catch { return; }
+    const { copyText } = await import('../env');
+    await copyText(sample);
     samplesCopied = key;
     setTimeout(() => { if (samplesCopied === key) samplesCopied = ''; }, 1100);
   }
@@ -191,29 +193,29 @@
   .regex-row .pat-label { flex: 1; min-width: 240px; }
   .regex-row label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
   .regex-row label > span { color: var(--muted); font-size: var(--fs-xs); }
-  .regex-row input { height: 32px; color: var(--text); font: 500 13px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--bg); padding: 0 10px; }
+  .regex-row input { height: 30px; color: var(--text); font: 500 13px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--bg); padding: 0 10px; }
   .regex-row input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .regex-pat { width: 100%; }
   .regex-repl { width: min(26vw, 240px); }
-  .regex-flags { display: flex; gap: 3px; padding: 2px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
-  .regex-flags button { width: 26px; height: 26px; cursor: pointer; color: var(--muted); font: 600 13px 'Cascadia Code', monospace; border: 0; border-radius: 5px; background: transparent; }
+  .regex-flags { display: flex; gap: 3px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  .regex-flags button { width: 30px; height: 30px; cursor: pointer; color: var(--muted); font: 600 13px 'Cascadia Code', monospace; border: 0; border-radius: 8px; background: transparent; }
   .regex-flags button.active { color: #fff; background: var(--btn-gradient); }
   .regex-flags button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .regex-ai { display: flex; gap: 6px; align-items: center; }
   .regex-ai .ai-spark { color: var(--accent); font-size: var(--fs-xs); }
-  .regex-ai input { min-width: 0; flex: 1; height: 30px; padding: 0 10px; color: var(--text); font-size: var(--fs-xs); border: 1px dashed var(--line-2); border-radius: 6px; outline: 0; background: var(--panel); }
+  .regex-ai input { min-width: 0; flex: 1; height: 30px; padding: 0 10px; color: var(--text); font-size: var(--fs-xs); border: 1px dashed var(--line-2); border-radius: 8px; outline: 0; background: var(--panel); }
   .regex-ai input:focus { border-style: solid; border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
-  .regex-ai .ai-generate { height: 30px; padding: 0 12px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 6px; background: var(--btn-gradient); }
+  .regex-ai .ai-generate { height: 30px; padding: 0 12px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 8px; background: var(--btn-gradient); }
   .regex-ai .ai-generate:disabled { cursor: default; opacity: .4; }
   .regex-ai .ai-hint { color: var(--muted-2); font-size: var(--fs-xs); }
   .regex-ai .ai-generate.ghost { background: transparent; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); }
   .regex-ai .ai-generate.ghost:hover:not(:disabled) { background: var(--accent-soft); }
   .regex-samples { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-  .regex-samples .sample-btn { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 600; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 12px; background: transparent; white-space: nowrap; }
+  .regex-samples .sample-btn { height: 30px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 600; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 999px; background: transparent; white-space: nowrap; }
   .regex-samples .sample-btn:hover:not(:disabled) { background: var(--accent-soft); }
   .regex-samples .sample-btn:disabled { cursor: default; opacity: .4; }
   .sample-chips { display: flex; gap: 5px; flex-wrap: wrap; }
-  .sample-chips button { padding: 3px 10.5px; cursor: pointer; color: var(--text); font: 500 13px 'Cascadia Code', monospace; border: 1px dashed var(--line-2); border-radius: 6px; background: var(--panel); user-select: all; }
+  .sample-chips button { padding: 3px 10.5px; cursor: pointer; color: var(--text); font: 500 13px 'Cascadia Code', monospace; border: 1px dashed var(--line-2); border-radius: 8px; background: var(--panel); user-select: all; }
   .sample-chips button:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
   .sample-chips button.copied { border-style: solid; border-color: var(--accent); color: var(--accent); }
   .sample-error { color: var(--danger); font-size: var(--fs-xs); }
@@ -222,20 +224,20 @@
   .preset-scroll { display: flex; gap: 5px; align-items: center; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
   .preset-scroll::-webkit-scrollbar { height: 4px; }
   .preset-scroll::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
-  .regex-presets button { flex: 0 0 auto; height: 24px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 12px; background: transparent; white-space: nowrap; }
+  .regex-presets button { flex: 0 0 auto; height: 30px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 999px; background: transparent; white-space: nowrap; }
   .regex-presets button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
   .regex-presets button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
-  .regex-presets .preset-more { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 600; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 12px; background: transparent; white-space: nowrap; }
+  .regex-presets .preset-more { height: 30px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 600; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 999px; background: transparent; white-space: nowrap; }
   .regex-presets .preset-more:hover { background: var(--accent-soft); border-style: solid; }
   .preset-hint { margin: 0; color: var(--warn); font-size: var(--fs-xs); }
   .regex-actions { display: flex; gap: 4px; align-items: center; }
-  .regex-actions button { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 6px; background: transparent; }
+  .regex-actions button { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: transparent; }
   .regex-actions button.primary { color: #fff; background: var(--btn-gradient); border-color: transparent; }
   .regex-actions button.primary.active { box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .regex-actions button.active:not(.primary) { color: var(--text); background: var(--panel-2); border-color: var(--line-2); }
   .regex-actions button:hover { background: var(--hover); }
   .regex-actions button.primary:hover { filter: brightness(1.08); }
-  .regex-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid transparent; border-radius: 6px; background: transparent; }
+  .regex-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid transparent; border-radius: 8px; background: transparent; }
   .regex-clear:hover { color: var(--text); border-color: var(--line); }
   .control-spacer { flex: 1; }
 </style>

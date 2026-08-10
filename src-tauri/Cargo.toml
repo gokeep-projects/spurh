@@ -10,6 +10,10 @@ license = "MIT"
 name = "spurh_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# 生产构建必须启用：将前端 dist 内嵌进 exe（不启用则 release 版会回退加载 devUrl，无法独立运行）
+custom-protocol = ["tauri/custom-protocol"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -26,7 +30,7 @@ native-tls = "0.2"
 postgres = { version = "0.19.14", features = ["with-serde_json-1"] }
 postgres-native-tls = "0.5"
 hickory-resolver = "0.26.1"
-keyring = "3"
+keyring = { version = "3", features = ["windows-native"] }
 russh = "0.62.5"
 base64 = "0.23.0"
 rusqlite = { version = "0.37", features = ["bundled"] }
@@ -38,7 +42,8 @@ git2 = "0.21.0"
 rfd = "0.15"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_NetworkManagement_IpHelper", "Win32_Networking_WinSock", "Win32_Foundation"] }
+windows-sys = { version = "0.59", features = ["Win32_NetworkManagement_IpHelper", "Win32_Networking_WinSock", "Win32_Foundation", "Win32_System_ProcessStatus", "Win32_System_Threading", "Win32_System_SystemInformation"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_HiDpi", "Win32_UI_WindowsAndMessaging"] }
 
 [target.'cfg(not(windows))'.dependencies]
 socket2 = "0.6"

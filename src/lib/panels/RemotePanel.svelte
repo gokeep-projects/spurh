@@ -323,6 +323,12 @@
     saveTabs();
   }
 
+  /** 手动断开当前会话：关闭 Rust 侧会话并同步状态（终端保留输出与重连入口） */
+  function disconnect(id: string): void {
+    safeInvoke('ssh_close', { sessionId: id }).catch(() => undefined);
+    statusMap = { ...statusMap, [id]: { status: 'disconnected', message: '已手动断开' } };
+  }
+
   function handleTerminalState(id: string, state: SessionState): void {
     statusMap = { ...statusMap, [id]: state };
   }
@@ -411,6 +417,7 @@
         </div>
         <div class="rt-actions">
           <button class="rt-connect" onclick={connect}><span class="rt-dot"></span>{activeStatus.status === 'connected' ? '重连' : (activeStatus.status === 'error' ? '重试' : '连接')}</button>
+          <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => disconnect(active.id)} title="断开当前连接（保留终端输出）">断开</button>
           <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => { sysPanel = true; loadSysInfo(); }} title="查看主机系统/内存/磁盘/负载">资源信息</button>
           <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => (filePanel = true)} title="上传 / 下载文件（基于 cat）">传输文件</button>
           <div class="rt-quick-wrap">
@@ -507,11 +514,11 @@
   .remote-side { min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); }
   .remote-side-head { height: 44px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 14px; border-bottom: 1px solid var(--line); }
   .remote-side-head b { font-size: var(--fs-xs); letter-spacing: .2px; }
-  .remote-add { width: 26px; height: 26px; display: grid; place-items: center; cursor: pointer; color: var(--muted); border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
+  .remote-add { width: 26px; height: 26px; display: grid; place-items: center; cursor: pointer; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; background: transparent; transition: all .15s ease; }
   .remote-add span { display: inline-flex; }
   :global(.remote-add span svg) { width: 12px; height: 12px; }
   .remote-add:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
-  .remote-search { height: 32px; flex: 0 0 auto; display: flex; align-items: center; gap: 6px; margin: 8px 8px 0; padding: 0 10.5px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
+  .remote-search { height: 30px; flex: 0 0 auto; display: flex; align-items: center; gap: 6px; margin: 8px 8px 0; padding: 0 10.5px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   :global(.remote-search svg) { width: 12px; height: 12px; color: var(--muted-2); }
   .remote-search:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .remote-search input { min-width: 0; flex: 1; color: var(--text); font-size: var(--fs-xs); border: 0; outline: 0; background: transparent; }
@@ -524,7 +531,7 @@
   :global(.rs-icon svg) { width: 16px; height: 16px; }
   .rs-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
   .rs-copy b { overflow: hidden; font-size: var(--fs-sm); text-overflow: ellipsis; white-space: nowrap; }
-  .rs-copy small { overflow: hidden; color: var(--muted); font: 500 12px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
+  .rs-copy small { overflow: hidden; color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .rs-dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--muted-2); transition: background .2s ease, box-shadow .2s ease; }
   .rs-dot.connected { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   .rs-dot.busy { background: var(--blue); box-shadow: 0 0 8px var(--blue); animation: rem-pulse 1s ease-in-out infinite; }
@@ -535,7 +542,7 @@
   .rt-identity { min-width: 0; display: flex; align-items: center; gap: 10px; }
   .rt-identity > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .rt-identity b { overflow: hidden; font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
-  .rt-identity small { color: var(--muted); font: 500 12.5px 'Cascadia Code', monospace; }
+  .rt-identity small { color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', monospace; }
   .rt-status { display: flex; align-items: center; gap: 7px; padding: 5px 10px; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .2s ease; }
   .rt-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-2); }
   .rt-status.connected { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); background: var(--accent-soft); }
@@ -545,10 +552,10 @@
   .rt-status.error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); background: color-mix(in srgb, var(--danger) 7%, transparent); }
   .rt-status.error i { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
   .rt-actions { display: flex; gap: 6px; margin-left: auto; }
-  .rt-connect { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: var(--fs-sm); font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease; }
+  .rt-connect { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: var(--fs-sm); font-weight: 700; border: 0; border-radius: 8px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease; }
   .rt-connect:hover { transform: translateY(-1px); box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 30%, transparent); }
   .rt-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
-  .rt-quiet { height: 30px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
+  .rt-quiet { height: 30px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: transparent; transition: all .15s ease; }
   .rt-quiet:hover { color: var(--text); border-color: var(--line-2); background: var(--hover); }
   .rt-quiet.danger:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 6%, transparent); }
   .remote-tabs { flex: 0 0 auto; display: flex; gap: 4px; padding: 7px 10px 0; border-bottom: 1px solid var(--line); background: var(--panel); }
@@ -571,33 +578,33 @@
   .remote-form { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: auto; }
   .remote-form > header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .remote-form > header b { font-size: var(--fs-sm); }
-  .form-close { width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; color: var(--muted); border: 0; border-radius: 7px; background: transparent; }
+  .form-close { width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; color: var(--muted); border: 0; border-radius: 8px; background: transparent; }
   .form-close:hover { color: var(--text); background: var(--hover); }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; padding: 18px; }
   .form-grid label { display: flex; flex-direction: column; gap: 6px; }
   .form-grid label > span { color: var(--muted); font-size: var(--fs-xs); }
-  .form-grid input { height: 33px; padding: 0 11px; color: var(--text); font: 500 13px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
+  .form-grid input { height: 30px; padding: 0 11px; color: var(--text); font: 500 13px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .form-grid input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .form-grid .form-port input { max-width: 130px; }
   .form-grid .form-full { grid-column: 1 / -1; }
   .secret-wrap { position: relative; display: flex; align-items: center; }
   .secret-wrap input { width: 100%; padding-right: 34px; }
-  .secret-toggle { position: absolute; right: 5px; width: 24px; height: 24px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); font-size: var(--fs-xs); border: 0; border-radius: 5px; background: transparent; }
+  .secret-toggle { position: absolute; right: 5px; width: 24px; height: 24px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); font-size: var(--fs-xs); border: 0; border-radius: 8px; background: transparent; }
   :global(.secret-toggle svg) { width: 13px; height: 13px; }
   .secret-toggle:hover { color: var(--text); background: var(--hover); }
   .form-auth { display: flex; flex-direction: column; gap: 6px; }
   .form-auth > span { color: var(--muted); font-size: var(--fs-xs); }
   .auth-chips { display: inline-flex; gap: 2px; align-self: flex-start; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  .auth-chips button { height: 26px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 0; border-radius: 6px; background: transparent; transition: all .15s ease; }
+  .auth-chips button { height: 26px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 0; border-radius: 8px; background: transparent; transition: all .15s ease; }
   .auth-chips button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .auth-chips button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .remote-form > footer { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); }
   .form-hint { flex: 1; color: var(--muted-2); font-size: var(--fs-xs); }
   .form-test { color: var(--danger); font-size: var(--fs-xs); white-space: nowrap; }
   .form-test.ok { color: var(--accent); }
-  .form-cancel { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 7px; background: transparent; transition: all .15s ease; }
+  .form-cancel { height: 30px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: transparent; transition: all .15s ease; }
   .form-cancel:hover { color: var(--text); border-color: var(--line-2); }
-  .form-save { height: 30px; padding: 0 16px; cursor: pointer; color: #fff; font-size: var(--fs-sm); font-weight: 700; border: 0; border-radius: 7px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
+  .form-save { height: 30px; padding: 0 16px; cursor: pointer; color: #fff; font-size: var(--fs-sm); font-weight: 700; border: 0; border-radius: 8px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease, opacity .15s ease; }
   .form-save:hover:not(:disabled) { transform: translateY(-1px); }
   .form-save:disabled { cursor: default; opacity: .4; }
   .rt-quiet:disabled { opacity: .4; cursor: default; }
@@ -605,7 +612,7 @@
   .rt-modal { width: min(560px, 100%); overflow: hidden; border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel-2); box-shadow: 0 30px 100px rgba(0, 0, 0, .55); }
   .rt-modal > header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); }
   .rt-modal > header b { font-size: var(--fs-xs); }
-  .rt-modal > header button { width: 28px; height: 28px; cursor: pointer; color: var(--muted); font-size: 17px; border: 0; border-radius: 7px; background: transparent; }
+  .rt-modal > header button { width: 28px; height: 28px; cursor: pointer; color: var(--muted); font-size: 17px; border: 0; border-radius: 8px; background: transparent; }
   .rt-modal > header button:hover { color: var(--text); background: var(--hover); }
   .rt-modal-body { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; max-height: 60vh; overflow-y: auto; }
   .rt-modal-body pre.sys-info { margin: 0; padding: 11px 13px; overflow: auto; color: var(--text); font: 450 13.5px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; border: 1px solid var(--line); border-radius: 10.5px; background: var(--bg); }
@@ -613,7 +620,7 @@
   .rt-modal > footer { display: flex; justify-content: flex-end; gap: 6px; padding: 11px 16px; border-top: 1px solid var(--line); }
   .rt-file-row { display: flex; align-items: center; gap: 10.5px; }
   .rt-file-row > span { flex: 0 0 auto; width: 82px; color: var(--muted); font-size: var(--fs-sm); }
-  .rt-file-row input[type='text'], .rt-file-row input:not([type]) { min-width: 0; flex: 1; height: 32px; padding: 0 10.5px; color: var(--text); font: 500 13.5px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: var(--bg); }
+  .rt-file-row input[type='text'], .rt-file-row input:not([type]) { min-width: 0; flex: 1; height: 32px; padding: 0 10.5px; color: var(--text); font: 500 13.5px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--bg); }
   .rt-file-row input:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .rt-file-row input[type='file'] { font-size: var(--fs-sm); }
   .rt-file-size { min-width: 0; flex: 1; overflow: hidden; color: var(--muted); font-size: var(--fs-tiny); text-overflow: ellipsis; white-space: nowrap; }
@@ -621,7 +628,7 @@
   .rt-file-note { color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.6; }
   .rt-quick-wrap { position: relative; }
   .rt-quick { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 250px; padding: 5px; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
-  .rt-quick button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10.5px; cursor: pointer; text-align: left; border: 0; border-radius: 6px; background: transparent; }
+  .rt-quick button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10.5px; cursor: pointer; text-align: left; border: 0; border-radius: 8px; background: transparent; }
   .rt-quick button:hover { background: var(--hover); }
   .rt-quick code { color: var(--text); font: 500 13px 'Cascadia Code', monospace; }
   .rt-quick small { color: var(--muted-2); font-size: var(--fs-tiny); }

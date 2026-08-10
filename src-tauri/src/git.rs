@@ -192,7 +192,7 @@ fn repo_info(repo: &Repository, fallback_path: &str) -> Result<GitRepoInfo, Stri
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_open(path: String) -> Result<GitRepoInfo, String> {
     let repo = open_repo(&path)?;
     repo_info(&repo, &path)
@@ -200,7 +200,7 @@ pub fn git_open(path: String) -> Result<GitRepoInfo, String> {
 
 /// 自动识别：给定任意文件或目录，向上查找最近的 Git 仓库根目录。
 /// 非仓库路径返回 None（不报错），便于前端做「加载即识别」。
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_detect(path: String) -> Result<Option<GitRepoInfo>, String> {
     let p = Path::new(&path);
     let target = if p.is_dir() { p } else { p.parent().unwrap_or(p) };
@@ -216,7 +216,7 @@ pub fn git_detect(path: String) -> Result<Option<GitRepoInfo>, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_status(path: String) -> Result<Vec<GitStatusEntry>, String> {
     let repo = open_repo(&path)?;
     let mut opts = git2::StatusOptions::new();
@@ -244,7 +244,7 @@ pub fn git_status(path: String) -> Result<Vec<GitStatusEntry>, String> {
     Ok(out)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_branches(path: String) -> Result<Vec<GitBranchInfo>, String> {
     let repo = open_repo(&path)?;
     let mut out = Vec::new();
@@ -303,7 +303,7 @@ fn describe_refs(repo: &Repository, oid: git2::Oid) -> Vec<String> {
     refs
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_log(path: String, count: Option<usize>) -> Result<Vec<GitCommitInfo>, String> {
     let repo = open_repo(&path)?;
     let count = count.unwrap_or(50).clamp(1, 500);
@@ -428,7 +428,7 @@ fn diff_opts() -> DiffOptions {
     opts
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_diff_workdir(path: String) -> Result<Vec<GitDiffFile>, String> {
     let repo = open_repo(&path)?;
     let head = match repo.head() {
@@ -443,7 +443,7 @@ pub fn git_diff_workdir(path: String) -> Result<Vec<GitDiffFile>, String> {
     collect_diff(&repo, diff)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_diff_commit(path: String, sha: String) -> Result<Vec<GitDiffFile>, String> {
     let repo = open_repo(&path)?;
     let commit = repo
@@ -467,7 +467,7 @@ pub fn git_diff_commit(path: String, sha: String) -> Result<Vec<GitDiffFile>, St
     collect_diff(&repo, diff)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_stage(path: String, files: Vec<String>) -> Result<(), String> {
     let repo = open_repo(&path)?;
     let mut index = repo.index().map_err(|e| e.to_string())?;
@@ -534,7 +534,7 @@ fn restore_index_from_head(repo: &Repository, index: &mut git2::Index, file: &st
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_unstage(path: String, files: Vec<String>) -> Result<(), String> {
     let repo = open_repo(&path)?;
     let mut index = repo.index().map_err(|e| e.to_string())?;
@@ -556,7 +556,7 @@ pub fn git_unstage(path: String, files: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_discard(path: String, files: Vec<String>) -> Result<(), String> {
     let repo = open_repo(&path)?;
     let mut index = repo.index().map_err(|e| e.to_string())?;
@@ -585,7 +585,7 @@ pub fn git_discard(path: String, files: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_commit(
     path: String,
     message: String,
@@ -615,7 +615,7 @@ pub fn git_commit(
     Ok(oid.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_checkout(path: String, branch: String, remote: bool) -> Result<(), String> {
     let repo = open_repo(&path)?;
     let name = if remote {
@@ -643,7 +643,7 @@ pub fn git_checkout(path: String, branch: String, remote: bool) -> Result<(), St
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_create_branch(path: String, name: String) -> Result<(), String> {
     let repo = open_repo(&path)?;
     if name.trim().is_empty() {
@@ -689,7 +689,7 @@ fn remote_callbacks(token: Option<String>) -> RemoteCallbacks<'static> {
     cb
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_pull(path: String, token: Option<String>) -> Result<String, String> {
     let repo = open_repo(&path)?;
     let head = repo.head().map_err(|e| e.to_string())?;
@@ -742,7 +742,7 @@ pub fn git_pull(path: String, token: Option<String>) -> Result<String, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_push(path: String, token: Option<String>) -> Result<String, String> {
     let repo = open_repo(&path)?;
     let head = repo.head().map_err(|e| e.to_string())?;
@@ -765,12 +765,18 @@ pub fn git_push(path: String, token: Option<String>) -> Result<String, String> {
     Ok(format!("已推送到 origin/{branch_name}"))
 }
 
-#[tauri::command]
-pub fn pick_folder() -> Option<String> {
-    rfd::FileDialog::new()
-        .set_title("选择 Git 仓库目录")
-        .pick_folder()
-        .map(|p| p.to_string_lossy().to_string())
+#[tauri::command(async)]
+pub async fn pick_folder() -> Option<String> {
+    // 同步 rfd 对话框会阻塞 Tauri 主线程,导致资源协议/窗口消息全部停摆(表现为页面资源加载挂起)
+    tauri::async_runtime::spawn_blocking(move || {
+        rfd::FileDialog::new()
+            .set_title("选择 Git 仓库目录")
+            .pick_folder()
+            .map(|p| p.to_string_lossy().to_string())
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 #[cfg(test)]

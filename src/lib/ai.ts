@@ -30,8 +30,8 @@ type StreamEvent = {
 };
 
 export const AI_PRESETS: Record<string, Omit<AiConfig, 'apiKey'>> = {
-  openai: { provider: 'openai', endpoint: 'https://api.openai.com/v1', model: 'gpt-5.6-terra' },
-  deepseek: { provider: 'deepseek', endpoint: 'https://api.deepseek.com', model: 'deepseek-v4-flash' },
+  openai: { provider: 'openai', endpoint: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  deepseek: { provider: 'deepseek', endpoint: 'https://api.deepseek.com', model: 'deepseek-chat' },
   anthropic: { provider: 'anthropic', endpoint: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-5' },
   gemini: { provider: 'gemini', endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash' },
   ollama: { provider: 'ollama', endpoint: 'http://localhost:11434/v1', model: '' },
@@ -49,9 +49,15 @@ function profileId(): string {
 
 function migrateConfig(config: AiConfig): AiConfig {
   const next = { ...config };
-  if (next.provider === 'deepseek' && next.model === 'deepseek-chat') {
-    next.endpoint = AI_PRESETS.deepseek.endpoint;
-    next.model = AI_PRESETS.deepseek.model;
+  if (next.provider === 'deepseek') {
+    if (next.model === 'deepseek-v4-flash') next.model = AI_PRESETS.deepseek.model;
+    // 旧配置端点缺失或为占位值时，回退到官方预设地址；用户自定义有效地址则保留
+    if (next.model === AI_PRESETS.deepseek.model && !/^https?:\/\//i.test(next.endpoint || '')) {
+      next.endpoint = AI_PRESETS.deepseek.endpoint;
+    }
+  }
+  if (next.provider === 'openai' && (next.model === 'gpt-5.6-terra' || next.model === 'gpt-5.5' || next.model === 'gpt-5.2')) {
+    next.model = AI_PRESETS.openai.model;
   }
   // 旧版未知名服务商：回退到自定义配置入口
   if (!AI_PRESETS[next.provider]) next.provider = 'custom';
@@ -63,7 +69,7 @@ export function createAiProfile(provider = 'openai', name?: string): AiProfile {
   const preset = AI_PRESETS[provider] ?? AI_PRESETS.custom;
   return {
     id: profileId(),
-    name: name ?? (provider === 'custom' ? '自定义模型' : `${provider[0].toUpperCase()}${provider.slice(1)} 模型`),
+    name: name ?? (provider === 'custom' ? '自定义模型' : (provider === 'openai' ? 'OpenAI' : provider === 'deepseek' ? 'DeepSeek' : provider === 'anthropic' ? 'Anthropic' : provider === 'gemini' ? 'Gemini' : `${provider[0].toUpperCase()}${provider.slice(1)}`) + ' 模型'),
     ...preset,
     apiKey: '',
   };
@@ -89,7 +95,13 @@ export function loadAiProfileStore(): AiProfileStore {
             return { ...merged, apiKey: '' };
           })
         : [];
-      return { profiles, activeId: profiles.some((profile) => profile.id === parsed.activeId) ? parsed.activeId : profiles[0]?.id ?? '' };
+      // 迁移发生过变化（如旧假模型名）时写回，确保旧数据被真正清理
+      const migrated = { profiles, activeId: profiles.some((profile) => profile.id === parsed.activeId) ? parsed.activeId : profiles[0]?.id ?? '' };
+      const changed = profiles.some((profile, index) => JSON.stringify(profile) !== JSON.stringify(parsed.profiles[index]));
+      if (changed) {
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(migrated)); } catch { /* 忽略写入失败 */ }
+      }
+      return migrated;
     }
     const legacy = localStorage.getItem(LEGACY_KEY);
     if (legacy) {
@@ -138,9 +150,9 @@ export function saveAiProfileStore(store: AiProfileStore): void {
   localStorage.setItem(STORE_KEY, JSON.stringify(stripped));
 }
 
-/** 将某个配置的 API Key 写入系统钥匙串（空值表示删除）。 */
-export function saveProfileSecret(profile: AiProfile): void {
-  setSecret('ai.' + profile.id + '.apiKey', profile.apiKey).catch(() => undefined);
+/** 将某个配置的 API Key 写入系统钥匙串（空值表示删除）。失败时抛出，由调用方提示用户。 */
+export async function saveProfileSecret(profile: AiProfile): Promise<void> {
+  await setSecret('ai.' + profile.id + '.apiKey', profile.apiKey);
 }
 
 /** 删除某个配置的 API Key。 */
@@ -153,6 +165,10 @@ export function isAiConfigured(config: AiConfig | undefined): boolean {
 }
 
 export async function fetchAiModels(config: AiConfig): Promise<AiModel[]> {
+  const endpoint = config.endpoint.trim();
+  if (!/^https?:\/\//i.test(endpoint)) {
+    throw new Error('服务地址格式不正确：应以 http:// 或 https:// 开头，例如 https://api.openai.com/v1');
+  }
   return safeInvoke<AiModel[]>('ai_list_models', { request: config });
 }
 

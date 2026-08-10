@@ -1,6 +1,7 @@
 <script lang="ts">
   import { UI_ICONS } from '../icons';
   import type { PluginResult } from '../plugins/types';
+  import { timestampPlugin } from '../plugins/builtin/timestamp';
 
   let { session, onChangeAction, onChangeOption, onChangeInput, onClear }: {
     session: { actionId: string; options: Record<string, string>; input: string; result: PluginResult | null; error: string; processing: boolean };
@@ -22,16 +23,71 @@
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
   }
 
+  /** 常用时间快捷预设：统一由 presetValue() 计算值，保证高亮与回填一致 */
+  function presetValue(kind: string): string {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    const fmt = (date: Date) => `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T00:00`;
+    if (kind === 'now') return nowValue();
+    if (kind === 'today') return fmt(d);
+    if (kind === 'tomorrow') { const t = new Date(d); t.setDate(t.getDate() + 1); return fmt(t); }
+    if (kind === 'thisWeek') {
+      const monday = new Date(d);
+      const day = (d.getDay() + 6) % 7;
+      monday.setDate(d.getDate() - day);
+      return fmt(monday);
+    }
+    if (kind === 'thisMonth') return fmt(new Date(d.getFullYear(), d.getMonth(), 1));
+    if (kind === 'thisYear') return fmt(new Date(d.getFullYear(), 0, 1));
+    return '';
+  }
+  function quickPick(kind: string): void {
+    const value = presetValue(kind);
+    if (value) onChangeOption('pickDateTime', value);
+  }
+
+  const QUICK_PRESETS = [
+    { id: 'now', label: '现在' },
+    { id: 'today', label: '今天零点' },
+    { id: 'tomorrow', label: '明天零点' },
+    { id: 'thisWeek', label: '本周一' },
+    { id: 'thisMonth', label: '本月 1 日' },
+    { id: 'thisYear', label: '今年 1 月 1 日' },
+  ];
+
   function refreshNow(): void {
     onChangeOption('unit', session.options.unit || 'auto');
     onChangeAction('now');
+  }
+
+  /** 输入内容变化时自动切换到匹配模式，避免“输入了却不出结果” */
+  function handleInput(value: string): void {
+    onChangeInput(value);
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    const detected = timestampPlugin.detect(trimmed);
+    if (detected?.suggestedAction && detected.suggestedAction !== session.actionId) {
+      onChangeAction(detected.suggestedAction);
+    }
+  }
+
+  /** 手动切换模式：进入 to-unix 时清空共享输入残留的非日期文本（如旧时间戳），避免被插件误解析 */
+  function switchMode(id: string): void {
+    const residual = session.input.trim();
+    if (id === 'to-unix') {
+      if (residual && !/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(residual)) {
+        onChangeInput('');
+      }
+      if (!session.options.pickDateTime) onChangeOption('pickDateTime', nowValue());
+    }
+    onChangeAction(id);
   }
 </script>
 
 <div class="ts-panel">
   <div class="ts-modes">
     {#each MODES as m}
-      <button class:active={session.actionId === m.id} title={m.desc} onclick={() => onChangeAction(m.id)}>
+      <button class:active={session.actionId === m.id} title={m.desc} onclick={() => switchMode(m.id)}>
         <b>{m.label}</b><small>{m.desc}</small>
       </button>
     {/each}
@@ -41,7 +97,7 @@
     <div class="ts-row">
       <label class="ts-field">
         <span>时间戳</span>
-        <input value={session.input} placeholder="例如 1700000000 或 1700000000000" spellcheck="false" oninput={(e) => onChangeInput(e.currentTarget.value)} />
+        <input value={session.input} placeholder="例如 1700000000 或 1700000000000" spellcheck="false" oninput={(e) => handleInput(e.currentTarget.value)} />
       </label>
       <label class="ts-field ts-narrow">
         <span>单位</span>
@@ -60,7 +116,7 @@
         <span>日期时间</span>
         <input type="datetime-local" value={session.options.pickDateTime || ''} oninput={(e) => onChangeOption('pickDateTime', e.currentTarget.value)} />
       </label>
-      <button class="ts-now" onclick={() => onChangeOption('pickDateTime', nowValue())}>现在</button>
+      <div class="ts-quick">{#each QUICK_PRESETS as preset}<button class:active={session.options.pickDateTime === presetValue(preset.id)} onclick={() => quickPick(preset.id)}>{preset.label}</button>{/each}</div>
       <button class="ts-clear" onclick={onClear} title="清空">清空</button>
     </div>
     <p class="ts-tip">转换结果即时显示在右侧，包含本地时间、UTC 与 Unix 秒 / 毫秒，点击即可复制。</p>
@@ -75,22 +131,24 @@
 
 <style>
   .ts-panel { display: flex; flex-direction: column; gap: 12px; }
-  .ts-modes { display: flex; gap: 8px; flex-wrap: wrap; }
-  .ts-modes button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 132px; padding: 10.5px 13px; cursor: pointer; color: var(--muted); text-align: left; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); transition: all var(--transition); }
-  .ts-modes button:hover { color: var(--text); border-color: var(--line-2); background: var(--hover); }
-  .ts-modes button.active { color: var(--text); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
-  .ts-modes b { font-size: var(--fs-xs); }
-  .ts-modes small { color: var(--muted-2); font-size: var(--fs-xs); }
-  .ts-modes button.active small { color: var(--muted); }
+  .ts-modes { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ts-modes button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; border: 1px solid var(--line); border-radius: 999px; background: var(--w-03); transition: all var(--transition); }
+  .ts-modes button:hover { color: var(--text); border-color: var(--line-strong); background: var(--w-06); }
+  .ts-modes button.active { color: #fff; background: var(--btn-gradient); border-color: transparent; box-shadow: 0 4px 16px rgba(129, 140, 248, .4); }
+  .ts-modes b { font-size: var(--fs-xs); font-weight: 600; }
+  .ts-modes small { display: none; }
   .ts-row { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+  .ts-quick { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+  .ts-quick button { height: 26px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line-2); border-radius: 999px; background: var(--w-03); transition: all var(--transition); }
+  .ts-quick button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: var(--accent-soft); }
   .ts-field { display: flex; flex-direction: column; gap: 5px; }
   .ts-field span { color: var(--muted); font-size: var(--fs-sm); }
-  .ts-field input, .ts-field select { height: 36px; padding: 0 11px; color: var(--text); font-size: var(--fs-xs); border: 1px solid var(--line-2); border-radius: 8px; outline: 0; background: var(--panel); }
+  .ts-field input, .ts-field select { height: 30px; padding: 0 11px; color: var(--text); font-size: var(--fs-xs); border: 1px solid var(--line-2); border-radius: 8px; outline: 0; background: var(--panel); }
   .ts-field input:focus, .ts-field select:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .ts-field.ts-narrow select { width: 112px; }
   .ts-row .ts-field:first-child { flex: 1; min-width: 240px; }
   .ts-row .ts-field:first-child input { width: 100%; }
-  .ts-now, .ts-clear { height: 36px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); transition: all var(--transition); }
+  .ts-now, .ts-clear { height: 30px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); transition: all var(--transition); }
   .ts-now { display: inline-flex; align-items: center; gap: 6px; }
   .ts-now span { display: inline-flex; }
   :global(.ts-now svg) { width: 13px; height: 13px; }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isTauri, safeInvoke, safeListen } from '../env';
+  import { safeInvoke, safeListen } from '../env';
   import { UI_ICONS } from '../icons';
   import { trimImageHistory, type ClipItem } from '../clipHistory';
 
@@ -15,9 +15,31 @@
   let confirmingClear = $state(false);
   let clearTimer: ReturnType<typeof setTimeout> | null = null;
 
+  /** 已删除条目的 id 集合：后端暂无单条删除能力，前端过滤并持久化，避免重启后重新出现 */
+  function loadDeletedIds(): Set<string> {
+    try {
+      return new Set<string>(JSON.parse(localStorage.getItem('spurh.clip.deleted') ?? '[]'));
+    } catch {
+      return new Set();
+    }
+  }
+  let deletedIds = $state<Set<string>>(loadDeletedIds());
+  function persistDeletedIds(): void {
+    try {
+      localStorage.setItem('spurh.clip.deleted', JSON.stringify([...deletedIds].slice(-500)));
+    } catch { /* 隐私模式等场景下静默 */ }
+  }
+  function removeItem(id: string): void {
+    deletedIds = new Set([...deletedIds, id]);
+    persistDeletedIds();
+    items = items.filter((item) => item.id !== id);
+  }
+
+  const visibleItems = $derived(items.filter((item) => !deletedIds.has(item.id)));
+
   const filtered = $derived(query
-    ? items.filter((item) => item.text.toLowerCase().includes(query.toLowerCase()))
-    : items);
+    ? visibleItems.filter((item) => item.text.toLowerCase().includes(query.toLowerCase()))
+    : visibleItems);
 
   type DayGroup = { label: string; items: ClipItem[] };
   const groups = $derived<DayGroup[]>((() => {
@@ -55,6 +77,9 @@
     return first || '(空内容)';
   }
 
+  /** 图片类型图标（icons.ts 无图片图标，本地内联 SVG，风格与 UI_ICONS 一致） */
+  const IMAGE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+
   async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
     const [head, body] = dataUrl.split(',');
     const mime = head.match(/^data:([^;]+)/)?.[1] ?? 'image/png';
@@ -70,11 +95,9 @@
         // atob 解码，避免 fetch(data:) 被生产 CSP connect-src 拦截
         const blob = await dataUrlToBlob(item.image);
         await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-      } else if (isTauri) {
-        await safeInvoke('clipboard_write_text', { text: item.text });
       } else {
-        // 浏览器模式回退到 Web Clipboard API，保持复制功能可用
-        await navigator.clipboard.writeText(item.text);
+        const { copyText } = await import('../env');
+        await copyText(item.text);
       }
       copiedId = item.id;
       setTimeout(() => { if (copiedId === item.id) copiedId = ''; }, 1200);
@@ -113,15 +136,16 @@
 
   onMount(() => {
     safeInvoke<ClipItem[]>('clipboard_history').then((snapshot) => {
-      items = snapshot;
+      items = snapshot.filter((item) => !deletedIds.has(item.id));
       loaded = true;
     }).catch(() => { loaded = true; });
     const unlisten1 = safeListen<ClipItem[]>('clipboard:history', (event) => {
-      // 后端历史不含图片，合并保留本地图片项，避免被全量替换清掉
+      // 后端历史不含图片，合并保留本地图片项，避免被全量替换清掉；已删除条目继续过滤
       const images = items.filter((item) => item.kind === 'image');
-      items = trimImageHistory([...images, ...event.payload].slice(0, 100));
+      items = trimImageHistory([...images, ...event.payload.filter((item) => !deletedIds.has(item.id))].slice(0, 100));
     });
     const unlisten2 = safeListen<ClipItem>('clipboard:item', (event) => {
+      if (deletedIds.has(event.payload.id)) return;
       // 图片去重：同图仅保留最新一条
       if (event.payload.kind === 'image' && event.payload.image) {
         const dup = items.find((other) => other.kind === 'image' && other.image === event.payload.image);
@@ -167,13 +191,14 @@
         {#each group.items as item, gi}
           {@const flatIndex = filtered.indexOf(item)}
           <article class="clip-item" class:active={flatIndex === selected} class:hot={flatIndex === 0 && !query}>
-            <button class="clip-main" onclick={() => { selected = flatIndex; reuse(item); }} title="点击复制到系统剪贴板">
+            <button class="clip-main" onclick={() => { selected = flatIndex; if (onChangeInput && item.kind !== 'image') fill(item); else reuse(item); }} title={onChangeInput && item.kind !== 'image' ? '点击回填到当前工具输入区' : '点击复制到系统剪贴板'}>
+              <span class="clip-kind" class:image={item.kind === 'image' && item.image && item.image.startsWith('data:image/') && !item.image.includes('image/svg')}>{@html item.kind === 'image' ? IMAGE_ICON : UI_ICONS.copy}</span>
               {#if item.kind === 'image' && item.image && item.image.startsWith('data:image/') && !item.image.includes('image/svg')}
                 <img class="clip-img" src={item.image} alt="剪贴板图片" />
-                <small>图片 · {timeLabel(item.ts)}</small>
+                <small title={new Date(item.ts).toLocaleString()}>图片 · {timeLabel(item.ts)}</small>
               {:else}
-                <code>{preview(item.text)}</code>
-                <small>{item.text.length} 字符 · {timeLabel(item.ts)}</small>
+                <code title={item.text}>{preview(item.text)}</code>
+                <small title={new Date(item.ts).toLocaleString()}>{item.text.length} 字符 · {timeLabel(item.ts)}</small>
               {/if}
             </button>
             <div class="clip-actions">
@@ -184,6 +209,9 @@
               {/if}
               <button class="clip-act" onclick={() => { selected = flatIndex; reuse(item); }} title="复制到系统剪贴板">
                 {copiedId === item.id ? '已复制 ✓' : '复制'}
+              </button>
+              <button class="clip-act del" onclick={() => { selected = flatIndex; removeItem(item.id); }} title="删除此条记录">
+                {@html UI_ICONS.trash}<span>删除</span>
               </button>
             </div>
           </article>
@@ -202,7 +230,7 @@
 <style>
   .clipboard-panel { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
   .clip-bar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .clip-search { min-width: 180px; height: 30px; display: flex; align-items: center; gap: 8px; flex: 1; padding: 0 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
+  .clip-search { min-width: 180px; height: 30px; display: flex; align-items: center; gap: 8px; flex: 1; padding: 0 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .clip-search:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .clip-search span { display: inline-flex; }
   :global(.clip-search span svg) { width: 13px; height: 13px; }
@@ -210,7 +238,7 @@
   .clip-search-x { width: 18px; height: 18px; display: grid; place-items: center; padding: 0; cursor: pointer; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1; border: 0; border-radius: 4px; background: transparent; }
   .clip-search-x:hover { color: var(--text); background: var(--hover); }
   .clip-count { color: var(--muted); font: 500 13px 'Cascadia Code', monospace; white-space: nowrap; }
-  .clip-clear { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: all .15s ease; }
+  .clip-clear { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); transition: all .15s ease; }
   .clip-clear span { display: inline-flex; }
   :global(.clip-clear span svg) { width: 12px; height: 12px; }
   .clip-clear:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
@@ -223,16 +251,22 @@
   .clip-item:hover { border-color: var(--line-2); }
   .clip-item.active { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .clip-item.hot { border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
-  .clip-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 10px 13px; cursor: pointer; text-align: left; border: 0; background: transparent; }
+  .clip-main { min-width: 0; flex: 1; display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 10px 13px; cursor: pointer; text-align: left; border: 0; background: transparent; }
   .clip-main:hover { background: var(--hover); }
+  .clip-kind { display: inline-flex; align-items: center; gap: 5px; width: fit-content; padding: 2px 7px; color: var(--accent); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 7px; background: var(--accent-soft); }
+  .clip-kind.image { color: var(--c-cyan); border-color: color-mix(in srgb, var(--c-cyan) 32%, var(--line)); background: color-mix(in srgb, var(--c-cyan) 10%, transparent); }
+  :global(.clip-kind svg) { width: 12px; height: 12px; }
   .clip-main code { display: -webkit-box; overflow: hidden; color: var(--text); font: 450 13px/1.5 'Cascadia Code', monospace; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
-  .clip-img { max-width: 220px; max-height: 130px; object-fit: contain; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
+  .clip-img { max-width: 220px; max-height: 130px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   .clip-main small { color: var(--muted-2); font: 500 13px 'Cascadia Code', monospace; }
   .clip-actions { display: flex; flex-direction: column; gap: 5px; justify-content: center; padding: 8px 10.5px; border-left: 1px solid var(--line); background: var(--panel-2); }
-  .clip-act { height: 24px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); transition: all .15s ease; }
+  .clip-act { height: 28px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); transition: all .15s ease; display: inline-flex; align-items: center; gap: 5px; }
+  .clip-act span { display: inline-flex; }
+  :global(.clip-act svg) { width: 12px; height: 12px; }
   .clip-act:hover { color: var(--text); border-color: var(--line-2); }
   .clip-act.fill { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 28%, var(--line)); background: var(--accent-soft); }
   .clip-act.fill:hover { color: var(--accent); }
+  .clip-act.del:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
   .clip-empty { display: grid; place-content: center; justify-items: center; gap: 8px; flex: 1; color: var(--muted); text-align: center; }
   .clip-empty-tile { width: 46px; height: 46px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 13px; background: var(--accent-soft); }
   :global(.clip-empty-tile svg) { width: 22px; height: 22px; }

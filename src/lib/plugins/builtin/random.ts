@@ -59,8 +59,9 @@ export const randomPlugin: SpurhPlugin = {
   ],
   options: [
     { id: 'length', label: '长度', type: 'select', defaultValue: '24', actions: ['password', 'string', 'hex'], choices: LENGTH_CHOICES },
-    { id: 'count', label: '数量', type: 'select', defaultValue: '1', choices: COUNT_CHOICES },
-    { id: 'caseType', label: '大小写', type: 'select', defaultValue: 'mixed', actions: ['password', 'string'], choices: [
+    { id: 'count', label: '数量', type: 'select', defaultValue: '1', actions: ['password', 'string', 'uuid', 'ulid', 'number', 'hex'], choices: COUNT_CHOICES },
+    { id: 'countColor', label: '数量', type: 'select', defaultValue: '5', actions: ['color'], choices: COUNT_CHOICES },
+    { id: 'caseType', label: '大小写', type: 'select', defaultValue: 'mixed', actions: ['password', 'string', 'uuid', 'ulid', 'hex', 'color'], choices: [
       { value: 'mixed', label: '大小写混合' },
       { value: 'upper', label: '仅大写' },
       { value: 'lower', label: '仅小写' },
@@ -90,7 +91,8 @@ export const randomPlugin: SpurhPlugin = {
       return /^\d+$/.test(value) ? Number.parseInt(value, 10) : fallback;
     };
     const length = parseStrict(options.length || '24', 24);
-    const count = Math.min(100, Math.max(1, parseStrict(options.count || '1', 1) || 1));
+    const isColors = actionId === 'color';
+    const count = Math.min(100, Math.max(1, parseStrict(isColors ? options.countColor || '5' : options.count || '1', 1) || 1));
     if (!Number.isFinite(length) || length < 4 || length > 512) throw new Error('长度请输入 4 到 512');
     // 大小写策略：控制密码 / 随机字符的字符集
     const caseType = options.caseType || 'mixed';
@@ -102,13 +104,19 @@ export const randomPlugin: SpurhPlugin = {
         : caseType === 'digits'
           ? '23456789'
           : baseAlphabet;
+    // 生成后统一按大小写策略转换（uuid/ulid/hex/color 同样生效）
+    const applyCase = (value: string): string => {
+      if (caseType === 'upper') return value.toUpperCase();
+      if (caseType === 'lower') return value.toLowerCase();
+      return value;
+    };
     const values = Array.from({ length: count }, () => {
-      if (actionId === 'uuid') return crypto.randomUUID();
-      if (actionId === 'ulid') return ulid();
-      if (actionId === 'hex') return secureString(length, HEX);
+      if (actionId === 'uuid') return applyCase(crypto.randomUUID());
+      if (actionId === 'ulid') return applyCase(ulid());
+      if (actionId === 'hex') return applyCase(secureString(length, HEX));
       if (actionId === 'color') {
         const bytes = crypto.getRandomValues(new Uint8Array(3));
-        return '#' + [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+        return applyCase('#' + [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join(''));
       }
       if (actionId === 'number') {
         const min = parseStrict(options.min || '0', 0);
@@ -129,7 +137,6 @@ export const randomPlugin: SpurhPlugin = {
       }
       return secureString(length, alphabet);
     });
-    const isColors = actionId === 'color';
     return {
       output: values.join('\n'),
       language: 'text',

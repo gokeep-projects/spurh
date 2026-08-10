@@ -58,18 +58,30 @@ describe('ResultView 结果渲染（DOM 可见性）', () => {
     expect(text).toContain('字符数');
     expect(text).toContain('单词数');
   });
+});
 
-  it('时间戳结果（view=timestamp）渲染出时间值', () => {
-    const result: PluginResult = {
-      output: '1700000000',
-      language: 'text',
-      view: 'timestamp',
-      summary: '时间转换',
-      data: { local: '2023-11-15 02:13:20', utc: '2023-11-14T18:13:20Z', unixSeconds: '1700000000', unixMilliseconds: '1700000000000', timezone: '本地' },
+describe('ResultView SQL virtual scroll', () => {
+  function sqlResult(rows: number): PluginResult {
+    const data = {
+      columns: ['id', 'name', 'value'],
+      rows: Array.from({ length: rows }, (_, i) => [i, 'row-' + i, 'v' + i]),
+      isQuery: true,
+      elapsedMs: 1,
+      truncated: false,
     };
-    const { container } = render(ResultView, { props: { result } });
-    const text = container.textContent ?? '';
-    expect(text).toContain('2023-11-15');
-    expect(text).toContain('1700000000');
+    return { view: 'sql', data, output: JSON.stringify(data), language: 'json' };
+  }
+
+  it('大结果集只渲染可视窗口行（虚拟滚动）', () => {
+    const { container } = render(ResultView, { props: { result: sqlResult(5000) } });
+    const trs = container.querySelectorAll('tbody tr');
+    expect(trs.length).toBeLessThan(120);
+    expect(trs.length).toBeGreaterThan(10);
+  });
+
+  it('小结果集完整渲染所有行', () => {
+    const { container } = render(ResultView, { props: { result: sqlResult(5) } });
+    const trs = container.querySelectorAll('tbody tr');
+    expect(trs.length).toBe(5);
   });
 });

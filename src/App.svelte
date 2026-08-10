@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, type Component } from 'svelte';
-  import { isTauri, safeInvoke, safeListen } from './lib/env';
+  import { isTauri, safeInvoke, safeListen, copyText, readClipboardText } from './lib/env';
   import { AI_PRESETS, createAiProfile, deleteProfileSecret, fetchAiModels, flushLegacyAiSecrets, hydrateAiSecrets, isAiConfigured, loadAiProfileStore, processWithAi, saveAiProfileStore, saveProfileSecret, testAiConnection, type AiModel, type AiProfile } from './lib/ai';
   import { PROVIDER_NAMES, providerIcon } from './lib/providerIcons';
   import { BRAND_MARK, TOOL_ICONS, UI_ICONS, iconHtml } from './lib/icons';
@@ -61,12 +61,13 @@
   type PaletteItem = { id: string; group: string; label: string; hint: string; icon: string; run: () => void };
 
   const SETTINGS_KEY = 'spurh.settings.v1';
+  const LAST_TOOL_KEY = 'spurh.lastTool';
 
   function loadAppSettings(): AppSettings {
     const fallback: AppSettings = {
       theme: 'dark', trayEnabled: true, contextMenuEnabled: true, clipboardWatch: true, dispatchHotkey: 'ctrl+shift+space',
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
-      fontSize: 15, fontFamily: '系统默认',
+      fontSize: 16, fontFamily: '系统默认',
       sidebarShortcuts: false,
       sidebarOpen: true,
       hiddenTools: [],
@@ -78,7 +79,8 @@
         ...fallback,
         ...parsed,
         hiddenTools: Array.isArray(parsed.hiddenTools) ? parsed.hiddenTools : fallback.hiddenTools,
-        fontSize: typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 && parsed.fontSize !== 14 ? parsed.fontSize : fallback.fontSize,
+        // 字号：旧默认 12/13/14 自动上调到 15（可读性更好）；用户手动档位直接采用
+        fontSize: typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 && ![12, 13, 14, 15].includes(parsed.fontSize) ? parsed.fontSize : fallback.fontSize,
         fontFamily: FONT_STACKS[parsed.fontFamily] ? parsed.fontFamily : '系统默认',
       };
     } catch {
@@ -132,7 +134,21 @@
   }
 
   let sessions = $state<Record<string, ToolSession>>(Object.fromEntries(plugins.map((plugin) => [plugin.id, makeSession(plugin)])));
-  let activePluginId = $state('spurh.json');
+  function loadLastTool(): string {
+    try {
+      const last = localStorage.getItem(LAST_TOOL_KEY);
+      if (last && plugins.some((plugin) => plugin.id === last)) return last;
+    } catch { /* ignore */ }
+    return 'spurh.json';
+  }
+  let activePluginId = $state(loadLastTool());
+  // 记住上次使用的工具，重启后自动恢复
+  $effect(() => {
+    const id = activePluginId;
+    try {
+      localStorage.setItem(LAST_TOOL_KEY, id);
+    } catch { /* ignore */ }
+  });
   let dispatcherInput = $state('');
   let dispatcherElement = $state<HTMLInputElement | undefined>(undefined);
   let inputElement = $state<HTMLTextAreaElement | undefined>(undefined);
@@ -143,11 +159,12 @@
   const initialSettings = loadAppSettings();
   let appSettings = $state(initialSettings);
   // 窄窗口（≤850px）侧栏默认收起，避免覆盖工作区；用户手动切换会持久化
-  let sidebarOpen = $state(typeof window !== 'undefined' ? (window.innerWidth > 850 && (appSettings.sidebarOpen ?? true)) : true);
+  let sidebarOpen = $state(typeof window !== 'undefined' ? (window.innerWidth > 850 && (initialSettings.sidebarOpen ?? true)) : true);
   let sidebarUserNarrowChoice = $state(false); // 窄窗口下用户主动展开过则尊重其选择
   const initialAiStore = loadAiProfileStore();
   let aiStore = $state(initialAiStore);
   let aiDraft = $state<AiProfile>(initialAiStore.profiles.find((profile) => profile.id === initialAiStore.activeId) ?? createAiProfile());
+  let aiKeyVisible = $state(false);
   let settingsOpen = $state(false);
   let resultRawMode = $state(false);
   let settingsTab = $state<SettingsTab>('general');
@@ -195,16 +212,37 @@
   let aboutCanvas = $state<HTMLCanvasElement | undefined>(undefined);
   let aboutTagline = $state('');
   let aboutPanelsShown = $state(0);
+  let aboutHeap = $state('-- MB');
+  let aboutCpu = $state('--');
+  let aboutLive = $state({ mem: 0, cpu: 0 });
+  let aboutSpark = $state<HTMLCanvasElement | undefined>(undefined);
+  let aboutStageEl = $state<HTMLDivElement | undefined>(undefined);
+  let sparkHistory: Array<[number, number]> = [];
+  let sparkStatsAvailable = false;
+  let sparkTick = 0;
+  let termLines = $state<Array<{ cls: string; text: string }>>([]);
+  let termTyping = $state<{ cls: string; text: string } | null>(null);
+  const aboutCapsTarget = { ai: 94, local: 96, cover: 92, priv: 98 };
+  const aboutRingList = [
+    { k: 'ai', l: 'AI 增强', c: '#22d3ee' },
+    { k: 'local', l: '本地性能', c: '#34d399' },
+    { k: 'cover', l: '工具覆盖', c: '#8b5cf6' },
+    { k: 'priv', l: '隐私安全', c: '#f472b6' },
+  ] as const;
+  let aboutCaps = $state({ ai: 0, local: 0, cover: 0, priv: 0 });
   const aboutPhrases = ['AI Native Developer Toolbox', '本地优先 · 数据不出设备', '粘贴即用 · 一步完成', '14 个工具 · 一个入口'];
   const aboutToolNames = ['JSON 格式化', '时间戳转换', '文本处理', '随机生成', '加解密', 'Cron 表达式', '编码转换', '正则表达式', '数据库工具', '网络工具', '日志分析', '远程连接', 'Git 仓库', '剪贴板历史'];
+  const BUILD_STAMP = __BUILD_DATE__; // 构建标记来自 vite define
 
-  function startAboutCanvas(canvas: HTMLCanvasElement, stage: HTMLElement): () => void {
+  function startAboutCanvas(canvas: HTMLCanvasElement, stage: HTMLElement, isLight: boolean): () => void {
     const ctx = canvas.getContext('2d');
     if (!ctx) return () => {};
     const g = ctx;
-    const colors = ['rgba(34,211,238,', 'rgba(139,92,246,', 'rgba(232,121,249,'];
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    let raf = 0, w = 0, h = 0;
+    const colors = isLight
+      ? ['rgba(8,145,178,', 'rgba(91,33,182,', 'rgba(168,22,122,']
+      : ['rgba(34,211,238,', 'rgba(139,92,246,', 'rgba(232,121,249,'];
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    let raf = 0, w = 0, h = 0, lastT = 0;
     const mouse = { x: -9999, y: -9999 };
     let parts: { x: number; y: number; vx: number; vy: number; r: number; c: number }[] = [];
     function size() {
@@ -213,11 +251,11 @@
       canvas.height = Math.max(1, Math.round(h * dpr));
       canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const n = Math.max(36, Math.min(90, Math.round((w * h) / 9000)));
+      const n = Math.max(24, Math.min(56, Math.round((w * h) / 13000)));
       parts = Array.from({ length: n }, () => ({
         x: Math.random() * w, y: Math.random() * h,
-        vx: (Math.random() - .5) * .45, vy: (Math.random() - .5) * .45,
-        r: .8 + Math.random() * 1.2, c: Math.floor(Math.random() * colors.length)
+        vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4,
+        r: 1.1 + Math.random() * 1.6, c: Math.floor(Math.random() * colors.length)
       }));
     }
     const ro = new ResizeObserver(() => size());
@@ -230,7 +268,10 @@
     function onLeave() { mouse.x = -9999; mouse.y = -9999; }
     stage.addEventListener('pointermove', onMove, { passive: true });
     stage.addEventListener('pointerleave', onLeave, { passive: true });
-    function frame() {
+    function frame(t: number) {
+      if (document.hidden) { raf = requestAnimationFrame(frame); return; }
+      if (t - lastT < 40) { raf = requestAnimationFrame(frame); return; }
+      lastT = t;
       g.clearRect(0, 0, w, h);
       for (const p of parts) {
         p.x += p.vx; p.y += p.vy;
@@ -248,16 +289,16 @@
           const b = parts[j];
           const dx = a.x - b.x, dy = a.y - b.y;
           const d2 = dx * dx + dy * dy;
-          if (d2 < 12100) {
-            const alpha = (1 - Math.sqrt(d2) / 110) * .22;
+          if (d2 < 8100) {
+            const alpha = (1 - Math.sqrt(d2) / 90) * .2;
             g.strokeStyle = colors[a.c] + alpha + ')';
             g.lineWidth = 1;
             g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
           }
         }
         const mdx = a.x - mouse.x, mdy = a.y - mouse.y, md2 = mdx * mdx + mdy * mdy;
-        if (md2 < 25600) {
-          const alpha = (1 - Math.sqrt(md2) / 160) * .3;
+        if (md2 < 16900) {
+          const alpha = (1 - Math.sqrt(md2) / 130) * .28;
           g.strokeStyle = colors[a.c] + alpha + ')';
           g.lineWidth = 1;
           g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(mouse.x, mouse.y); g.stroke();
@@ -274,14 +315,177 @@
     };
   }
 
+  function startAboutTerminal(): () => void {
+    const lines: Array<{ cls: string; text: string }> = [
+      { cls: 'cmd', text: '$ spurh --version' },
+      { cls: 'out', text: 'Spurh v0.1.0 · 14 tools · 本地优先' },
+      { cls: 'cmd', text: '$ spurh status' },
+      { cls: 'out', text: 'engine online · clipboard watching · ai ready' },
+      { cls: 'cmd', text: '$ spurh run json:format --input demo' },
+      { cls: 'out', text: '✓ 格式化完成 · 结果已复制' },
+      { cls: 'cmd', text: '$ spurh doctor' },
+      { cls: 'out', text: '✓ 全部系统正常，祝编码愉快' },
+    ];
+    let li = 0, ci = 0, typing = true, hold = 0;
+    termLines = [];
+    termTyping = null;
+    const timer = setInterval(() => {
+      if (typing) {
+        ci += 2;
+        const line = lines[li];
+        termTyping = { cls: line.cls, text: line.text.slice(0, ci) };
+        if (ci >= line.text.length) {
+          termLines = [...termLines, { cls: line.cls, text: line.text }].slice(-3);
+          termTyping = null;
+          typing = false;
+          hold = 0;
+        }
+      } else {
+        hold += 1;
+        if (hold > 16) {
+          li = (li + 1) % lines.length;
+          ci = 0;
+          typing = true;
+        }
+      }
+    }, 70);
+    return () => clearInterval(timer);
+  }
+
+  function drawAboutSpark(isLight: boolean): void {
+    const canvas = aboutSpark;
+    if (!canvas) return;
+    const g = canvas.getContext('2d');
+    if (!g) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (w < 10 || h < 10) return;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+    }
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    const pad = 4, top = pad, bot = h - pad - 6;
+    g.strokeStyle = isLight ? 'rgba(48,63,138,.16)' : 'rgba(129,140,248,.12)';
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(pad, (top + bot) / 2);
+    g.lineTo(w - pad, (top + bot) / 2);
+    g.stroke();
+    const data = sparkHistory.slice(-44);
+    const draw = (idx: 0 | 1, color: string) => {
+      if (data.length < 2) return;
+      const max = 100, min = 0;
+      const step = (w - pad * 2) / 43;
+      g.beginPath();
+      for (let i = 0; i < data.length; i++) {
+        const v = Math.max(min, Math.min(max, data[i][idx]));
+        const x = pad + i * step;
+        const y = bot - (v / max) * (bot - top);
+        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      g.strokeStyle = color;
+      g.lineWidth = 1.6;
+      g.lineJoin = 'round';
+      g.lineCap = 'round';
+      g.stroke();
+      const last = data[data.length - 1];
+      const lx = pad + (data.length - 1) * step;
+      const ly = bot - (Math.max(min, Math.min(max, last[idx])) / max) * (bot - top);
+      g.beginPath();
+      g.arc(lx, ly, 2.4, 0, Math.PI * 2);
+      g.fillStyle = color;
+      g.shadowColor = color;
+      g.shadowBlur = 6;
+      g.fill();
+      g.shadowBlur = 0;
+    };
+    draw(0, isLight ? '#0e7490' : '#22d3ee');
+    draw(1, isLight ? '#6d28d9' : '#8b5cf6');
+    g.fillStyle = isLight ? 'rgba(54,65,107,.55)' : 'rgba(148,163,184,.45)';
+    g.font = '9px ui-monospace, Consolas, monospace';
+    g.fillText('MEM', pad, top + 8);
+    g.fillStyle = isLight ? 'rgba(109,40,217,.7)' : 'rgba(139,92,246,.65)';
+    g.fillText('CPU', pad + 30, top + 8);
+  }
+
+  function startAboutTilt(stage: HTMLElement): () => void {
+    const target = stage.querySelector<HTMLElement>('.about-logo-wrap');
+    if (!target) return () => {};
+    let raf = 0;
+    const onMove = (e: PointerEvent) => {
+      const r = stage.getBoundingClientRect();
+      const nx = ((e.clientX - r.left) / r.width) * 2 - 1;
+      const ny = ((e.clientY - r.top) / r.height) * 2 - 1;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        target.style.transform = `perspective(900px) rotateX(${(-ny * 8).toFixed(2)}deg) rotateY(${(nx * 12).toFixed(2)}deg) translateZ(0)`;
+      });
+    };
+    const onLeave = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        target.style.transform = '';
+      });
+    };
+    stage.addEventListener('pointermove', onMove, { passive: true });
+    stage.addEventListener('pointerleave', onLeave, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      stage.removeEventListener('pointermove', onMove);
+      stage.removeEventListener('pointerleave', onLeave);
+    };
+  }
+
   $effect(() => {
-    if (settingsTab === 'about') {
+    if (settingsOpen && settingsTab === 'about') {
+      const isLightTheme = appSettings.theme === 'light' || (appSettings.theme === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
       aboutUptime = 0;
       aboutClock = formatClock(new Date());
       aboutTimer = setInterval(() => {
         aboutUptime += 1;
         aboutClock = formatClock(new Date());
       }, 1000);
+      sparkStatsAvailable = false;
+      sparkHistory = [];
+      sparkTick = 0;
+      /* 折线 + 系统统计合并为单个低频心跳，减少定时器唤醒次数 */
+      let statsMisses = 0;
+      const sparkTicker = setInterval(async () => {
+        sparkTick += 1;
+        statsMisses += 1;
+        if (statsMisses >= 4) {
+          statsMisses = 0;
+          try {
+            const stats = await safeInvoke<{ systemTotalMB?: number; systemFreeMB?: number; cpuPercent?: number; rssMB?: number }>('get_process_stats');
+            if (stats) {
+              sparkStatsAvailable = true;
+              if (typeof stats.systemTotalMB === 'number' && typeof stats.systemFreeMB === 'number') {
+                const used = stats.systemTotalMB - stats.systemFreeMB;
+                aboutHeap = (used / 1024).toFixed(1) + ' / ' + (stats.systemTotalMB / 1024).toFixed(1) + ' GB';
+                aboutLive = { ...aboutLive, mem: Math.max(0, Math.min(100, Math.round((used / stats.systemTotalMB) * 100))) };
+              } else if (typeof stats.rssMB === 'number') {
+                aboutHeap = stats.rssMB + ' MB';
+              }
+              if (typeof stats.cpuPercent === 'number') {
+                aboutCpu = (Math.round(stats.cpuPercent * 10) / 10).toFixed(1);
+                aboutLive = { ...aboutLive, cpu: Math.max(0, Math.min(100, Math.round(stats.cpuPercent))) };
+              }
+              sparkHistory = [...sparkHistory, [aboutLive.mem, aboutLive.cpu] as [number, number]].slice(-44);
+            }
+          } catch {
+            /* 统计命令不可用时静默降级 */
+          }
+        }
+        if (!sparkStatsAvailable) {
+          const mem = 34 + Math.round(Math.sin(sparkTick / 3.2) * 10 + Math.sin(sparkTick / 7.7) * 4);
+          const cpu = 18 + Math.round(Math.sin(sparkTick / 4.6 + 1.4) * 9 + Math.sin(sparkTick / 11.3) * 5);
+          aboutLive = { mem, cpu };
+          sparkHistory = [...sparkHistory, [mem, cpu] as [number, number]].slice(-44);
+        }
+        drawAboutSpark(isLightTheme);
+      }, 600);
       /* 打字机标语 */
       let phrase = 0, char = 0, deleting = false;
       const typeTimer = setInterval(() => {
@@ -296,22 +500,38 @@
           if (char <= 0) { deleting = false; phrase = (phrase + 1) % aboutPhrases.length; }
         }
       }, 90);
-      /* 统计数字滚动 */
+      /* 统计数字 + 能力条滚动合并为单个 ticker */
       aboutPanelsShown = 0;
-      const countTimer = setInterval(() => {
-        aboutPanelsShown += 1;
-        if (aboutPanelsShown >= 14) clearInterval(countTimer);
-      }, 45);
+      aboutCaps.ai = 0; aboutCaps.local = 0; aboutCaps.cover = 0; aboutCaps.priv = 0;
+      const growTicker = setInterval(() => {
+        if (aboutPanelsShown < 14) aboutPanelsShown += 1;
+        let done = 0;
+        for (const k of ['ai', 'local', 'cover', 'priv'] as const) {
+          const target = aboutCapsTarget[k];
+          if (aboutCaps[k] < target) {
+            aboutCaps[k] = Math.min(target, aboutCaps[k] + Math.max(1, Math.round(target / 20)));
+          } else {
+            done += 1;
+          }
+        }
+        if (aboutPanelsShown >= 14 && done === 4) clearInterval(growTicker);
+      }, 70);
       /* 粒子网络画布 */
       let disposeCanvas: (() => void) | undefined;
       if (aboutCanvas && aboutCanvas.parentElement) {
-        disposeCanvas = startAboutCanvas(aboutCanvas, aboutCanvas.parentElement);
+        disposeCanvas = startAboutCanvas(aboutCanvas, aboutCanvas.parentElement, isLightTheme);
       }
+      const disposeTerminal = startAboutTerminal();
+      const disposeTilt = aboutStageEl ? startAboutTilt(aboutStageEl) : () => {};
+      drawAboutSpark(isLightTheme);
       return () => {
         if (aboutTimer) clearInterval(aboutTimer);
+        clearInterval(sparkTicker);
         clearInterval(typeTimer);
-        clearInterval(countTimer);
+        clearInterval(growTicker);
         if (disposeCanvas) disposeCanvas();
+        disposeTerminal();
+        disposeTilt();
       };
     }
   });
@@ -451,21 +671,27 @@
   })());
   let paletteFlat = $derived(paletteFiltered);
   let clipFiltered = $derived(clipOverlayQuery ? clipItems.filter((item) => item.text.toLowerCase().includes(clipOverlayQuery.toLowerCase())) : clipItems);
+  let titleTimer: ReturnType<typeof setTimeout> | undefined;
   $effect(() => {
-    // 结果状态实时写入窗口标题（原生标题栏，任何渲染问题都无法遮挡）
+    // 结果状态实时写入窗口标题；纯 ASCII + 500ms 节流，规避 Tauri Windows 原生标题
+    // 同步在快速连续切换时的崩溃风险，同时降低高频写入开销
     const result = currentSessionResult();
     const next = activePluginId === 'spurh.log' && logPanelStatus
-      ? `Spurh · ${__BUILD_DATE__} · 日志: ${logPanelStatus.summary} · ${logPanelStatus.chars}字符`
+      ? `Spurh ${__BUILD_DATE__} | log ${logPanelStatus.summary} | ${logPanelStatus.chars}c`
       : result
-        ? `Spurh · ${__BUILD_DATE__} · 结果: ${(result.summary || '有结果').slice(0, 24)} · ${result.output?.length ?? 0}字符`
-        : `Spurh · ${__BUILD_DATE__} · 结果: 无`;
-    if (document.title !== next) document.title = next;
+        ? `Spurh ${__BUILD_DATE__} | result ${(result.summary || 'ok').slice(0, 24)} | ${result.output?.length ?? 0}c`
+        : `Spurh ${__BUILD_DATE__} | ready`;
+    clearTimeout(titleTimer);
+    titleTimer = setTimeout(() => {
+      if (document.title !== next) document.title = next;
+    }, 500);
+    return () => clearTimeout(titleTimer);
   });
 
   $effect(() => {
     // 同步浏览器标签栏/桌面主题色
     const meta = document.querySelector('meta[name="theme-color"]');
-    const bgHex = lightMode ? '#dfe6f4' : resolvedTheme === 'aurora' ? '#060616' : resolvedTheme === 'forest' ? '#040d09' : '#04050b';
+    const bgHex = lightMode ? '#d2dbee' : resolvedTheme === 'aurora' ? '#060616' : resolvedTheme === 'forest' ? '#040d09' : '#04050b';
     if (meta) meta.setAttribute('content', bgHex);
     // body 随主题同步，避免 overscroll 露出深空色
     document.body.style.background = bgHex;
@@ -594,9 +820,18 @@
     return pluginId === 'spurh.regex' && Boolean(session.options.pattern);
   }
 
-  function scheduleProcess(pluginId = activePluginId, delay = 300): void {
+  function scheduleProcess(pluginId = activePluginId, delay = 200): void {
     const prev = timers.get(pluginId);
     if (prev) clearTimeout(prev);
+    // 大文档输入时降低实时处理频率：避免每次按键都触发大结果重新布局（654KB 文档每次布局约 200ms）
+    const session = sessions[pluginId];
+    const inputLen = session?.input?.length ?? 0;
+    // 大文档输入时降低实时处理频率，避免大结果反复重排
+    if (delay >= 200) {
+      if (inputLen > 200_000) delay = 800;
+      else if (inputLen > 50_000) delay = 550;
+      else if (inputLen > 12_000) delay = 350;
+    }
     timers.set(pluginId, setTimeout(() => processPlugin(pluginId), delay));
   }
 
@@ -652,9 +887,25 @@
     syncInputScroll();
   }
 
-  /* ── 输入区语法高亮（仅 JSON） ── */
+  /* ── 输入区语法高亮（仅 JSON，防抖异步计算避免每键同步正则） ── */
+  const INPUT_HIGHLIGHT_MAX = 24_000; // 超长输入跳过语法高亮（24K 以上开销明显）
   let inputLanguage = $derived(activePluginId === 'spurh.json' ? 'json' : 'text');
   let inputHighlightElement = $state<HTMLPreElement | undefined>(undefined);
+  let inputHighlightHtml = $state('');
+  let inputHighlightTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    const input = activeSession.input;
+    if (inputLanguage !== 'json' || input.length > INPUT_HIGHLIGHT_MAX) {
+      inputHighlightHtml = '';
+      return;
+    }
+    clearTimeout(inputHighlightTimer);
+    inputHighlightTimer = setTimeout(() => {
+      inputHighlightHtml = highlightCode(input, 'json');
+      requestAnimationFrame(syncInputScroll);
+    }, 50);
+    return () => clearTimeout(inputHighlightTimer);
+  });
 
   function handleInputChange(event: Event): void {
     changeInput((event.currentTarget as HTMLTextAreaElement).value);
@@ -754,18 +1005,18 @@
 
 const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'", '`': '`' };
     if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      // 先检查跳过：" ' ` 同时是开/闭符号，必须优先于配对插入，否则每次输入引号都会重复插入
+      const isCloser = Object.values(PAIRS).includes(event.key);
+      if (isCloser && value[start] === event.key) {
+        event.preventDefault();
+        target.selectionStart = target.selectionEnd = start + 1;
+        return;
+      }
       const openChar = PAIRS[event.key];
       if (openChar) {
         event.preventDefault();
         changeInput(value.slice(0, start) + event.key + openChar + value.slice(end));
         requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 1; });
-        return;
-      }
-      const isCloser = Object.values(PAIRS).includes(event.key);
-      if (isCloser && value[start] === event.key) {
-        // 下一个字符就是配对的闭合符号：跳过而不是重复输入
-        event.preventDefault();
-        target.selectionStart = target.selectionEnd = start + 1;
         return;
       }
     }
@@ -783,7 +1034,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 
   // to-unix 用 picker 作为输入时隐藏文本框；但文本框有内容（自动识别粘贴/手动输入）时保留可见，避免残留输入不可见
   // 时间戳面板自带紧凑输入控件，所有模式都隐藏通用大输入框
-  let hideInputPane = $derived(activePluginId === 'spurh.timestamp');
+  let hideInputPane = $derived(activePluginId === 'spurh.timestamp' || activePluginId === 'spurh.cron');
 
   function changeAction(actionId: string): void {
     // Cron 面板内配置的表达式（手写/构建）需同步到共享输入，解析/执行时间才有内容可用
@@ -793,6 +1044,14 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
         ? (activeSession.options.customExpr?.trim() || '*/5 * * * *')
         : buildExpression(activeSession.options);
       if (expr) patchSession(activePluginId, { input: expr });
+    }
+    // 加解密互切时，把上一步的结果带进输入框，保证 加密 → 解密 闭环可用
+    if (activePluginId === 'spurh.crypto' && (actionId === 'aes-encrypt' || actionId === 'aes-decrypt')) {
+      const prev = activeSession.actionId;
+      const out = activeSession.result?.output;
+      if (prev !== actionId && typeof out === 'string' && out.trim() && out !== activeSession.input) {
+        patchSession(activePluginId, { input: out, aiResult: null, aiError: '' });
+      }
     }
     patchSession(activePluginId, { actionId });
     scheduleProcess(activePluginId, 0);
@@ -847,15 +1106,29 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     scheduleProcess(target, 0);
   }
 
-  function handleDispatcherInput(value: string): void {
+  let dispatcherRouteTimer: ReturnType<typeof setTimeout> | undefined;
+  function handleDispatcherInput(value: string, instant = false): void {
     dispatcherInput = value;
     dispatchIndex = 0;
+    clearTimeout(dispatcherRouteTimer);
     if (!value.trim()) return;
     const match = runtime.dispatch(value).selected;
     if (match && match.confidence >= 0.75 && !SELF_CONTAINED_PANELS.has(match.plugin.id)) {
-      // 高置信度：立即路由执行并清空输入框，交互干脆
-      routeLive(match.plugin.id, value, match.suggestedAction);
-      dispatcherInput = '';
+      if (instant) {
+        // 粘贴等完整输入：立即路由
+        routeLive(match.plugin.id, value, match.suggestedAction);
+        dispatcherInput = '';
+        dispatchIndex = 0;
+        return;
+      }
+      // 高置信度内容：停顿后再路由并清空输入框（避免输入中途被误路由打断）
+      dispatcherRouteTimer = setTimeout(() => {
+        if (dispatcherInput.trim() === value.trim()) {
+          routeLive(match.plugin.id, value, match.suggestedAction);
+          dispatcherInput = '';
+          dispatchIndex = 0;
+        }
+      }, 450);
     } else if (match && match.confidence >= 0.5 && !SELF_CONTAINED_PANELS.has(match.plugin.id)) {
       routeLive(match.plugin.id, value, match.suggestedAction);
     }
@@ -904,7 +1177,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     event.preventDefault();
     dispatcherInput = content;
     dispatchIndex = 0;
-    handleDispatcherInput(content);
+    handleDispatcherInput(content, true);
   }
 
   function handleDispatcherKeys(event: KeyboardEvent): void {
@@ -929,7 +1202,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   }
 
   async function pasteToTool(): Promise<void> {
-    try { changeInput(await navigator.clipboard.readText()); } catch { dispatcherElement?.focus(); }
+    try { changeInput(await readClipboardText()); } catch { dispatcherElement?.focus(); }
   }
 
   /* ── 浏览器预览模式:拖拽文件直接打开分析(桌面模式请用右键菜单) ── */
@@ -986,7 +1259,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   async function copyResult(): Promise<void> {
     const result = currentSessionResult();
     if (!result) return;
-    await navigator.clipboard.writeText(result.output);
+    await copyText(result.output);
     copied = true; setTimeout(() => (copied = false), 1200);
   }
 
@@ -1000,6 +1273,9 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   }
 
   function openSettings(tab: SettingsTab = 'general', notice = ''): void {
+    paletteOpen = false;
+    clipOverlayOpen = false;
+    dispatcherElement?.blur();
     aiDraft = aiConfig ? { ...aiConfig } : createAiProfile();
     aiTestStatus = 'idle'; aiTestMessage = ''; settingsError = ''; settingsNotice = notice; settingsTab = tab; settingsOpen = true;
     recordingTool = null; recordingDispatch = false; hotkeyError = '';
@@ -1065,11 +1341,10 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 
   function handleWindowResize(): void {
     if (window.innerWidth <= 850) {
-      // 窄窗口下若用户从未主动展开：自动收起侧栏，避免浮层遮挡工作区
+      // 窄窗口下若用户从未主动展开：自动收起侧栏，避免浮层遮挡工作区（不持久化，回到宽窗口自动恢复）
       if (!sidebarUserNarrowChoice && sidebarOpen) {
         sidebarOpen = false;
         sidebarAutoCollapsed = true;
-        saveAppSettings({ sidebarOpen });
       }
     } else if (window.innerWidth > 850 && sidebarAutoCollapsed) {
       // 恢复宽窗口：仅当侧栏是被自动收起时重新展开，尊重用户手动选择
@@ -1127,8 +1402,9 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 
   async function loadRemoteModels(): Promise<void> {
     modelListLoading = true; aiTestStatus = 'idle'; aiTestMessage = '';
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('拉取超时（25 秒），请检查网络与接口地址')), 25000));
     try {
-      modelList = await fetchAiModels(aiDraft);
+      modelList = await Promise.race([fetchAiModels(aiDraft), timeout]);
       aiTestStatus = 'success';
       aiTestMessage = modelList.length ? `已拉取 ${modelList.length} 个模型` : '连接成功，列表为空';
       if (!aiDraft.model && modelList[0]) aiDraft = { ...aiDraft, model: modelList[0].id };
@@ -1138,18 +1414,24 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 
   async function testConnection(): Promise<void> {
     aiTestStatus = 'testing'; aiTestMessage = '';
-    try { aiTestMessage = await testAiConnection(aiDraft); modelList = await fetchAiModels(aiDraft); aiTestStatus = 'success'; }
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('连接超时（25 秒），请检查网络与接口地址')), 25000));
+    try { aiTestMessage = await Promise.race([testAiConnection(aiDraft), timeout]); modelList = await fetchAiModels(aiDraft); aiTestStatus = 'success'; }
     catch (cause) { aiTestMessage = cause instanceof Error ? cause.message : String(cause); aiTestStatus = 'error'; }
   }
 
-  function saveAiSettings(): void {
+  async function saveAiSettings(): Promise<void> {
     const profile: AiProfile = { ...aiDraft, name: aiDraft.name.trim() || aiDraft.model.trim() || '未命名模型', endpoint: aiDraft.endpoint.trim().replace(/\/$/, ''), model: aiDraft.model.trim() };
     const exists = aiStore.profiles.some((item) => item.id === profile.id);
     const profiles = exists ? aiStore.profiles.map((item) => item.id === profile.id ? profile : item) : [...aiStore.profiles, profile];
     aiStore = { profiles, activeId: profile.id };
-    saveProfileSecret(profile); // API Key 写入系统钥匙串，localStorage 只存非敏感字段
-    saveAiProfileStore(aiStore); settingsNotice = ''; aiDraft = { ...profile };
-    aiTestMessage = '配置已保存'; aiTestStatus = 'success';
+    saveAiProfileStore(aiStore);
+    try {
+      await saveProfileSecret(profile); // API Key 写入系统钥匙串，localStorage 只存非敏感字段
+      settingsNotice = ''; aiDraft = { ...profile };
+      aiTestMessage = '配置已保存'; aiTestStatus = 'success';
+    } catch (cause) {
+      aiTestMessage = '密钥写入系统钥匙串失败：' + (cause instanceof Error ? cause.message : String(cause)); aiTestStatus = 'error';
+    }
   }
 
   function scrollToLatestStream() {
@@ -1453,32 +1735,27 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 
 <div class:light={lightMode} class:aurora={auroraMode} class:forest={forestMode} class="app" style={`--app-font-size: ${appSettings.fontSize}px; --app-font-family: ${FONT_STACKS[appSettings.fontFamily] ?? FONT_STACKS['系统默认']}`}>
   <header class="app-bar">
+    <button class="sidebar-toggle" onclick={toggleSidebar} aria-label="切换侧栏" title="显示或隐藏侧栏">{@html UI_ICONS.menu}</button>
     <button class="brand" onclick={toggleSidebar} aria-label="Spurh" title="Spurh 工具箱">
       <span class="brand-mark">{@html BRAND_MARK}</span>
     </button>
     <div class="dispatcher">
-        <span class="dispatcher-spark">{@html UI_ICONS.sparkle}</span>
-        <input bind:this={dispatcherElement} bind:value={dispatcherInput} oninput={(event) => handleDispatcherInput(event.currentTarget.value)} onpaste={handleDispatcherPaste} onkeydown={handleDispatcherKeys} onfocus={() => (dispatcherOpen = true)} onblur={() => (dispatcherOpen = false)} placeholder="粘贴内容，Spurh 自动路由到正确工具…" />
+        <span class="dispatcher-spark" class:active={dispatcherOpen}>{@html UI_ICONS.sparkle}</span>
+        <input bind:this={dispatcherElement} bind:value={dispatcherInput} oninput={(event) => handleDispatcherInput(event.currentTarget.value)} onpaste={handleDispatcherPaste} onkeydown={handleDispatcherKeys} onfocus={() => (dispatcherOpen = true)} onblur={() => (dispatcherOpen = false)} placeholder="搜索工具或粘贴内容…" />
         {#if dispatcherOpen}
           <div class="dispatch-matches" class:passive={!dispatcherInput.trim()} role="listbox" aria-label="工具候选列表" tabindex="-1" onmousedown={(event) => { if (!(event.target as HTMLElement).closest('button')) dispatcherElement?.blur(); }}>
             {#if dispatcherInput.trim()}
               <div class="dispatch-header">
                 <span><i></i>智能路由引擎</span>
-                <small>{dispatcherCandidates.length} 个候选 · 内容识别 + 工具搜索</small>
+                <small>{dispatcherCandidates.length} 个候选</small>
               </div>
               {#if dispatcherCandidates.length === 0}
                 <div class="dispatch-empty">没有匹配的工具或内容 — 继续输入，或按 Esc 关闭</div>
               {:else}
                 {#each dispatcherCandidates as item, i}
-                  <button class:active={dispatchIndex === i} title={item.reason || item.plugin.description} onmousedown={(event) => event.preventDefault()} onclick={() => routeContent(dispatcherInput.trim(), i)}>
+                  <button class:active={dispatchIndex === i} onmousedown={(event) => event.preventDefault()} onclick={() => routeContent(dispatcherInput.trim(), i)}>
                     <span class="match-icon">{@html iconHtml(item.plugin.icon)}</span>
-                    <span class="match-main">
-                      <b>{item.plugin.name}</b>
-                      <small>{item.reason || item.plugin.description}</small>
-                    </span>
-                    {#if item.confidence !== null}
-                      <span class="match-score"><i class="match-bar" style={`width:${Math.round(item.confidence * 100)}%`}></i><em>{Math.round(item.confidence * 100)}%</em></span>
-                    {/if}
+                    <span class="match-main"><b>{item.plugin.name}</b><small>{item.plugin.description}</small></span>
                     {#if dispatchIndex === i}<i class="match-enter">↵</i>{/if}
                   </button>
                 {/each}
@@ -1500,7 +1777,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
             {/if}
           </div>
         {/if}
-        <kbd>{dispatchHotkeyLabel}</kbd>
+
     </div>
     <div class="app-actions">
       {#if aiStore.profiles.length}
@@ -1523,19 +1800,14 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   <div class:sidebar-hidden={!sidebarOpen} class="app-body">
     <aside class="sidebar">
       <div class="side-heading"><small>{visiblePlugins.length} 个工具</small><button class="side-manage" title="管理工具显示与隐藏" onclick={() => openSettings('tools')}>{@html UI_ICONS.sliders}<span>显示/隐藏</span></button></div>
-      <label class="tool-search"><span>{@html UI_ICONS.search}</span><input bind:value={toolSearch} placeholder="搜索" /></label>
+      <label class="tool-search"><span>{@html UI_ICONS.search}</span><input bind:value={toolSearch} placeholder="搜索" onkeydown={(event) => { if (event.key === 'Escape') toolSearch = ''; }} />{#if toolSearch}<button class="tool-search-clear" onclick={() => (toolSearch = '')} aria-label="清除搜索" title="清除搜索">{@html UI_ICONS.close}</button>{/if}</label>
       <div class="category-tabs">
         {#each categories as item}<button class:active={category === item} onclick={() => (category = item)}>{item}</button>{/each}
       </div>
       <nav class="tool-list">
         {#each visiblePlugins as plugin}
-          {@const realIndex = plugins.indexOf(plugin)}
           <button class:active={activePluginId === plugin.id} onclick={() => selectPlugin(plugin.id)}>
-            <span class="tool-icon">{@html iconHtml(plugin.icon)}</span><span class="tool-name"><b>{plugin.name}</b><small>{plugin.description}</small></span>
-            {#if realIndex >= 0 && realIndex < 9}
-              {@const binding = appSettings.toolHotkeys[String(realIndex)] ?? `alt+${realIndex + 1}`}
-              {#if appSettings.sidebarShortcuts && binding && binding !== 'off' && binding !== ''}<kbd class="tool-kbd">{formatHotkey(binding)}</kbd>{/if}
-            {/if}
+            <span class="tool-icon">{@html iconHtml(plugin.icon)}</span><span class="tool-name"><b>{plugin.name}</b></span>
           </button>
         {/each}
       </nav>
@@ -1607,7 +1879,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
         <section class="editor-pane">
           <header><div><span>输入</span><small>{activeSession.input.length} 字符</small></div><button onclick={pasteToTool}>粘贴</button></header>
           <div class="editor-input" class:hli={inputLanguage === 'json'}>
-            {#if inputLanguage === 'json'}<pre class="input-hl" bind:this={inputHighlightElement} aria-hidden="true">{@html highlightCode(activeSession.input, 'json')}</pre>{/if}
+            {#if inputLanguage === 'json' && activeSession.input.length <= INPUT_HIGHLIGHT_MAX}<pre class="input-hl" bind:this={inputHighlightElement} aria-hidden="true">{@html inputHighlightHtml}</pre>{/if}
             <textarea bind:this={inputElement} value={activeSession.input} oninput={handleInputChange} onkeydown={handleInputKeys} onscroll={syncInputScroll} spellcheck="false" placeholder="输入或粘贴内容…"></textarea>
           </div>
         </section>
@@ -1638,7 +1910,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <ResultView result={currentSessionResult()!} />
               {/if}
             {:else}
-              <div class="output-empty"><span class="tool-icon large">{@html iconHtml(activePlugin.icon)}</span><b>等待输入</b><p>输入内容后自动处理</p></div>
+              <div class="output-empty"><span class="tool-icon large">{@html iconHtml(activePlugin.icon)}</span><b>等待输入</b></div>
             {/if}
           </div>
         </section>
@@ -1668,7 +1940,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <button class:active={paletteFlat.indexOf(item) === paletteIndex} onmousedown={(event) => event.preventDefault()} onclick={() => runPaletteItem(item)}>
                   <span class="palette-item-icon">{@html iconHtml(item.icon)}</span>
                   <b>{item.label}</b>
-                  <small>{item.hint}</small>
                   {#if paletteFlat.indexOf(item) === paletteIndex}<i>↵</i>{/if}
                 </button>
               {/each}
@@ -1720,15 +1991,15 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 
   {#if settingsOpen}
     <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) settingsOpen = false; }}>
-      <div class="settings-modal" role="dialog" aria-modal="true">
-        <header class="settings-header"><div class="modal-icon">{@html UI_ICONS.settings}</div><div><h2>设置</h2><p>外观、系统、AI 与快捷键</p></div><button onclick={() => (settingsOpen = false)} aria-label="关闭">{@html UI_ICONS.close}</button></header>
+      <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
+        <header class="settings-header"><div class="modal-icon">{@html UI_ICONS.settings}</div><div><h2>设置</h2></div><button onclick={() => (settingsOpen = false)} aria-label="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">
           <nav class="settings-nav">
-            <button class:active={settingsTab === 'general'} onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b><small>主题 · 启动 · 托盘</small></div></button>
-            <button class:active={settingsTab === 'ai'} onclick={() => (settingsTab = 'ai')}><span>{@html UI_ICONS.sparkle}</span><div><b>AI 模型</b><small>服务商配置</small></div></button>
-            <button class:active={settingsTab === 'shortcuts'} onclick={() => (settingsTab = 'shortcuts')}><span>{@html UI_ICONS.keyboard}</span><div><b>快捷键</b><small>全局绑定</small></div></button>
-            <button class:active={settingsTab === 'tools'} onclick={() => (settingsTab = 'tools')}><span>{@html UI_ICONS.grid}</span><div><b>工具</b><small>显示与隐藏</small></div></button>
-            <button class:active={settingsTab === 'about'} onclick={() => (settingsTab = 'about')}><span>{@html UI_ICONS.info}</span><div><b>关于</b><small>版本信息</small></div></button>
+            <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b></div></button>
+            <button class:active={settingsTab === 'ai'} title="服务商配置" onclick={() => { settingsTab = 'ai'; aiTestStatus = 'idle'; aiTestMessage = ''; }}><span>{@html UI_ICONS.sparkle}</span><div><b>AI 模型</b></div></button>
+            <button class:active={settingsTab === 'shortcuts'} title="全局绑定" onclick={() => (settingsTab = 'shortcuts')}><span>{@html UI_ICONS.keyboard}</span><div><b>快捷键</b></div></button>
+            <button class:active={settingsTab === 'tools'} title="显示与隐藏" onclick={() => (settingsTab = 'tools')}><span>{@html UI_ICONS.grid}</span><div><b>工具</b></div></button>
+            <button class:active={settingsTab === 'about'} title="版本信息" onclick={() => (settingsTab = 'about')}><span>{@html UI_ICONS.info}</span><div><b>关于</b></div></button>
           </nav>
           <section class="settings-content">
             {#if settingsNotice}<div class="settings-notice"><span>{@html UI_ICONS.info}</span>{settingsNotice}</div>{/if}
@@ -1763,9 +2034,9 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               </div>
               <label class="setting-row"><div class="setting-copy"><b>开机启动</b></div><input type="checkbox" checked={autostartEnabled} disabled={settingsBusy === 'autostart'} onchange={(event) => changeAutostart(event.currentTarget.checked)} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>系统托盘</b></div><input type="checkbox" checked={appSettings.trayEnabled} disabled={settingsBusy === 'tray'} onchange={(event) => changeTray(event.currentTarget.checked)} /><i></i></label>
+              <label class="setting-row"><div class="setting-copy"><b>侧栏默认展开</b><small>启动时默认显示左侧工具栏（窄窗口下自动收起）</small></div><input type="checkbox" checked={sidebarOpen} onchange={(event) => { sidebarOpen = event.currentTarget.checked; sidebarAutoCollapsed = false; if (sidebarOpen && window.innerWidth <= 850) sidebarUserNarrowChoice = true; saveAppSettings({ sidebarOpen }); }} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>系统右键菜单</b><small>在资源管理器中“用 Spurh 打开”</small></div><input type="checkbox" checked={contextMenuEnabled} disabled={settingsBusy === 'contextMenu'} onchange={(event) => changeContextMenu(event.currentTarget.checked)} /><i></i></label>
               <label class="setting-row"><div class="setting-copy"><b>剪贴板历史</b><small>自动记录复制的文本（含密码等敏感内容，注意隐私）</small></div><input type="checkbox" checked={appSettings.clipboardWatch} disabled={settingsBusy === 'clipboard'} onchange={(event) => changeClipboardWatch(event.currentTarget.checked)} /><i></i></label>
-              <label class="setting-row"><div class="setting-copy"><b>菜单栏显示快捷键</b><small>在左侧工具列表显示 Alt+1..9 快捷提示（默认隐藏）</small></div><input type="checkbox" checked={appSettings.sidebarShortcuts} onchange={(event) => saveAppSettings({ sidebarShortcuts: event.currentTarget.checked })} /><i></i></label>
               {#if settingsError}<div class="settings-error">{settingsError}</div>{/if}
             {/if}
             {#if settingsTab === 'tools'}
@@ -1773,9 +2044,9 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               <div class="tool-visibility-grid">
                 {#each plugins as plugin}
                   {@const hidden = appSettings.hiddenTools.includes(plugin.id)}
-                  <label class="setting-row compact" class:off={hidden} title={plugin.description}>
+                  <label class="setting-row compact" class:off={hidden}>
                     <span class="tool-icon small">{@html iconHtml(plugin.icon)}</span>
-                    <span class="visibility-copy"><b>{plugin.name}</b><small>{plugin.category}</small></span>
+                    <span class="visibility-copy"><b>{plugin.name}</b></span>
                     <input type="checkbox" checked={!hidden} onchange={(event) => { const next = event.currentTarget.checked ? appSettings.hiddenTools.filter((id) => id !== plugin.id) : [...appSettings.hiddenTools, plugin.id]; saveAppSettings({ hiddenTools: next }); }} /><i></i>
                   </label>
                 {/each}
@@ -1783,6 +2054,12 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
             {/if}
             {#if settingsTab === 'ai'}
               <div class="settings-section-title model-title"><div><h3>AI 模型</h3></div><button onclick={addAiProfile}><span>{@html UI_ICONS.plus}</span>添加</button></div>
+              {#if aiStore.profiles.length === 0}
+                <div class="settings-ai-empty">
+                  <span>{@html UI_ICONS.sparkle}</span>
+                  <div><b>尚未配置 AI 服务商</b><small>配置后，AI 处理 / 生成 / 分析 / 解释等功能会自动启用。填写服务商信息，点击「测试」验证连通性，再「保存」即可。</small></div>
+                </div>
+              {/if}
               <div class="profile-list">
                 {#each aiStore.profiles as profile}
                   <button class:active={aiDraft.id === profile.id} onclick={() => editAiProfile(profile.id)}>
@@ -1808,7 +2085,10 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                   {/if}
                   <button disabled={modelListLoading || !aiDraft.endpoint} onclick={loadRemoteModels}><span>{@html UI_ICONS.refresh}</span>{modelListLoading ? '拉取中…' : '拉取模型'}</button>
                 </div></label>
-                <label><span>密钥</span><input type="password" bind:value={aiDraft.apiKey} placeholder={aiDraft.provider === 'ollama' ? '可留空' : 'sk-…'} autocomplete="off" /></label>
+                <label><span>密钥</span><span class="ai-secret">
+                  <input type={aiKeyVisible ? 'text' : 'password'} bind:value={aiDraft.apiKey} placeholder={aiDraft.provider === 'ollama' ? '可留空' : 'sk-…'} autocomplete="off" />
+                  <button class="ai-secret-toggle" onclick={() => (aiKeyVisible = !aiKeyVisible)} title={aiKeyVisible ? '隐藏密钥' : '显示密钥'}>{@html aiKeyVisible ? UI_ICONS.eyeOff : UI_ICONS.eye}</button>
+                </span></label>
               </div>
               {#if aiTestStatus !== 'idle'}<div class:success={aiTestStatus === 'success'} class:error={aiTestStatus === 'error'} class="test-result">{aiTestMessage}</div>{/if}
               <div class="settings-ai-actions">
@@ -1827,7 +2107,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                   {@const enabled = binding !== 'off' && binding !== ''}
                   <div class="shortcut-row" class:recording={recordingTool === i}>
                     <span class="tool-icon small">{@html iconHtml(plugin.icon)}</span>
-                    <span class="shortcut-name"><b>{plugin.name}</b><small>{enabled ? `当前：${formatHotkey(binding)}` : '未分配快捷键'}</small></span>
+                    <span class="shortcut-name"><b>{plugin.name}</b></span>
                     <button class="hk-record" class:recording={recordingTool === i} onclick={() => (recordingTool === i ? cancelRecord() : startRecordTool(i))} title="点击后按下新组合键">
                       {recordingTool === i ? '按下组合键…' : enabled ? formatHotkey(binding) : '未分配'}
                     </button>
@@ -1843,7 +2123,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 {/each}
                 <div class="shortcut-row" class:recording={recordingDispatch}>
                   <span class="tool-icon small">{@html UI_ICONS.search}</span>
-                  <span class="shortcut-name"><b>聚焦搜索框</b><small>{dispatchHotkey !== 'off' ? `当前：${formatHotkey(dispatchHotkey)}` : '未分配快捷键'}</small></span>
+                  <span class="shortcut-name"><b>聚焦搜索框</b></span>
                   <button class="hk-record" class:recording={recordingDispatch} onclick={() => (recordingDispatch ? cancelRecord() : startRecordDispatch())} title="点击后按下新组合键">
                     {recordingDispatch ? '按下组合键…' : dispatchHotkey !== 'off' ? formatHotkey(dispatchHotkey) : '未分配'}
                   </button>
@@ -1853,10 +2133,10 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                   </label>
                 </div>
               </div>
-              <div class="shortcuts-note">快捷键在系统全局生效，即使 Spurh 在后台也能唤起。Ctrl+Shift+Space 固定用于显示窗口，不可修改。</div>
+              <div class="shortcuts-note">快捷键在系统全局生效，即使 Spurh 在后台也能唤起。Ctrl+Shift+Space 为内置窗口唤起组合，默认同时用于聚焦搜索框，可在此修改。</div>
             {/if}
             {#if settingsTab === 'about'}
-              <div class="about-stage">
+              <div class="about-stage" bind:this={aboutStageEl}>
                 <div class="about-aurora" aria-hidden="true"></div>
                 <div class="about-orb about-orb-a" aria-hidden="true"></div>
                 <div class="about-orb about-orb-b" aria-hidden="true"></div>
@@ -1865,34 +2145,70 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <div class="about-cols">
                   <div class="about-col-left">
                     <div class="about-hero">
-                      <span class="brand-mark large about-logo">{@html BRAND_MARK}</span>
-                      <div><h3>Spurh</h3><p class="about-type">{aboutTagline}<span class="about-caret" aria-hidden="true"></span></p></div>
+                      <span class="about-logo-wrap"><i class="about-logo-cone" aria-hidden="true"></i><i class="about-logo-ring" aria-hidden="true"></i><span class="brand-mark large about-logo">{@html BRAND_MARK}</span></span>
+                      <div><h3 class="about-title">Spurh</h3><p class="about-type">{aboutTagline}<span class="about-caret" aria-hidden="true"></span></p></div>
                     </div>
-                    <div class="about-chips"><span>Svelte 5</span><span>Tauri 2</span><span>Rust</span><span>TypeScript</span><span>AI Native</span><span>本地优先</span></div>
+                    <div class="about-chips"><span style="--i:0">Svelte 5</span><span style="--i:1">Tauri 2</span><span style="--i:2">Rust</span><span style="--i:3">TypeScript</span><span style="--i:4">AI Native</span><span style="--i:5">本地优先</span></div>
                     <div class="about-note"><b>本地优先 · AI 增强</b><p>所有工具在本地运行，数据不出设备；AI 能力按需接入，帮助生成、解释、修复与提炼，让重复工作一步完成。</p></div>
-                    <div class="about-actions">
-                      <a href="https://github.com/gokeep-projects/spurh" target="_blank" rel="noreferrer">{@html UI_ICONS.shield}<span>GitHub 仓库</span></a>
-                      <button onclick={() => (settingsNotice = `已是最新版本 v0.1.0`)}>{@html UI_ICONS.refresh}<span>检查更新</span></button>
-                    </div>
-                    <footer class="about-foot">© 2026 Spurh · Made with ❤ by xuning</footer>
-                  </div>
-                  <div class="about-col-right">
-                    <div class="about-version">
-                      <b>v0.1.0</b><small>latest</small>
-                      <i class="about-uptime"><span class="pulse-dot"></span>已运行 {formatUptime(aboutUptime)}</i>
-                      <i class="about-clock">{aboutClock}</i>
-                    </div>
                     <div class="about-grid">
                       <article><small>作者</small><b>xuning</b></article>
                       <article><small>版本</small><b>0.1.0</b></article>
                       <article><small>内置工具</small><b>{aboutPanelsShown} 个面板</b></article>
                       <article><small>许可</small><b>MIT</b></article>
                     </div>
-                    <div class="about-caps">
-                      <article><span>AI 增强</span><i><b style="--w:94%"></b></i><em>94%</em></article>
-                      <article><span>本地性能</span><i><b style="--w:96%"></b></i><em>96%</em></article>
-                      <article><span>工具覆盖</span><i><b style="--w:92%"></b></i><em>92%</em></article>
-                      <article><span>隐私安全</span><i><b style="--w:98%"></b></i><em>98%</em></article>
+                    <div class="about-actions">
+                      <a href="https://github.com/gokeep-projects/spurh" target="_blank" rel="noreferrer">{@html UI_ICONS.shield}<span>GitHub 仓库</span></a>
+                      <button onclick={() => (settingsNotice = `已是最新版本 v0.1.0（构建 ${BUILD_STAMP}）`)}>{@html UI_ICONS.refresh}<span>检查更新</span></button>
+                    </div>
+                    <footer class="about-foot">© 2026 Spurh · Made with ❤ by xuning</footer>
+                    <div class="about-term" aria-hidden="true">
+                      <header><i class="term-dot term-red"></i><i class="term-dot term-yellow"></i><i class="term-dot term-green"></i><b>spurh · 实时终端</b></header>
+                      <div class="about-term-body">
+                        {#each termLines as line}<p class={line.cls}>{line.text}</p>{/each}
+                        {#if termTyping}<p class={termTyping.cls}>{termTyping.text}<b class="term-caret"></b></p>{/if}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="about-col-right">
+                    <div class="about-status">
+                      <span class="about-radar" aria-hidden="true"><i class="radar-sweep"></i></span>
+                      <div><b>引擎在线</b><small>本地服务运行正常 · 响应实时</small></div>
+                      <span class="about-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+                    </div>
+                    <div class="about-version">
+                      <div class="about-ver-head"><b>v0.1.0</b><small>构建 {BUILD_STAMP}</small></div>
+                      <div class="about-metrics">
+                        <span><em>系统内存</em><b>{aboutHeap}</b></span>
+                        <span><em>系统 CPU</em><b>{aboutCpu}%</b></span>
+                        <span><em>已运行</em><b>{formatUptime(aboutUptime)}</b></span>
+                      </div>
+                      <canvas bind:this={aboutSpark} class="about-spark" aria-hidden="true"></canvas>
+                      <i class="about-clock">{aboutClock}</i>
+                    </div>
+                    <div class="about-rings">
+                      <div class="about-ring live" title="实时系统内存占用">
+                        <svg viewBox="0 0 44 44" style="color: #22d3ee" aria-hidden="true">
+                          <circle class="ring-track" cx="22" cy="22" r="17.5"></circle>
+                          <circle class="ring-fill" cx="22" cy="22" r="17.5" stroke="#22d3ee" stroke-dasharray="110" stroke-dashoffset={110 - (110 * aboutLive.mem) / 100}></circle>
+                        </svg>
+                        <b>{aboutLive.mem}%</b><small>内存占用</small>
+                      </div>
+                      <div class="about-ring live" title="实时 CPU 占用">
+                        <svg viewBox="0 0 44 44" style="color: #8b5cf6" aria-hidden="true">
+                          <circle class="ring-track" cx="22" cy="22" r="17.5"></circle>
+                          <circle class="ring-fill" cx="22" cy="22" r="17.5" stroke="#8b5cf6" stroke-dasharray="110" stroke-dashoffset={110 - (110 * aboutLive.cpu) / 100}></circle>
+                        </svg>
+                        <b>{aboutLive.cpu}%</b><small>CPU 占用</small>
+                      </div>
+                      {#each aboutRingList as ring}
+                        <div class="about-ring" title={ring.l}>
+                          <svg viewBox="0 0 44 44" style={`color: ${ring.c}`} aria-hidden="true">
+                            <circle class="ring-track" cx="22" cy="22" r="17.5"></circle>
+                            <circle class="ring-fill" cx="22" cy="22" r="17.5" stroke={ring.c} stroke-dasharray="110" stroke-dashoffset={110 - (110 * aboutCaps[ring.k]) / 100}></circle>
+                          </svg>
+                          <b>{aboutCaps[ring.k]}%</b><small>{ring.l}</small>
+                        </div>
+                      {/each}
                     </div>
                     <div class="about-ticker" aria-hidden="true">
                       <span class="about-ticker-track">{#each aboutToolNames as n}<i>{n}</i>{/each}{#each aboutToolNames as n}<i>{n}</i>{/each}</span>

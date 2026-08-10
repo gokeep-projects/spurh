@@ -11,7 +11,28 @@
 
   let showSecret = $state(false);
 
-  const GROUPS: Array<{ label: string; icon: string; items: Array<{ id: string; label: string; hint: string }> }> = [
+  /** 当前动作是否需要密钥但未填写 → 面板内给出醒目标识 */
+  const secretEmpty = $derived(!(session.options.secret ?? '').trim());
+
+  /** 各动作的输入引导，让每个动作“该填什么”一目了然 */
+  const ACTION_HINTS: Record<string, string> = {
+    'aes-encrypt': '在下方输入明文并填写密钥：AES-256-GCM 加密，密钥取前 32 字节。',
+    'aes-decrypt': '在下方粘贴 Base64 密文并填写密钥；密钥不符会解密失败。',
+    'rsa-gen': '无需输入，点击后自动生成 2048 位 RSA-OAEP 密钥对。',
+    'jwt-decode': '在下方粘贴 JWT 令牌，自动解析 Header 与 Payload。',
+    'jwt-verify': '在下方粘贴 JWT 并填写 HMAC 签名密钥进行验签。',
+    'jwt-gen': '在下方输入 JSON Payload 并填写 HMAC 签名密钥。',
+    'MD5': '在下方输入文本自动计算摘要；留空则计算空串摘要。',
+    'SHA-1': '在下方输入文本自动计算摘要；留空则计算空串摘要。',
+    'SHA-256': '在下方输入文本自动计算摘要；留空则计算空串摘要。',
+    'SHA-512': '在下方输入文本自动计算摘要；留空则计算空串摘要。',
+    'HMAC-SHA256': '在下方输入文本并填写密钥，自动计算 HMAC 摘要。',
+    'HMAC-SHA512': '在下方输入文本并填写密钥，自动计算 HMAC 摘要。',
+  };
+
+  const currentHint = $derived(ACTION_HINTS[session.actionId] ?? '');
+
+  const GROUPS: Array<{ label: string; icon: string; wide?: boolean; items: Array<{ id: string; label: string; hint: string }> }> = [
     {
       label: 'AES',
       icon: UI_ICONS.key,
@@ -23,6 +44,7 @@
     {
       label: '密钥',
       icon: UI_ICONS.lock,
+      wide: true,
       items: [{ id: 'rsa-gen', label: 'RSA 密钥对', hint: '2048 位' }],
     },
     {
@@ -47,6 +69,7 @@
     {
       label: 'HMAC',
       icon: UI_ICONS.shield,
+      wide: true,
       items: [
         { id: 'HMAC-SHA256', label: 'HMAC-SHA256', hint: '需要密钥' },
         { id: 'HMAC-SHA512', label: 'HMAC-SHA512', hint: '需要密钥' },
@@ -58,15 +81,17 @@
 </script>
 
 <div class="crypto-panel">
-  <div class="crypto-groups">
+  <div class="crypto-grid">
     {#each GROUPS as group}
-      <div class="crypto-group">
+      <div class="crypto-group" class:wide={group.wide}>
         <span class="crypto-grp-label">{@html group.icon}<b>{group.label}</b></span>
-        {#each group.items as item}
-          <button class:active={session.actionId === item.id} title={item.hint} onclick={() => onChangeAction(item.id)}>
-            {item.label}
-          </button>
-        {/each}
+        <span class="crypto-btns">
+          {#each group.items as item}
+            <button class:active={session.actionId === item.id} title={item.hint} onclick={() => onChangeAction(item.id)}>
+              {item.label}
+            </button>
+          {/each}
+        </span>
       </div>
     {/each}
   </div>
@@ -82,33 +107,49 @@
       <div class="control-spacer"></div>
       <button class="crypto-clear" onclick={onClear}>清空</button>
     </div>
-  {:else}
-    <div class="crypto-note">输入内容后自动处理；哈希与摘要仅需输入文本。</div>
+    {#if secretEmpty}
+      <p class="crypto-hint warn"><b>⚠ 该操作需要密钥</b>，未填写将无法执行；密钥仅用于本地运算，不会离开本机。</p>
+    {/if}
   {/if}
+  <p class="crypto-hint">{currentHint}<span class="crypto-copy-tip">结果自动显示在下方结果区，可一键复制。</span></p>
 </div>
 
 <style>
   .crypto-panel { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
-  .crypto-groups { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
-  .crypto-group { display: flex; gap: 3px; align-items: center; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
-  .crypto-grp-label { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; margin: 0 4px; white-space: nowrap; }
+  .crypto-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; min-width: 0; }
+  .crypto-group { min-width: 0; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 4px; padding: 6px 8px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  .crypto-grp-label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
   /* svelte-ignore css_unused_selector */
   .crypto-grp-label :global(svg) { width: 13px; height: 13px; }
-  .crypto-group button { height: 26px; padding: 0 10.5px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 0; border-radius: 6px; background: transparent; white-space: nowrap; transition: all .15s ease; }
+  .crypto-btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; min-width: 0; min-height: 52px; }
+  .crypto-group.wide .crypto-btns { grid-template-columns: 1fr; }
+  .crypto-group button { width: 100%; min-width: 0; height: 28px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 0; border-radius: 8px; background: transparent; white-space: nowrap; transition: all .15s ease; overflow: hidden; text-overflow: ellipsis; }
   .crypto-group button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
   .crypto-group button:hover:not(.active) { color: var(--text); background: var(--hover); }
-  .crypto-key-row { display: flex; gap: 8px; align-items: center; }
+  @media (max-width: 1100px) {
+    .crypto-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 720px) {
+    .crypto-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1281px) {
+    .crypto-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  }
+  .crypto-key-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .crypto-key-row label { display: flex; align-items: center; gap: 6px; }
   .crypto-key-row label > span { color: var(--muted); font-size: var(--fs-xs); }
-  .secret-wrap { position: relative; display: flex; align-items: center; }
-  .secret-wrap input { height: 32px; width: min(26vw, 260px); padding: 0 34px 0 10px; color: var(--text); font: 500 13.5px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: var(--bg); }
+  .secret-wrap { position: relative; display: flex; align-items: center; min-width: 0; }
+  .secret-wrap input { height: 30px; width: min(26vw, 260px); max-width: 100%; padding: 0 34px 0 10px; color: var(--text); font: 500 13.5px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--bg); }
   .secret-wrap input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .secret-toggle { position: absolute; right: 4px; width: 26px; height: 26px; display: grid; place-items: center; cursor: pointer; font-size: var(--fs-xs); border: 0; border-radius: 5px; background: transparent; }
+  .secret-toggle { position: absolute; right: 4px; width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; font-size: var(--fs-xs); border: 0; border-radius: 8px; background: transparent; }
   /* svelte-ignore css_unused_selector */
   .secret-toggle :global(svg) { width: 14px; height: 14px; }
   .secret-toggle:hover { background: var(--hover); }
-  .crypto-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid transparent; border-radius: 6px; background: transparent; }
+  .crypto-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid transparent; border-radius: 8px; background: transparent; }
   .crypto-clear:hover { color: var(--text); border-color: var(--line); }
-  .crypto-note { color: var(--muted-2); font-size: var(--fs-sm); }
+  .crypto-hint { margin: 0; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.7; }
+  .crypto-hint.warn { color: var(--warn); }
+  .crypto-hint.warn b { font-weight: 700; }
+  .crypto-copy-tip { margin-left: 6px; color: var(--muted-2); }
   .control-spacer { flex: 1; }
 </style>

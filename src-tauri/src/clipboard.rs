@@ -1,4 +1,4 @@
-﻿// 剪贴板历史：后台监听 + 写入 + 历史快照
+// 剪贴板历史：后台监听 + 写入 + 历史快照
 use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,

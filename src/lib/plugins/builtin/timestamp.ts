@@ -73,9 +73,11 @@ export const timestampPlugin: SpurhPlugin = {
     if (actionId === 'to-unix') {
       const raw = (options.pickDateTime ?? '').trim();
       const typed = input.trim().replace(/^(?:timestamp|时间戳)[:：]\s*/i, '');
+      // 仅当共享输入确实像日期时才优先使用，避免其他模式残留的时间戳文本被误解析
+      const dateLike = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(typed);
       const fromPicker = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
       let date: Date;
-      if (typed) {
+      if (typed && dateLike) {
         // 文本框内容优先（粘贴/输入日期），避免被 picker 默认值覆盖
         const parts = matchDateParts(typed);
         if (parts) {
@@ -98,7 +100,7 @@ export const timestampPlugin: SpurhPlugin = {
       } else {
         date = new Date(localDatetimeValue().replace('T', ' '));
       }
-      if (Number.isNaN(date.getTime())) throw new Error(`无法解析日期 "${typed || raw}"，请用 YYYY-MM-DD HH:mm 格式`);
+      if (Number.isNaN(date.getTime())) throw new Error(`无法解析日期 "${dateLike ? typed : raw}"，请用 YYYY-MM-DD HH:mm 格式`);
       return toResult(date, actionId);
     }
     // to-date：支持纯时间戳、日志行（含日期时间或数字）等任意文本

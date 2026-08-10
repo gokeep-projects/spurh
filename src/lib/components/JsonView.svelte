@@ -7,12 +7,7 @@
   const lineCount = $derived(jsonString.split('\n').length);
 
   // 折叠状态：节点路径 -> boolean。路径编码：对象 $['key']（含转义），数组 $[0]，保证无歧义
-  let collapsed = $state<Set<string>>(new Set());
-  // 深层结构（第 3 层起）与超大数组/对象默认折叠，避免大 JSON 一次性全部展开
-  const DEEP_FOLD = 2;
-  const MAX_ARRAY_OPEN = 500;
-  const MAX_OBJECT_OPEN = 300;
-
+  // 折叠状态：节点路径 -> boolean。路径编码：对象 $['key']（含转义），数组 $[0]，保证无歧义
   function childPath(path: string, key: string): string {
     return `${path}['${key.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}']`;
   }
@@ -20,20 +15,7 @@
     return `${path}[${index}]`;
   }
 
-  // 搜索时：匹配节点的祖先强制展开（即使原折叠），不修改 collapsed 本身
-  const matchAncestors = $derived.by(() => {
-    const set = new Set<string>();
-    for (const path of matchPaths) {
-      for (const ancestor of ancestorPaths(path)) set.add(ancestor);
-    }
-    return set;
-  });
-
-  function isCollapsed(path: string): boolean {
-    return collapsed.has(path) && !matchAncestors.has(path);
-  }
-
-  // 首次渲染后把「隐式折叠」的节点物化进 collapsed，保证 toggle 语义一致（点展开真展开）
+  // 自动折叠策略：超大数组 / 深层对象默认收起，避免初次渲染卡顿
   function collectAutoFold(value: unknown, path: string, depth: number, out: Set<string>): void {
     if (Array.isArray(value)) {
       if (value.length === 0) return;
@@ -57,27 +39,46 @@
     }
   }
 
-  // JSON 变化时重置折叠：深层节点默认折叠；此后用户手动 toggle 的状态不会被覆盖
-  $effect(() => {
-    if (parsed != null) {
-      const next = new Set<string>();
-      collectAutoFold(parsed, '$', 0, next);
-      collapsed = next;
-    }
+  const DEEP_FOLD = 2;
+  const MAX_ARRAY_OPEN = 500;
+  const MAX_OBJECT_OPEN = 300;
+
+  let userCollapsed = $state<Set<string>>(new Set());
+  let userExpanded = $state<Set<string>>(new Set());
+  const autoFolded = $derived.by(() => {
+    const set = new Set<string>();
+    if (parsed != null) collectAutoFold(parsed, '$', 0, set);
+    return set;
   });
 
+  function isCollapsed(path: string): boolean {
+    if (userExpanded.has(path)) return false;
+    if (userCollapsed.has(path)) return true;
+    return autoFolded.has(path);
+  }
+
   function toggle(path: string): void {
-    const next = new Set(collapsed);
-    if (next.has(path)) next.delete(path); else next.add(path);
-    collapsed = next;
+    if (isCollapsed(path)) {
+      userExpanded = new Set(userExpanded).add(path);
+      const collapsed = new Set(userCollapsed);
+      collapsed.delete(path);
+      userCollapsed = collapsed;
+    } else {
+      userCollapsed = new Set(userCollapsed).add(path);
+      const expanded = new Set(userExpanded);
+      expanded.delete(path);
+      userExpanded = expanded;
+    }
   }
 
   function foldAll(): void {
-    collapsed = collectPaths(parsed, '$');
+    userCollapsed = collectPaths(parsed, '$');
+    userExpanded = new Set();
   }
 
   function unfoldAll(): void {
-    collapsed = new Set();
+    userExpanded = collectPaths(parsed, '$');
+    userCollapsed = new Set();
   }
 
   function collectPaths(value: unknown, path: string): Set<string> {
@@ -163,7 +164,8 @@
 
   let copied = $state(false);
   async function copyJson(): Promise<void> {
-    try { await navigator.clipboard.writeText(jsonString); copied = true; setTimeout(() => (copied = false), 1200); } catch { /* ignore */ }
+    const { copyText } = await import('../env');
+    await copyText(jsonString); copied = true; setTimeout(() => (copied = false), 1200);
   }
 
   function previewKeys(value: Record<string, unknown>): string {
@@ -182,33 +184,33 @@
   }
 </script>
 
-{#snippet node(value: unknown, path: string, depth: number, key?: string)}
+{#snippet node(value: unknown, path: string, depth: number, key?: string, comma = false)}
   {#if value === null}
     <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
       {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
-      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-null">null</span></span>
+      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-null">null</span>{#if comma}<span class="jv-comma">,</span>{/if}</span>
     </div>
   {:else if value === undefined}
     <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
       {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
-      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-null">—</span></span>
+      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-null">—</span>{#if comma}<span class="jv-comma">,</span>{/if}</span>
     </div>
   {:else if typeof value === 'boolean'}
     <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
       {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
-      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bool">{value}</span></span>
+      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bool">{value}</span>{#if comma}<span class="jv-comma">,</span>{/if}</span>
     </div>
   {:else if typeof value === 'number'}
     <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
       {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
-      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-num">{value}</span></span>
+      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-num">{value}</span>{#if comma}<span class="jv-comma">,</span>{/if}</span>
     </div>
   {:else if typeof value === 'string'}
     {@const s = value as string}
     {@const d = s.length > 160 ? s.slice(0, 160) + '…' : s}
     <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
       {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
-      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-str">"{d}"</span>{#if s.length > 160}<em class="jv-len">{s.length}</em>{/if}</span>
+      <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-str">"{d}"</span>{#if s.length > 160}<em class="jv-len">{s.length}</em>{/if}{#if comma}<span class="jv-comma">,</span>{/if}</span>
     </div>
   {:else if Array.isArray(value)}
     {@const arr = value as unknown[]}
@@ -216,7 +218,7 @@
     {#if arr.length === 0}
       <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
         {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
-        <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bracket">[ ]</span></span>
+        <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bracket">[ ]</span>{#if comma}<span class="jv-comma">,</span>{/if}</span>
       </div>
     {:else}
       <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
@@ -231,9 +233,9 @@
       </div>
       {#if !f}
         {#each arr as item, i}
-          {@render node(item, indexPath(path, i), depth + 1)}
+          {@render node(item, indexPath(path, i), depth + 1, undefined, i < arr.length - 1)}
         {/each}
-        <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content"><span class="jv-bracket">]</span></span></div>
+        <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content"><span class="jv-bracket">]</span>{#if comma}<span class="jv-comma">,</span>{/if}</span></div>
       {/if}
     {/if}
   {:else if typeof value === 'object'}
@@ -243,7 +245,7 @@
     {#if ks.length === 0}
       <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
         {#if key != null}<span class="jv-fold ph" aria-hidden="true"></span>{/if}
-        <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bracket">{'{ }'}</span></span>
+        <span class="jv-content">{#if key != null}<span class="jv-key">"{key}"</span><span class="jv-colon">: </span>{/if}<span class="jv-bracket">{'{ }'}</span>{#if comma}<span class="jv-comma">,</span>{/if}</span>
       </div>
     {:else}
       <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px">
@@ -257,10 +259,10 @@
         </span>
       </div>
       {#if !f}
-        {#each ks as k}
-          {@render node(obj[k], childPath(path, k), depth + 1, k)}
+        {#each ks as k, i}
+          {@render node(obj[k], childPath(path, k), depth + 1, k, i < ks.length - 1)}
         {/each}
-        <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content"><span class="jv-bracket">{'}'}</span></span></div>
+        <div class="jv-row" class:match={isMatch(path)} class:current={isCurrent(path)} style="padding-left:{depth * 14}px"><span class="jv-fold ph" aria-hidden="true"></span><span class="jv-content"><span class="jv-bracket">{'}'}</span>{#if comma}<span class="jv-comma">,</span>{/if}</span></div>
       {/if}
     {/if}
   {:else}
@@ -300,16 +302,16 @@
   .jv-toolbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); }
   .jv-count { color: var(--muted-2); font-size: var(--fs-xs); }
   .jv-tools { display: flex; gap: 2px; }
-  .jv-tools button { height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 0; border-radius: 4px; background: transparent; }
+  .jv-tools button { height: 28px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 0; border-radius: 8px; background: transparent; }
   .jv-tools button:hover { color: var(--accent); background: var(--hover); }
   .jv-tools button.copied { color: var(--accent); }
   .jv-search { display: flex; align-items: center; gap: 3px; margin-left: auto; margin-right: 8px; }
-  .jv-search input { width: 150px; height: 22px; padding: 0 8px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line); border-radius: 5px; outline: 0; background: var(--bg); }
+  .jv-search input { width: 150px; height: 28px; padding: 0 9px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--bg); }
   .jv-search input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
   .jv-search input::placeholder { color: var(--muted-2); }
-  .jv-search button { height: 22px; min-width: 22px; padding: 0 6px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 0; border-radius: 4px; background: transparent; }
+  .jv-search button { height: 28px; min-width: 26px; padding: 0 6px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 0; border-radius: 8px; background: transparent; }
   .jv-search button:hover { color: var(--accent); background: var(--hover); }
-  .jv-search-count { color: var(--accent); font: 500 9.6px 'Cascadia Code', monospace; white-space: nowrap; }
+  .jv-search-count { color: var(--accent); font: 500 11px 'Cascadia Code', monospace; white-space: nowrap; }
   .jv-row.match { background: color-mix(in srgb, var(--warn) 16%, transparent); }
   .jv-row.current { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
   .jv-scroll { min-height: 0; flex: 1; overflow: auto; padding: 4px 0 14px; }
@@ -329,6 +331,7 @@
   :global(.app.light) .jv-bool { color: #a34e00; }
   :global(.app.light) .jv-null { color: #6b7681; }
   .jv-colon { color: var(--muted-2); }
+  .jv-comma { color: var(--muted-2); }
   .jv-bracket { color: var(--muted-2); }
   .jv-ellipsis { color: var(--muted); font-style: italic; margin: 0 5px; font-size: var(--fs-xs); }
   .jv-preview { margin-left: 8px; color: var(--muted-2); font-size: var(--fs-xs); opacity: .8; }

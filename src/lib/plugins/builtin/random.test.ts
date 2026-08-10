@@ -25,6 +25,18 @@ describe('random plugin', () => {
     expect(r.output).not.toMatch(/[a-z]/);
   });
 
+  it('uuid/hex/color respect caseType', async () => {
+    const u = await runtime.execute('spurh.random', 'uuid', '', { count: '1', caseType: 'upper' });
+    expect(u.output).toMatch(/^[0-9A-F-]{36}$/);
+    expect(u.output).not.toMatch(/[a-f]/);
+    const h = await runtime.execute('spurh.random', 'hex', '', { length: '16', count: '1', caseType: 'upper' });
+    expect(h.output).toMatch(/^[0-9A-F]{16}$/);
+    const l = await runtime.execute('spurh.random', 'hex', '', { length: '16', count: '1', caseType: 'lower' });
+    expect(l.output).toMatch(/^[0-9a-f]{16}$/);
+    const c = await runtime.execute('spurh.random', 'color', '', { countColor: '1', caseType: 'upper' });
+    expect(c.output).toMatch(/^#[0-9A-F]{6}$/);
+  });
+
   it('colors use the colors view with hex data', async () => {
     const r = await runtime.execute('spurh.random', 'color', '', { count: '5' });
     expect(r.view).toBe('colors');

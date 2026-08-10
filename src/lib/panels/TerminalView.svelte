@@ -3,7 +3,7 @@
   import { Terminal } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
   import { Channel } from '@tauri-apps/api/core';
-  import { safeInvoke } from '../env';
+  import { isTauri, safeInvoke } from '../env';
   import '@xterm/xterm/css/xterm.css';
 
   type SshEvent = { kind: string; data?: string | null; message?: string | null };
@@ -35,6 +35,10 @@
   let connected = false;
   let connecting = false;
   let disposed = false;
+  /** 会话在 ready 前已退出（服务器拒绝 shell 等情况），防止后续 ready 误报已连接 */
+  let sessionDead = false;
+  /** 终端区遮罩提示：连接失败 / 已断开 / 浏览器预览模式 */
+  let banner = $state<{ kind: 'error' | 'disconnected' | 'preview'; message: string } | null>(null);
   let fontSize = $state<number>(loadFontSize());
 
   function loadFontSize(): number {
@@ -52,16 +56,51 @@
     return getComputedStyle(app).getPropertyValue(name).trim() || fallback;
   }
 
+  /** 深色主题：深底浅字，高饱和亮色（默认） */
+  const DARK_PALETTE = {
+    black: '#0b0f14', red: '#f5637a', green: '#5ee8a5', yellow: '#e6c36a', blue: '#5ec8f0',
+    magenta: '#d8a6ff', cyan: '#5fd7d4', white: '#d7dde3', brightBlack: '#7a8794',
+    brightRed: '#ff8fa0', brightGreen: '#8af0bd', brightYellow: '#f2d98f', brightBlue: '#8fd8f7',
+    brightMagenta: '#e6c0ff', brightCyan: '#8fe7e4', brightWhite: '#eef2f5',
+  };
+  /** 浅色主题：浅底深字，ANSI 颜色加深保证命令输出可读 */
+  const LIGHT_PALETTE = {
+    black: '#24292f', red: '#cf222e', green: '#116329', yellow: '#9a6700', blue: '#0969da',
+    magenta: '#8250df', cyan: '#1b7c83', white: '#57606a', brightBlack: '#6e7781',
+    brightRed: '#a40e26', brightGreen: '#1a7f37', brightYellow: '#633c01', brightBlue: '#218bff',
+    brightMagenta: '#a475f9', brightCyan: '#3192aa', brightWhite: '#24292f',
+  };
+  /** 极光主题：深色紫调 */
+  const AURORA_PALETTE = {
+    black: '#0e1029', red: '#f472b6', green: '#6ee7b7', yellow: '#fcd34d', blue: '#93c5fd',
+    magenta: '#c4b5fd', cyan: '#67e8f9', white: '#e2e8f0', brightBlack: '#8b90c9',
+    brightRed: '#fda4af', brightGreen: '#a7f3d0', brightYellow: '#fde68a', brightBlue: '#bfdbfe',
+    brightMagenta: '#ddd6fe', brightCyan: '#a5f3fc', brightWhite: '#f8fafc',
+  };
+  /** 护眼主题：深色绿调 */
+  const FOREST_PALETTE = {
+    black: '#0a1f16', red: '#fb7185', green: '#34d399', yellow: '#fbbf24', blue: '#38bdf8',
+    magenta: '#86efac', cyan: '#2dd4bf', white: '#d1e7dd', brightBlack: '#6b9180',
+    brightRed: '#fda4af', brightGreen: '#6ee7b7', brightYellow: '#fde047', brightBlue: '#7dd3fc',
+    brightMagenta: '#bbf7d0', brightCyan: '#5eead4', brightWhite: '#ecfdf5',
+  };
+
   function currentTheme(): Record<string, string> {
+    const app = document.querySelector('.app');
+    const classes = app?.className ?? '';
+    const palette = classes.includes('light')
+      ? LIGHT_PALETTE
+      : classes.includes('aurora')
+        ? AURORA_PALETTE
+        : classes.includes('forest')
+          ? FOREST_PALETTE
+          : DARK_PALETTE;
     return {
       background: cssVar('--bg', '#080b0e'),
       foreground: cssVar('--text', '#e4e9ef'),
       cursor: cssVar('--accent', '#5ee8a5'),
       selectionBackground: cssVar('--accent-soft', 'rgba(94,232,165,.3)'),
-      black: '#0b0f14', red: '#f5637a', green: '#5ee8a5', yellow: '#e6c36a', blue: '#5ec8f0',
-      magenta: '#d8a6ff', cyan: '#5fd7d4', white: '#d7dde3', brightBlack: '#7a8794',
-      brightRed: '#ff8fa0', brightGreen: '#8af0bd', brightYellow: '#f2d98f', brightBlue: '#8fd8f7',
-      brightMagenta: '#e6c0ff', brightCyan: '#8fe7e4', brightWhite: '#eef2f5',
+      ...palette,
     };
   }
 
@@ -83,27 +122,54 @@
 
   async function connect(): Promise<void> {
     if (!term || connected || connecting || disposed) return;
+    if (!isTauri) {
+      // 浏览器预览模式没有 Tauri IPC：给出明确提示，而不是卡死或报底层错误
+      banner = { kind: 'preview', message: '浏览器预览模式没有桌面能力，无法建立 SSH 连接。请运行 npm run tauri dev 打开桌面版使用远程终端。' };
+      onState(session.id, { status: 'error', message: '浏览器预览模式无法使用 SSH，请运行 npm run tauri dev 打开桌面版' });
+      return;
+    }
     connecting = true;
+    sessionDead = false;
+    banner = null;
     onState(session.id, { status: 'connecting', message: '正在连接 ' + session.host + ':' + session.port + ' …' });
     try {
       channel = new Channel<SshEvent>();
       channel.onmessage = (event) => {
-      if (event.kind === 'ready') {
-        connected = true;
-        connecting = false;
-        onState(session.id, { status: 'connected' });
-        requestAnimationFrame(() => fit());
-      } else if (event.kind === 'data' && event.data) {
-        pushData(event.data);
-      } else if (event.kind === 'exit') {
-        connected = false;
-        connecting = false;
-        onState(session.id, { status: 'disconnected', message: event.message ?? '连接已关闭' });
-      } else if (event.kind === 'error') {
-        connected = false;
-        connecting = false;
-        onState(session.id, { status: 'error', message: event.message ?? '连接失败' });
-      }
+        if (event.kind === 'ready') {
+          if (sessionDead) {
+            // 会话在 ready 前已退出：立即关闭，避免界面误报“已连接”但终端无响应
+            safeInvoke('ssh_close', { sessionId: session.id }).catch(() => undefined);
+            return;
+          }
+          connected = true;
+          connecting = false;
+          banner = null;
+          onState(session.id, { status: 'connected' });
+          requestAnimationFrame(() => fit());
+        } else if (event.kind === 'data' && event.data) {
+          pushData(event.data);
+        } else if (event.kind === 'exit') {
+          const wasConnected = connected;
+          connected = false;
+          connecting = false;
+          const message = event.message ?? '连接已关闭';
+          if (!wasConnected) {
+            // 尚未 ready 就退出（服务器拒绝 PTY/Shell 或立即断开）按连接失败处理
+            sessionDead = true;
+            banner = { kind: 'error', message };
+            onState(session.id, { status: 'error', message });
+          } else {
+            banner = { kind: 'disconnected', message };
+            onState(session.id, { status: 'disconnected', message });
+          }
+        } else if (event.kind === 'error') {
+          connected = false;
+          connecting = false;
+          sessionDead = true;
+          const message = event.message ?? '连接失败';
+          banner = { kind: 'error', message };
+          onState(session.id, { status: 'error', message });
+        }
       };
       await safeInvoke('ssh_connect', {
         sessionId: session.id,
@@ -111,8 +177,8 @@
           host: session.host,
           port: session.port,
           user: session.user,
-          cols: term.cols,
-          rows: term.rows,
+          cols: Math.max(2, term.cols),
+          rows: Math.max(2, term.rows),
           authType: session.authType,
           password: session.password,
           keyPath: session.keyPath,
@@ -128,7 +194,10 @@
     } catch (cause) {
       connected = false;
       connecting = false;
-      onState(session.id, { status: 'error', message: cause instanceof Error ? cause.message : String(cause) });
+      sessionDead = true;
+      const message = cause instanceof Error ? cause.message : String(cause);
+      banner = { kind: 'error', message };
+      onState(session.id, { status: 'error', message });
     }
   }
 
@@ -158,17 +227,19 @@
 
   function copySelection(): void {
     const selection = term?.getSelection();
-    if (selection) navigator.clipboard.writeText(selection).catch(() => undefined);
+    if (selection) {
+      import('../env').then(({ copyText }) => copyText(selection)).catch(() => undefined);
+    }
   }
 
   function pasteText(): void {
-    navigator.clipboard.readText()
-      .then((text) => {
+    import('../env').then(({ readClipboardText }) =>
+      readClipboardText().then((text) => {
         if (text && connected) {
           safeInvoke('ssh_write', { sessionId: session.id, data: toBase64(text) }).catch(() => undefined);
         }
-      })
-      .catch(() => undefined);
+      }),
+    ).catch(() => undefined);
   }
 
   // 仅活动标签页建立连接：切换标签时新标签自动连接，旧标签保持不断开
@@ -255,6 +326,13 @@
   </div>
   <div class="term-wrap" bind:this={wrapEl}>
     <div class="term-box" bind:this={termEl}></div>
+    {#if banner}
+      <div class="term-banner" class:error={banner.kind === 'error'} class:preview={banner.kind === 'preview'}>
+        <b>{banner.kind === 'error' ? '连接失败' : banner.kind === 'preview' ? '浏览器预览模式' : '已断开'}</b>
+        <p>{banner.message}</p>
+        <button onclick={() => { banner = null; connect(); }}>重新连接</button>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -262,11 +340,18 @@
   .term-pane { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; }
   .term-pane.inactive { display: none; }
   .term-toolbar { height: 30px; flex: 0 0 auto; display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .term-toolbar button { height: 21px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-tiny); border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
+  .term-toolbar button { height: 26px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-tiny); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   .term-toolbar button:hover { color: var(--text); border-color: var(--line-2); }
   .term-toolbar i { width: 1px; height: 14px; margin: 0 3px; background: var(--line); }
-  .term-toolbar .term-font { min-width: 22px; color: var(--muted-2); font: 500 12px 'Cascadia Code', monospace; text-align: center; }
-  .term-wrap { min-width: 0; min-height: 0; flex: 1; display: flex; }
+  .term-toolbar .term-font { min-width: 22px; color: var(--muted-2); font: 500 var(--fs-xs) 'Cascadia Code', monospace; text-align: center; }
+  .term-wrap { min-width: 0; min-height: 0; flex: 1; display: flex; position: relative; }
   .term-box { min-width: 0; min-height: 0; flex: 1; padding: 8px 10px; overflow: hidden; background: var(--bg); }
   .term-box :global(.xterm) { height: 100%; }
+  .term-banner { position: absolute; inset: 8px; z-index: 10; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 20px; text-align: center; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); }
+  .term-banner.preview { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+  .term-banner b { color: var(--danger); font-size: var(--fs-sm); }
+  .term-banner.preview b { color: var(--accent); }
+  .term-banner p { margin: 0; max-width: 420px; color: var(--muted); font-size: var(--fs-xs); line-height: 1.7; }
+  .term-banner button { height: 28px; padding: 0 14px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 8px; background: var(--btn-gradient); }
+  .term-banner.preview button { display: none; }
 </style>
