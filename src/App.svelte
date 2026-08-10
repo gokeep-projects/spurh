@@ -925,7 +925,7 @@
       // 括号深度：光标前未闭合的 { [ (（忽略字符串字面量），决定新行缩进层级
       const openQuote = (beforeCursor.match(/"/g) || []).length % 2 === 1;
       let level = 0;
-      let hasOpener = false;
+      let dLine = 0;
       if (!openQuote) {
         const depthOf = (src: string): number => {
           let d = 0;
@@ -936,11 +936,13 @@
           return d;
         };
         const stripStr = (src: string): string => src.replace(/"(\\.|[^"\\])*"/g, '');
-        const dLine = depthOf(stripStr(value.slice(0, lineStart)));
+        dLine = depthOf(stripStr(value.slice(0, lineStart)));
         const dCursor = depthOf(stripStr(value.slice(0, start)));
         level = Math.max(0, dCursor - dLine);
-        const lastChar = beforeCursor.trimEnd().slice(-1);
-        hasOpener = !!lastChar && '{[('.includes(lastChar);
+      }
+      // 光标位于纯空白行且该行缩进与结构深度不符：以结构深度为基准，保证 `{` 后新行正确缩进
+      if (/^[\t ]*$/.test(beforeCursor) && afterCursor.length === 0 && level === 0 && dLine * 2 > indent.length) {
+        indent = '  '.repeat(dLine);
       }
       // 光标后紧跟闭合括号（自动配对场景）：闭合括号单独换行到外层缩进，光标停在中间
       const closeMatch = afterCursor.match(/^\s*([}\])])/);
@@ -952,7 +954,7 @@
         requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 1 + newIndent.length; });
         return;
       }
-      const newIndent = indent + '  '.repeat(level + (hasOpener ? 1 : 0));
+      const newIndent = indent + '  '.repeat(level);
       // 光标行是纯空白且下一行以闭合括号开头：跳出到闭合括号的缩进
       if (/^[\t ]*$/.test(beforeCursor)) {
         const nextLineEnd = value.indexOf('\n', lineEndPos + 1);
