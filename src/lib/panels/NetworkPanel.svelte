@@ -172,6 +172,9 @@
   let tcpSending = $state(false);
   let tcpError = $state('');
   let tcpResult = $state<TcpSendResult | null>(null);
+  let tcpSessionId = $state('');
+  let tcpConnecting = $state(false);
+  const tcpConnected = $derived(!!tcpSessionId);
 
   async function sendTcp(): Promise<void> {
     const port = Number(tcpPort);
@@ -184,13 +187,26 @@
     }
     tcpSending = true; tcpError = ''; tcpResult = null;
     try {
-      tcpResult = await safeInvoke<TcpSendResult>('net_tcp_send', {
-        host: tcpHost.trim(), port, protocol: tcpProtocol, data: tcpData, hex: tcpHexMode, timeoutMs: 4000,
-      });
+      if (tcpProtocol === 'tcp' && !tcpSessionId) {
+        // 未连接时先自动建立连接
+        tcpConnecting = true;
+        tcpSessionId = await safeInvoke<string>('net_tcp_open', { host: tcpHost.trim(), port, timeoutMs: 4000 });
+      }
+      if (tcpProtocol === 'tcp') {
+        tcpResult = await safeInvoke<TcpSendResult>('net_tcp_write', {
+          sessionId: tcpSessionId, data: tcpData, hex: tcpHexMode, timeoutMs: 4000,
+        });
+      } else {
+        tcpResult = await safeInvoke<TcpSendResult>('net_tcp_send', {
+          host: tcpHost.trim(), port, protocol: tcpProtocol, data: tcpData, hex: tcpHexMode, timeoutMs: 4000,
+        });
+      }
     } catch (cause) {
       tcpError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      tcpConnecting = false;
+      tcpSending = false;
     }
-    tcpSending = false;
   }
 
   /** 快捷载荷：按场景填充常用报文 */
@@ -218,6 +234,28 @@
   }
 
 
+  /** 建立 TCP 长连接 */
+  async function openTcp(): Promise<void> {
+    const port = Number(tcpPort);
+    if (!tcpHost.trim()) { tcpError = '请输入目标主机地址'; return; }
+    if (!Number.isInteger(port) || port < 1 || port > 65535) { tcpError = '端口无效（1-65535）'; return; }
+    tcpConnecting = true; tcpError = '';
+    try {
+      tcpSessionId = await safeInvoke<string>('net_tcp_open', { host: tcpHost.trim(), port, timeoutMs: 5000 });
+    } catch (cause) {
+      tcpError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      tcpConnecting = false;
+    }
+  }
+
+  /** 断开 TCP 长连接 */
+  async function closeTcp(): Promise<void> {
+    const id = tcpSessionId;
+    tcpSessionId = '';
+    if (id) safeInvoke('net_tcp_close', { sessionId: id }).catch(() => undefined);
+  }
+
   /** 一键复制全部开放端口（逗号分隔） */
   function copyPorts(): void {
     if (openPorts.length === 0) return;
@@ -233,12 +271,17 @@
   const TRACE_HOP_GAP = 104;     // 节点垂直间距
   const TRACE_NODE_L = 300;      // 左侧节点 x
   const TRACE_NODE_R = 560;      // 右侧节点 x
-  let traceHost = $state('www.baidu.com');
+  let traceHost = $state('127.0.0.1');
   let tracing = $state(false);
   let traceHops = $state<TraceHop[]>([]);
   let traceError = $state('');
   let localInfo = $state<LocalInfo | null>(null);
   let traceElapsed = $state(0);
+  let traceZoom = $state(1);
+  const MIN_ZOOM = 0.5, MAX_ZOOM = 2;
+  function zoomTrace(delta: number): void {
+    traceZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round((traceZoom + delta) * 10) / 10));
+  }
 
   onMount(() => {
     if (!isTauri) {
@@ -400,6 +443,16 @@ const MIME_TYPES: Array<[string, string]> = [
             <option value="udp">UDP</option>
           </select>
         </label>
+        {#if tcpProtocol === 'tcp'}
+          {#if tcpConnected}
+            <span class="net-conn-status" title="长连接已建立，可多次发送数据"><i></i>已连接 {tcpHost.trim()}:{Number(tcpPort) || '?'}</span>
+            <button class="net-run ghost" onclick={closeTcp} title="断开当前长连接">断开</button>
+          {:else}
+            <button class="net-run ghost" class:busy={tcpConnecting} disabled={tcpConnecting} onclick={openTcp} title="建立 TCP 长连接，之后可多次发送数据">
+              <span class="net-dot"></span>{tcpConnecting ? '连接中…' : '连接'}
+            </button>
+          {/if}
+        {/if}
         <label class="net-field grow net-data"><span>数据</span><textarea rows={tcpHexMode ? 2 : 4} value={tcpData} oninput={(e) => (tcpData = e.currentTarget.value)} placeholder="要发送的内容，如 GET / HTTP/1.1" spellcheck="false" onkeydown={(e) => e.ctrlKey && e.key === 'Enter' && sendTcp()}></textarea><small class="net-data-hint">Ctrl+Enter 发送 · 支持多行报文</small></label>
         <label class="tcp-hex"><input type="checkbox" checked={tcpHexMode} onchange={(e) => (tcpHexMode = e.currentTarget.checked)} />HEX</label>
         <button class="net-run" class:busy={tcpSending} disabled={tcpSending} onclick={sendTcp} title="发送数据并等待响应">
@@ -407,7 +460,7 @@ const MIME_TYPES: Array<[string, string]> = [
         </button>
         {#if tcpResult}<span class="net-summary">{tcpResult.elapsedMs} ms</span>{/if}
       {:else if tab === 'trace'}
-        <label class="net-field grow"><span>目标</span><input value={traceHost} oninput={(e) => (traceHost = e.currentTarget.value)} placeholder="www.baidu.com" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && runTrace()} /></label>
+        <label class="net-field grow"><span>目标</span><input value={traceHost} oninput={(e) => (traceHost = e.currentTarget.value)} placeholder="127.0.0.1 或目标域名" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && runTrace()} /></label>
         <button class="net-run" class:busy={tracing} disabled={tracing} onclick={runTrace} title="实时追踪到目标主机的路由">
           <span class="net-dot"></span>{tracing ? '追踪中…' : '开始追踪'}
         </button>
@@ -557,9 +610,15 @@ const MIME_TYPES: Array<[string, string]> = [
         <div class="net-result-title">
           <span>{tracing ? `正在实时追踪 ${traceHost}…` : `到 ${traceHost} 的链路拓扑`}</span>
           <small>{traceProbing || `${traceHops.length} 跳 · ${traceElapsed} ms · ${traceReached ? '已到达目标' : '目标未到达'}`}</small>
+          <span class="topo-zoom">
+            <button onclick={() => zoomTrace(-0.2)} title="缩小" disabled={traceZoom <= MIN_ZOOM}>−</button>
+            <b>{Math.round(traceZoom * 100)}%</b>
+            <button onclick={() => zoomTrace(0.2)} title="放大" disabled={traceZoom >= MAX_ZOOM}>＋</button>
+            <button onclick={() => (traceZoom = 1)} title="重置缩放" disabled={traceZoom === 1}>⟳</button>
+          </span>
         </div>
         <div class="topo-wrap">
-          <svg class="trace-topo" viewBox="0 0 {TRACE_W} {traceSvgH}" role="img" aria-label="链路拓扑图">
+          <svg class="trace-topo" style={traceZoom !== 1 ? `transform: scale(${traceZoom}); transform-origin: top left;` : ''} viewBox="0 0 {TRACE_W} {traceSvgH}" role="img" aria-label="链路拓扑图">
             <defs>
               <filter id="topo-blur"><feGaussianBlur stdDeviation="4"/></filter>
             </defs>
@@ -829,4 +888,12 @@ const MIME_TYPES: Array<[string, string]> = [
   .tcp-payloads button.ghost { color: var(--muted); border-style: solid; border-color: var(--line); }
   .tcp-payloads button.ghost:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 6%, transparent); }
 
+  .topo-zoom { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+  .topo-zoom button { width: 24px; height: 24px; display: grid; place-items: center; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 1px solid var(--line); border-radius: 7px; background: var(--bg); transition: all .15s ease; }
+  .topo-zoom button:hover:not(:disabled) { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .topo-zoom button:disabled { opacity: .35; cursor: default; }
+  .topo-zoom b { min-width: 38px; text-align: center; color: var(--muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+  .net-conn-status { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; color: var(--c-green); font-size: var(--fs-xs); font-weight: 600; border: 1px solid color-mix(in srgb, var(--c-green) 35%, var(--line)); border-radius: 999px; background: color-mix(in srgb, var(--c-green) 8%, transparent); white-space: nowrap; }
+  .net-conn-status i { width: 7px; height: 7px; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 8px var(--c-green); animation: net-pulse 1.2s ease-in-out infinite; }
+  .trace-topo { max-width: 100%; transition: transform .2s ease; }
 </style>

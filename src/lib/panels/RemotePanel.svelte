@@ -4,10 +4,22 @@
   import { UI_ICONS, TOOL_ICONS, iconHtml } from '../icons';
   import { deleteSecret, getSecret, setSecret } from '../secrets';
   import { base64ToBytes, decodeExecResult, escPath } from '../remoteExec';
+  import { processWithAi, type AiConfig } from '../ai';
   import TerminalView, { type RemoteSession } from './TerminalView.svelte';
 
   const STORAGE_KEY = 'spurh.remote.sessions.v1';
   const TABS_KEY = 'spurh.remote.tabs.v1';
+  const SIDE_KEY = 'spurh.remote.sideCollapsed.v1';
+
+  let { aiConfig }: { aiConfig?: AiConfig | undefined } = $props();
+
+  function loadSideCollapsed(): boolean {
+    try { return localStorage.getItem(SIDE_KEY) === '1'; } catch { return false; }
+  }
+  function toggleSide(): void {
+    sideCollapsed = !sideCollapsed;
+    try { localStorage.setItem(SIDE_KEY, sideCollapsed ? '1' : '0'); } catch { /* ignore */ }
+  }
 
   function loadTabs(): { openTabs: string[]; activeId: string } {
     try {
@@ -152,13 +164,20 @@
     { label: '磁盘占用', cmd: 'df -h' },
     { label: '内存', cmd: 'free -m' },
     { label: '运行时长', cmd: 'uptime' },
+    { label: '系统信息', cmd: 'uname -a' },
     { label: '当前目录', cmd: 'pwd' },
     { label: '当前用户', cmd: 'whoami' },
     { label: '目录列表', cmd: 'ls -la' },
-    { label: '系统信息', cmd: 'uname -a' },
     { label: '进程 TOP', cmd: 'top -bn1 | head -20' },
   ];
-  let quickOpen = $state(false);
+  const QUICK_PRIMARY = QUICK_COMMANDS.slice(0, 4);
+  const QUICK_SECONDARY = QUICK_COMMANDS.slice(4);
+  let sideCollapsed = $state(loadSideCollapsed());
+  let quickMore = $state(false);
+  let aiCmdOpen = $state(false);
+  let aiCmdInput = $state('');
+  let aiCmdBusy = $state(false);
+  let aiCmdError = $state('');
   let sysPanel = $state(false);
   let sysInfo = $state('');
   let sysLoading = $state(false);
@@ -342,12 +361,41 @@
 
   /** 向已连接会话发送一条命令（模拟输入 + 回车） */
   function runQuick(cmd: string): void {
-    quickOpen = false;
+    quickMore = false;
     if (!active || activeStatus.status !== 'connected') return;
     const bytes = new TextEncoder().encode(cmd + '\r');
     let binary = '';
     for (const byte of bytes) binary += String.fromCharCode(byte);
     safeInvoke('ssh_write', { sessionId: active.id, data: btoa(binary) }).catch(() => undefined);
+  }
+
+  /** AI 命令助手：自然语言 → shell 命令 → 发送到终端 */
+  async function aiCommand(): Promise<void> {
+    const text = aiCmdInput.trim();
+    if (!text) return;
+    if (!aiConfig || !aiConfig.apiKey) {
+      aiCmdError = '未配置 AI 模型，请到 设置 → AI 模型 配置后使用';
+      return;
+    }
+    aiCmdBusy = true; aiCmdError = '';
+    try {
+      const result = await processWithAi(aiConfig, text, {
+        tool: 'SSH 远程命令',
+        action: '生成 Linux shell 命令',
+        expectJson: false,
+        userPrompt: '根据用户的自然语言需求，生成一条安全、简洁、单行的 Linux shell 命令。只输出命令本身，不要解释、不要多行脚本、不要 markdown 代码块。如果需求含糊，选择最常见且安全的实现。',
+      }, () => undefined);
+      let cmd = result.output.trim();
+      cmd = cmd.replace(/^```(bash|sh|shell)?s*/i, '').replace(/```s*$/, '').trim();
+      if (!cmd) { aiCmdError = 'AI 未生成有效命令'; return; }
+      runQuick(cmd);
+      aiCmdInput = '';
+      aiCmdOpen = false;
+    } catch (cause) {
+      aiCmdError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      aiCmdBusy = false;
+    }
   }
 
   function statusLabel(state: SessionState): string {
@@ -361,9 +409,29 @@
   }
 </script>
 
-<div class="remote-panel">
-  <aside class="remote-side">
-    <div class="remote-side-head"><b>会话</b><button class="remote-add" title="新建会话" onclick={addSession}><span>{@html UI_ICONS.plus}</span></button></div>
+<div class="remote-panel" style={"grid-template-columns: " + (sideCollapsed ? "46px" : "232px") + " minmax(0, 1fr)"}>
+  <aside class="remote-side" class:collapsed={sideCollapsed}>
+    {#if sideCollapsed}
+      <div class="remote-side-rail">
+        <button class="remote-collapse" onclick={toggleSide} title="展开会话列表"><span>▶</span></button>
+        <button class="remote-add" title="新建会话" onclick={addSession}><span>{@html UI_ICONS.plus}</span></button>
+        <div class="remote-rail-list">
+          {#each sessions.slice(0, 40) as item}
+            <button class="rs-mini" class:active={activeId === item.id} onclick={() => select(item.id)} title={(item.name || item.host) + ' · ' + item.host + ':' + item.port}>
+              <span class="rs-mini-char">{(item.name || item.host || '?').charAt(0).toUpperCase()}</span>
+              <i class="rs-dot" class:connected={statusMap[item.id]?.status === 'connected'} class:busy={statusMap[item.id]?.status === 'connecting' || statusMap[item.id]?.status === 'idle'}></i>
+            </button>
+          {/each}
+        </div>
+      </div>
+    {:else}
+    <div class="remote-side-head">
+      <b>会话</b>
+      <div class="remote-side-actions">
+        <button class="remote-collapse" onclick={toggleSide} title="收起会话列表"><span>◀</span></button>
+        <button class="remote-add" title="新建会话" onclick={addSession}><span>{@html UI_ICONS.plus}</span></button>
+      </div>
+    </div>
     <label class="remote-search"><span>{@html UI_ICONS.search}</span><input bind:value={sessionQuery} placeholder="搜索会话…" spellcheck="false" /></label>
     <div class="remote-sessions">
       {#each filteredSessions as item}
@@ -379,6 +447,7 @@
         <div class="rs-empty">没有匹配「{sessionQuery.trim()}」的会话</div>
       {/if}
     </div>
+    {/if}
   </aside>
 
   <main class="remote-main">
@@ -418,29 +487,46 @@
         <div class="rt-identity">
           <span class="rs-icon">{@html iconHtml(TOOL_ICONS['spurh.remote'])}</span>
           <div><b>{active.name || (active.user || 'root') + '@' + active.host}</b><small>{active.user}@{active.host}:{active.port}</small></div>
-        </div>
-        <div class="rt-status" class:connected={activeStatus.status === 'connected'} class:error={activeStatus.status === 'error'} class:connecting={activeStatus.status === 'connecting'}>
-          <i></i><span>{statusLabel(activeStatus)}{activeStatus.message ? ' · ' + activeStatus.message : ''}</span>
+          <span class="rt-status" class:connected={activeStatus.status === 'connected'} class:error={activeStatus.status === 'error'} class:connecting={activeStatus.status === 'connecting'}><i></i>{statusLabel(activeStatus)}</span>
         </div>
         <div class="rt-actions">
           <button class="rt-connect" onclick={connect}><span class="rt-dot"></span>{activeStatus.status === 'connected' ? '重连' : (activeStatus.status === 'error' ? '重试' : '连接')}</button>
           <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => disconnect(active.id)} title="断开当前连接（保留终端输出）">断开</button>
+          <span class="rt-sep"></span>
           <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => { sysPanel = true; loadSysInfo(); }} title="查看主机系统/内存/磁盘/负载">资源信息</button>
           <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => (filePanel = true)} title="上传 / 下载文件（基于 cat）">传输文件</button>
+          <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => (aiCmdOpen = !aiCmdOpen)} title="用 AI 根据自然语言生成命令并发送到终端">AI 命令</button>
+          <span class="rt-sep"></span>
+          <button class="rt-quiet" onclick={editSession}>编辑</button>
+          <button class="rt-quiet danger" onclick={() => deleteSession(active.id)}>删除</button>
+        </div>
+      </div>
+      {#if activeStatus.status === 'connected'}
+        <div class="rt-cmdbar">
+          <span class="rt-cmdbar-title">快捷命令</span>
+          {#each QUICK_PRIMARY as item}
+            <button class="rt-cmd-chip" onclick={() => runQuick(item.cmd)} title={item.cmd}>{item.label}</button>
+          {/each}
           <div class="rt-quick-wrap">
-            <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => (quickOpen = !quickOpen)} title="发送常用命令到终端">{quickOpen ? '收起命令' : '快捷命令'}</button>
-            {#if quickOpen}
+            <button class="rt-cmd-chip more" onclick={() => (quickMore = !quickMore)}>{quickMore ? '收起 ▴' : '更多 ▾'}</button>
+            {#if quickMore}
               <div class="rt-quick">
-                {#each QUICK_COMMANDS as item}
+                {#each QUICK_SECONDARY as item}
                   <button onclick={() => runQuick(item.cmd)}><code>{item.cmd}</code><small>{item.label}</small></button>
                 {/each}
               </div>
             {/if}
           </div>
-          <button class="rt-quiet" onclick={editSession}>编辑</button>
-          <button class="rt-quiet danger" onclick={() => deleteSession(active.id)}>删除</button>
+          <span class="rt-cmdbar-grow"></span>
+          {#if aiCmdOpen}
+            <div class="rt-ai">
+              <input value={aiCmdInput} oninput={(e) => (aiCmdInput = e.currentTarget.value)} placeholder="例如：查看服务器上有几个文件 / 查询磁盘剩余空间" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && aiCommand()} />
+              <button class="rt-ai-btn" disabled={aiCmdBusy || !aiCmdInput.trim()} onclick={aiCommand}>{aiCmdBusy ? '生成中…' : '生成并发送'}</button>
+            </div>
+          {/if}
+          {#if aiCmdError}<span class="rt-ai-error" title={aiCmdError}>{aiCmdError}</span>{/if}
         </div>
-      </div>
+      {/if}
       {#if sysPanel}
         <div class="rt-modal-backdrop" role="presentation" onkeydown={(event) => { if (event.key === 'Escape') sysPanel = false; }}>
           <div class="rt-modal" role="dialog" aria-modal="true">
@@ -517,7 +603,35 @@
 </div>
 
 <style>
-  .remote-panel { min-width: 0; min-height: 0; flex: 1; display: grid; grid-template-columns: 232px minmax(0, 1fr); overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+  .remote-panel { min-width: 0; min-height: 0; flex: 1; display: grid; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+  .remote-side-actions { display: flex; align-items: center; gap: 6px; }
+  .remote-collapse { width: 26px; height: 26px; display: grid; place-items: center; cursor: pointer; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; background: transparent; transition: all .15s ease; }
+  .remote-collapse span { display: inline-flex; }
+  :global(.remote-collapse span svg) { width: 12px; height: 12px; }
+  .remote-collapse:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
+  .remote-side.collapsed { border-right: 1px solid var(--line); }
+  .remote-side-rail { min-height: 0; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 0; overflow-y: auto; }
+  .remote-rail-list { min-height: 0; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; overflow-y: auto; }
+  .rs-mini { position: relative; width: 34px; height: 34px; display: grid; place-items: center; cursor: pointer; color: var(--text); border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); transition: all .15s ease; }
+  .rs-mini:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--hover); }
+  .rs-mini.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: var(--accent-soft); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .rs-mini-char { font-size: 13px; font-weight: 700; }
+  .rs-mini .rs-dot { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; }
+  .rt-sep { width: 1px; height: 18px; flex: 0 0 auto; background: var(--line); margin: 0 2px; }
+  .rt-cmdbar { min-height: 38px; display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  .rt-cmdbar-title { color: var(--muted-2); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .3px; margin-right: 2px; }
+  .rt-cmd-chip { height: 26px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid var(--line); border-radius: 999px; background: transparent; transition: all .15s ease; }
+  .rt-cmd-chip:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .rt-cmd-chip.more { color: var(--muted-2); }
+  .rt-cmdbar-grow { flex: 1; }
+  .rt-ai { display: flex; align-items: center; gap: 6px; }
+  .rt-ai input { width: 280px; height: 30px; padding: 0 11px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line-strong); border-radius: 9px; outline: 0; background: var(--bg2); transition: border-color .15s ease, box-shadow .15s ease; }
+  .rt-ai input:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .rt-ai input::placeholder { color: var(--muted-2); }
+  .rt-ai-btn { height: 30px; padding: 0 14px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 9px; background: linear-gradient(120deg, var(--c-violet), var(--c-blue)); box-shadow: 0 4px 14px color-mix(in srgb, var(--c-violet) 35%, transparent); transition: all .18s ease; }
+  .rt-ai-btn:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+  .rt-ai-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .rt-ai-error { max-width: 260px; overflow: hidden; color: var(--c-red); font-size: var(--fs-tiny); text-overflow: ellipsis; white-space: nowrap; }
   .remote-side { min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); }
   .remote-side-head { height: 44px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 14px; border-bottom: 1px solid var(--line); }
   .remote-side-head b { font-size: var(--fs-xs); letter-spacing: .2px; }

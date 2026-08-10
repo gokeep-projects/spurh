@@ -32,8 +32,8 @@
   type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts' | 'tools';
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "-apple-system, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif",
-    '微软雅黑': "'Microsoft YaHei', '微软雅黑', 'PingFang SC', sans-serif",
+    '系统默认': "'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', system-ui, sans-serif",
+    '微软雅黑': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'HarmonyOS Sans SC', sans-serif",
     '黑体': "'SimHei', '黑体', 'Microsoft YaHei', sans-serif",
     '宋体': "'SimSun', '宋体', 'STSong', serif",
     'Consolas': "'Consolas', 'Cascadia Code', monospace",
@@ -66,7 +66,7 @@
     const fallback: AppSettings = {
       theme: 'dark', trayEnabled: true, contextMenuEnabled: true, dispatchHotkey: 'ctrl+shift+space',
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
-      fontSize: 16, fontFamily: '系统默认',
+      fontSize: 14, fontFamily: '系统默认',
       sidebarShortcuts: false,
       sidebarOpen: true,
       hiddenTools: [],
@@ -81,7 +81,7 @@
         ...parsed,
         hiddenTools: Array.isArray(parsed.hiddenTools) ? parsed.hiddenTools : fallback.hiddenTools,
         // 字号：旧默认 12/13/14 自动上调到 15（可读性更好）；用户手动档位直接采用
-        fontSize: typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 && ![12, 13, 14, 15].includes(parsed.fontSize) ? parsed.fontSize : fallback.fontSize,
+        fontSize: typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : fallback.fontSize,
         fontFamily: FONT_STACKS[parsed.fontFamily] ? parsed.fontFamily : '系统默认',
       };
     } catch {
@@ -905,7 +905,7 @@
       let indent = indentMatch ? indentMatch[0] : '';
       // 自动补全：未闭合引号 / 行尾开括号
       const openQuote = (cursorPart.match(/"/g) || []).length % 2 === 1;
-      let extra = (!openQuote && /[{[(,:]$/.test(cursorPart.trimEnd())) ? '  ' : '';
+      let extra = (!openQuote && /[{[(]$/.test(cursorPart.trimEnd())) ? '  ' : '';
       // 对齐闭合括号（} ] )）
       const nextLineStart = value.indexOf('\n', end);
       if (nextLineStart >= 0) {
@@ -1805,7 +1805,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   {/if}
 
   {#if settingsOpen}
-    <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) settingsOpen = false; }}>
+    <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) { event.stopPropagation(); } }}>
       <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
         <header class="settings-header"><div class="modal-icon">{@html UI_ICONS.settings}</div><div><h2>设置</h2></div><button onclick={() => (settingsOpen = false)} aria-label="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">

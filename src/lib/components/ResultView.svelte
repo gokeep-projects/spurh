@@ -348,7 +348,7 @@
   .tree-mode .result-actions { padding-right: 14px; }
   .result-view.tree-mode { padding: 0; display: flex; flex-direction: column; }
   .result-view.tree-mode :global(.json-tree) { flex: 1; min-height: 100%; }
-  .result-view > pre { width: 100%; min-height: 100%; margin: 0; color: var(--text); font: 450 14px/1.72 'Cascadia Code', Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+  .result-view > pre { width: 100%; min-height: 100%; margin: 0; color: var(--text); font: 450 var(--fs-sm)/1.62 ui-monospace, 'Cascadia Code', Consolas, monospace; tab-size: 2; white-space: pre-wrap; word-break: break-word; }
   .result-view > pre.plain { font-family: inherit; font-size: var(--fs-lg); }
   small { color: var(--muted); }
   .time-hero { padding: 23px; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 12px; background: linear-gradient(135deg, var(--accent-soft), transparent); }

@@ -1425,9 +1425,7 @@
           <div class="sql-tabs-group">
             <button class:active={tab === 'data'} onclick={() => (tab = 'data')}>表数据</button>
             <button class:active={tab === 'sql'} onclick={() => (tab = 'sql')}>SQL 查询</button>
-            {#if activeConn.kind !== 'sqlite'}
-              <button class:active={tab === 'users'} onclick={() => { tab = 'users' }} title="用户管理与权限设置（MySQL / PostgreSQL）">用户管理</button>
-            {/if}
+            <button class:active={tab === 'users'} onclick={() => { tab = 'users' }} title={activeConn.kind === 'sqlite' ? 'SQLite 不支持用户管理，连接 MySQL / PostgreSQL 可用' : '用户管理与权限设置（MySQL / PostgreSQL）'}>用户管理</button>
           </div>
           <div class="sql-tabs-info">
             {#if databases.length > 0}

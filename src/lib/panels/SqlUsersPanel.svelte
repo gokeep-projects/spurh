@@ -70,7 +70,11 @@
   }
 
   async function loadUsers(): Promise<void> {
-    if (!conn || conn.kind === 'sqlite') return;
+    if (!conn || conn.kind === 'sqlite') {
+      users = [];
+      usersError = conn?.kind === 'sqlite' ? 'SQLite 不支持用户管理：请连接 MySQL 或 PostgreSQL 后使用创建用户、授权、改密等能力' : '';
+      return;
+    }
     usersLoading = true;
     usersError = '';
     usersMsg = '';
@@ -252,7 +256,7 @@
           {#if usersLoading}
             <div class="sql-users-empty">正在读取用户列表…</div>
           {:else if users.length === 0}
-            <div class="sql-users-empty">未读取到用户（当前账号可能缺少 mysql.user / pg_roles 读取权限；SQLite 不支持用户管理）</div>
+            <div class="sql-users-empty">未读取到用户（当前账号可能缺少 mysql.user / pg_roles 读取权限）</div>
           {:else}
             <div class="sql-users-list">
               {#each users as u}

@@ -1,7 +1,9 @@
 // 网络小工具：端口探测 / DNS 查询 / TCP/UDP 发送 / 路由追踪
 use serde::Serialize;
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, OnceLock};
+use tokio::sync::Mutex;
 use std::time::{Duration, Instant};
 #[cfg(not(windows))]
 use socket2::{Domain, Protocol, Socket, Type};
@@ -56,6 +58,93 @@ pub struct TraceHop {
 }
 
 /// TCP/UDP 数据发送与响应接收（UDP 无响应属正常，等待超时返回空响应）
+
+/// TCP 持久连接会话表：连接后保持存活，可多次发送（模拟 telnet/nc 交互）
+static TCP_SESSIONS: OnceLock<Mutex<HashMap<String, tokio::net::TcpStream>>> = OnceLock::new();
+fn tcp_sessions() -> &'static Mutex<HashMap<String, tokio::net::TcpStream>> {
+    TCP_SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// 建立到目标主机的 TCP 长连接，返回会话 ID（前端据此发送/断开）
+#[tauri::command]
+pub async fn net_tcp_open(host: String, port: u16, timeout_ms: Option<u64>) -> Result<String, String> {
+    let host = host.trim().to_string();
+    if host.is_empty() {
+        return Err("请输入主机地址".into());
+    }
+    if port == 0 {
+        return Err("端口无效".into());
+    }
+    let timeout = Duration::from_millis(timeout_ms.unwrap_or(5000).clamp(500, 15_000));
+    let stream = tokio::time::timeout(timeout, tokio::net::TcpStream::connect((host.as_str(), port)))
+        .await
+        .map_err(|_| format!("连接超时（{} ms）", timeout.as_millis()))?
+        .map_err(|error| format!("连接失败：{error}"))?;
+    let id = format!(
+        "{host}:{port}@{:x}",
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0)
+    );
+    tcp_sessions().lock().await.insert(id.clone(), stream);
+    Ok(id)
+}
+
+/// 向已建立的 TCP 连接发送数据并读取响应（连接不存在时返回提示）
+#[tauri::command]
+pub async fn net_tcp_write(
+    session_id: String,
+    data: String,
+    hex: Option<bool>,
+    timeout_ms: Option<u64>,
+) -> Result<TcpSendResult, String> {
+    let timeout = Duration::from_millis(timeout_ms.unwrap_or(3000).clamp(500, 15_000));
+    let bytes = if hex.unwrap_or(false) {
+        parse_hex_payload(&data)?
+    } else {
+        data.into_bytes()
+    };
+    let started = Instant::now();
+    let mut sessions = tcp_sessions().lock().await;
+    let stream = sessions.get_mut(&session_id).ok_or("连接不存在或已断开，请先建立连接")?;
+    let mut sent = 0usize;
+    if !bytes.is_empty() {
+        tokio::time::timeout(timeout, stream.write_all(&bytes))
+            .await
+            .map_err(|_| "发送超时".to_string())?
+            .map_err(|error| format!("发送失败：{error}"))?;
+        sent = bytes.len();
+    }
+    let deadline = tokio::time::Instant::now() + timeout;
+    let mut buf: Vec<u8> = Vec::with_capacity(1024);
+    let mut chunk = [0u8; 2048];
+    loop {
+        match tokio::time::timeout_at(deadline, stream.read(&mut chunk)).await {
+            Ok(Ok(0)) => break,
+            Ok(Ok(n)) => {
+                buf.extend_from_slice(&chunk[..n]);
+                if buf.len() > 65536 {
+                    break;
+                }
+            }
+            _ => break,
+        }
+    }
+    let response = String::from_utf8_lossy(&buf).to_string();
+    Ok(TcpSendResult {
+        ok: true,
+        message: format!("已发送 {sent} 字节，收到 {} 字节响应", buf.len()),
+        response,
+        response_hex: hex_string(&buf),
+        elapsed_ms: started.elapsed().as_millis() as u64,
+    })
+}
+
+/// 断开指定 TCP 连接
+#[tauri::command]
+pub async fn net_tcp_close(session_id: String) -> Result<(), String> {
+    tcp_sessions().lock().await.remove(&session_id);
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn net_tcp_send(
     host: String,

@@ -115,33 +115,29 @@
 </div>
 
 <style>
-  .crypto-panel { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
-  .crypto-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; min-width: 0; }
-  .crypto-group { min-width: 0; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 4px; padding: 6px 8px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
-  .crypto-grp-label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
+  .crypto-panel { display: flex; flex-direction: column; gap: 7px; width: 100%; min-width: 0; }
+  .crypto-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; width: 100%; min-width: 0; }
+  .crypto-group { min-width: 0; display: flex; flex-direction: row; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--panel) 96%, var(--accent-soft)); transition: border-color .15s ease, box-shadow .15s ease; }
+  .crypto-group:hover { border-color: color-mix(in srgb, var(--accent) 32%, var(--line)); box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 7%, transparent); }
+  .crypto-grp-label { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
   /* svelte-ignore css_unused_selector */
   .crypto-grp-label :global(svg) { width: 13px; height: 13px; }
-  .crypto-btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; min-width: 0; min-height: 52px; }
-  .crypto-group.wide .crypto-btns { grid-template-columns: 1fr; }
-  .crypto-group button { width: 100%; min-width: 0; height: 28px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 0; border-radius: 8px; background: transparent; white-space: nowrap; transition: all .15s ease; overflow: hidden; text-overflow: ellipsis; }
-  .crypto-group button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent); }
-  .crypto-group button:hover:not(.active) { color: var(--text); background: var(--hover); }
-  @media (max-width: 1100px) {
-    .crypto-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
-  @media (max-width: 720px) {
-    .crypto-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
-  @media (min-width: 1281px) {
-    .crypto-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  }
+  .crypto-btns { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 4px; min-width: 0; flex: 1; }
+  .crypto-group.wide .crypto-btns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .crypto-group.wide .crypto-btns:has(> :nth-child(2)) { grid-template-columns: 1fr 1fr; }
+  .crypto-group button { position: relative; width: 100%; min-width: 0; height: 26px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid transparent; border-radius: 7px; background: transparent; white-space: nowrap; transition: all .15s ease; overflow: hidden; text-overflow: ellipsis; }
+  .crypto-group button:hover:not(.active) { color: var(--text); border-color: var(--line); background: var(--hover); }
+  .crypto-group button.active { color: #fff; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); background-size: 180% 100%; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent); animation: cryptoGlow 2.4s ease infinite; }
+  @keyframes cryptoGlow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  @media (max-width: 1100px) { .crypto-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1281px) { .crypto-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
   .crypto-key-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .crypto-key-row label { display: flex; align-items: center; gap: 6px; }
   .crypto-key-row label > span { color: var(--muted); font-size: var(--fs-xs); }
   .secret-wrap { position: relative; display: flex; align-items: center; min-width: 0; }
-  .secret-wrap input { height: 30px; width: min(26vw, 260px); max-width: 100%; padding: 0 34px 0 10px; color: var(--text); font: 500 13.5px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--bg); }
-  .secret-wrap input:focus { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .secret-toggle { position: absolute; right: 4px; width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; font-size: var(--fs-xs); border: 0; border-radius: 8px; background: transparent; }
+  .secret-wrap input { height: 30px; width: min(24vw, 240px); max-width: 100%; padding: 0 34px 0 11px; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 9px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .2s ease; }
+  .secret-wrap input:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .secret-toggle { position: absolute; right: 4px; width: 26px; height: 26px; display: grid; place-items: center; cursor: pointer; font-size: var(--fs-xs); border: 0; border-radius: 7px; background: transparent; }
   /* svelte-ignore css_unused_selector */
   .secret-toggle :global(svg) { width: 14px; height: 14px; }
   .secret-toggle:hover { background: var(--hover); }

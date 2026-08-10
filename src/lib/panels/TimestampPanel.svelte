@@ -41,6 +41,23 @@
     if (kind === 'thisYear') return fmt(new Date(d.getFullYear(), 0, 1));
     return '';
   }
+
+  /** 文本输入日期 → 写回 pickDateTime（YYYY-MM-DDTHH:mm），支持多种写法 */
+  function parseDateTimeText(value: string): void {
+    const m = value.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?/);
+    if (!m) return;
+    const p = (n: number) => String(n).padStart(2, '0');
+    const norm = `${m[1]}-${p(Number(m[2]))}-${p(Number(m[3]))}T${p(Number(m[4] ?? 0))}:${p(Number(m[5] ?? 0))}`;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4] ?? 0), Number(m[5] ?? 0));
+    if (Number.isNaN(d.getTime())) return;
+    onChangeOption('pickDateTime', norm);
+  }
+  /** 把 pickDateTime 转成给人看的文本 */
+  function pickText(): string {
+    const raw = session.options.pickDateTime || '';
+    return raw.replace('T', ' ');
+  }
+
   function quickPick(kind: string): void {
     const value = presetValue(kind);
     if (value) onChangeOption('pickDateTime', value);
@@ -114,7 +131,15 @@
     <div class="ts-row">
       <label class="ts-field">
         <span>日期时间</span>
-        <input type="datetime-local" value={session.options.pickDateTime || ''} oninput={(e) => onChangeOption('pickDateTime', e.currentTarget.value)} />
+        <input
+          value={pickText()}
+          placeholder="例如 2026-08-10 17:30"
+          spellcheck="false"
+          inputmode="numeric"
+          oninput={(e) => parseDateTimeText(e.currentTarget.value)}
+          onchange={(e) => parseDateTimeText(e.currentTarget.value)}
+        />
+        <small class="ts-field-hint">{session.options.pickDateTime ? '已选择：' + pickText() : ''}</small>
       </label>
       <div class="ts-quick">{#each QUICK_PRESETS as preset}<button class:active={session.options.pickDateTime === presetValue(preset.id)} onclick={() => quickPick(preset.id)}>{preset.label}</button>{/each}</div>
       <button class="ts-clear" onclick={onClear} title="清空">清空</button>
@@ -143,8 +168,10 @@
   .ts-quick button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: var(--accent-soft); }
   .ts-field { display: flex; flex-direction: column; gap: 5px; }
   .ts-field span { color: var(--muted); font-size: var(--fs-sm); }
-  .ts-field input, .ts-field select { height: 30px; padding: 0 11px; color: var(--text); font-size: var(--fs-xs); border: 1px solid var(--line-2); border-radius: 8px; outline: 0; background: var(--panel); }
-  .ts-field input:focus, .ts-field select:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .ts-field input, .ts-field select { height: 34px; padding: 0 12px; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 10px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .2s ease; }
+  .ts-field input:hover, .ts-field select:hover { border-color: var(--line-strong); }
+  .ts-field input:focus, .ts-field select:focus { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 12px color-mix(in srgb, var(--accent) 10%, transparent); }
+  .ts-field-hint { color: var(--accent); font-size: var(--fs-xs); }
   .ts-field.ts-narrow select { width: 112px; }
   .ts-row .ts-field:first-child { flex: 1 1 auto; min-width: 240px; max-width: 340px; }
   .ts-row .ts-field:first-child input { width: 100%; }
