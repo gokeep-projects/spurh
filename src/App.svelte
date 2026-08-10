@@ -315,7 +315,7 @@
   function startAboutTerminal(): () => void {
     const lines: Array<{ cls: string; text: string }> = [
       { cls: 'cmd', text: '$ spurh --version' },
-      { cls: 'out', text: 'Spurh v0.1.0 · 14 tools · 本地优先' },
+      { cls: 'out', text: 'Spurh v0.1.0 · 11 tools · 本地优先' },
       { cls: 'cmd', text: '$ spurh status' },
       { cls: 'out', text: 'engine online · ai ready' },
       { cls: 'cmd', text: '$ spurh run json:format --input demo' },
@@ -511,7 +511,7 @@
       aboutPanelsShown = 0;
       aboutCaps.ai = 0; aboutCaps.local = 0; aboutCaps.cover = 0; aboutCaps.priv = 0;
       const growTicker = setInterval(() => {
-        if (aboutPanelsShown < 14) aboutPanelsShown += 1;
+        if (aboutPanelsShown < 11) aboutPanelsShown += 1;
         let done = 0;
         for (const k of ['ai', 'local', 'cover', 'priv'] as const) {
           const target = aboutCapsTarget[k];
@@ -521,7 +521,7 @@
             done += 1;
           }
         }
-        if (aboutPanelsShown >= 14 && done === 4) clearInterval(growTicker);
+        if (aboutPanelsShown >= 11 && done === 4) clearInterval(growTicker);
       }, 70);
       /* 粒子网络画布 */
       let disposeCanvas: (() => void) | undefined;

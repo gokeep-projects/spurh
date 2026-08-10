@@ -71,6 +71,28 @@ button, input, textarea, select {
   font-size: var(--app-font-size, 14px);
   color: inherit;
 }
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 26px !important;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='12'%20height='12'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%23818cf8'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='m6%209%206%206%206-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 8px center !important;
+  background-size: 12px 12px !important;
+  transition: border-color .15s ease, box-shadow .2s ease;
+}
+select:hover { border-color: var(--line-strong); }
+select:focus { outline: 0; border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
+select option { color: var(--text); background: var(--bg2); }
+input[type="datetime-local"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .72; filter: invert(.72) sepia(.4) saturate(2.6) hue-rotate(190deg); transition: opacity .15s ease; }
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+input[type="datetime-local"]::-webkit-datetime-edit { color: var(--text); }
+.app.light input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: none; opacity: .55; }
+.app.light select option { color: #171c33; background: #fff; }
 button { cursor: pointer; border: 0; background: none; }
 :focus-visible { outline: 2px solid rgba(34, 211, 238, .7); outline-offset: 2px; border-radius: 6px; }
 ::selection { background: rgba(139, 92, 246, .38); }
@@ -257,18 +279,19 @@ button { cursor: pointer; border: 0; background: none; }
 .app-bar::after {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
+  left: -100%;
+  right: -100%;
   bottom: -1px;
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(34, 211, 238, .85), rgba(139, 92, 246, .85), rgba(232, 121, 249, .75), transparent);
-  background-size: 220% 100%;
-  animation: bar-flow 6s linear infinite;
+  background-size: 33.333% 100%;
+  animation: bar-flow 7s linear infinite;
   pointer-events: none;
+  will-change: transform;
 }
 @keyframes bar-flow {
-  from { background-position: 0% 0; }
-  to { background-position: -220% 0; }
+  from { transform: translateX(0); }
+  to { transform: translateX(-33.333%); }
 }
 .app-bar {
   position: relative;
@@ -3388,6 +3411,8 @@ kbd {
   .tool-name small, .tool-identity p { display: none; }
   .settings-modal { height: calc(100vh - 24px); }
 }
+/* 等宽对齐：font 简写会重置 font-variant-ligatures，此处覆盖 */
+.result-view > pre, .editor-input pre, .editor-pane pre, .input-hl, pre.highlighted { font-variant-ligatures: none !important; font-kerning: none !important; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition-duration: .001s !important; }
 }
