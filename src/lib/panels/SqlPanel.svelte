@@ -1721,6 +1721,7 @@
           {#if d.kind !== 'sqlite'}
             <label><span>主机</span><input bind:value={d.host} placeholder="127.0.0.1" spellcheck="false" /></label>
 <label class="port"><span>端口</span><input bind:value={d.port} placeholder={d.kind === 'mysql' ? '3306' : '5432'} spellcheck="false" /></label>
+            <label class="ssl-cell"><span>SSL 加密</span><span class="sql-secret ssl-secret"><label class="ssl-inline" title="SSL 加密连接（远程数据库建议开启）"><input type="checkbox" bind:checked={d.ssl} /><span>启用</span></label></span></label>
             <label><span>用户名</span><input bind:value={d.user} placeholder="root" spellcheck="false" /></label>
             <label class="pwd"><span>密码</span>
               <span class="sql-secret">
@@ -1728,7 +1729,7 @@
                 <button class="sql-secret-toggle" onclick={() => (showSecret = !showSecret)} title={showSecret ? '隐藏密码' : '显示密码'}>{@html showSecret ? UI_ICONS.eyeOff : UI_ICONS.eye}</button>
               </span>
             </label>
-            <label class="ssl-row"><span>SSL 加密</span><span class="sql-secret"><label class="ssl-inline" title="SSL 加密连接（远程数据库建议开启）"><input type="checkbox" bind:checked={d.ssl} /><span>启用 SSL 加密</span></label></span></label>
+
             <label class="full"><span>默认数据库</span>
               <span class="sql-db-picker">
                 <input list="sql-db-list" bind:value={d.database} placeholder="全部（留空则连接后选择）" spellcheck="false" />
@@ -1795,7 +1796,7 @@
   /* ── 连接列表 ── */
   .sql-conns { flex: 0 1 auto; max-height: 42%; min-height: 60px; display: flex; flex-direction: column; gap: 2px; padding: 7px; overflow-y: auto; border-bottom: 1px solid var(--line); scrollbar-width: none; }
   .sql-conns::-webkit-scrollbar { display: none; }
-  .sql-conn { position: relative; display: flex; align-items: center; border: 1px solid transparent; border-radius: 8px; transition: all .15s ease; }
+  .sql-conn { position: relative; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid transparent; border-radius: 8px; transition: all .15s ease; }
   .sql-conn:hover { background: var(--hover); }
   .sql-conn.live { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 5%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
   .sql-conn.active { border-color: color-mix(in srgb, var(--accent) 24%, var(--line)); background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
@@ -1804,7 +1805,7 @@
   :global(.sql-conn-ico svg) { width: 13px; height: 13px; }
   .sql-conn-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
   .sql-conn-copy b { overflow: hidden; font-size: var(--fs-sm); text-overflow: ellipsis; white-space: nowrap; }
-  .sql-conn-copy small { overflow: hidden; color: var(--muted); font: 500 9.8px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
+  .sql-conn-copy small { overflow: hidden; color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .sql-conn-dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--muted-2); }
   .sql-conn-dot.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   .sql-conn-ops { display: none; align-items: center; gap: 2px; padding-right: 6px; }
@@ -1851,7 +1852,7 @@
   .sql-db-ico { display: inline-flex; flex: 0 0 auto; color: var(--warn); }
   :global(.sql-db-ico svg) { width: 13px; height: 13px; }
   .sql-db-row b { min-width: 0; flex: 1; overflow: hidden; font-size: var(--fs-sm); text-overflow: ellipsis; white-space: nowrap; }
-  .sql-db-row small { color: var(--muted-2); font: 500 9.8px 'Cascadia Code', monospace; }
+  .sql-db-row small { color: var(--muted-2); font: 500 var(--fs-tiny) 'Cascadia Code', monospace; }
   .sql-tables { display: flex; flex-direction: column; gap: 1px; padding: 1px 0 4px 18px; }
   .sql-table-row { width: 100%; height: 25px; display: flex; align-items: center; gap: 7px; padding: 0 8px; cursor: pointer; text-align: left; color: var(--muted); border: 1px solid transparent; border-radius: 8px; background: transparent; transition: all .13s ease; }
   .sql-table-row:hover { color: var(--text); background: var(--hover); }
@@ -1873,7 +1874,7 @@
   .sql-tabs-group button.active { color: #fff; font-weight: 700; background: var(--btn-gradient); box-shadow: 0 3px 10.5px color-mix(in srgb, var(--accent) 25%, transparent); }
   .sql-tabs-info { display: flex; align-items: center; gap: 10.5px; margin-left: auto; min-width: 0; }
   .sql-tabs-info .sql-db-select { height: 27px; max-width: 190px; padding: 0 8px; color: var(--text); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--panel); }
-  .sql-tabs-info .sql-ver { overflow: hidden; max-width: 220px; color: var(--muted); font: 500 9.8px 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
+  .sql-tabs-info .sql-ver { overflow: hidden; max-width: 240px; color: var(--muted); font: 500 var(--fs-tiny) 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .sql-tabs-info em { overflow: hidden; max-width: 200px; padding: 3px 8px; color: var(--accent); font-size: var(--fs-tiny); font-style: normal; text-overflow: ellipsis; white-space: nowrap; border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
 
   .sql-empty { flex: 1; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 20px; color: var(--muted); text-align: center; }
@@ -1918,7 +1919,7 @@
   .null-tag { color: var(--muted-2); font-style: italic; font-size: var(--fs-tiny); }
   .cell-edit { position: relative; display: flex; align-items: center; }
   .cell-edit input { width: 100%; height: 28px; padding: 0 52px 0 10px; color: var(--text); font: 450 var(--fs-xs) 'Cascadia Code', monospace; border: 0; outline: 0; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); box-shadow: inset 0 0 0 2px var(--accent); }
-  .cell-null { position: absolute; right: 4px; height: 19px; padding: 0 6px; cursor: pointer; color: var(--muted); font: 600 9.2px 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); }
+  .cell-null { position: absolute; right: 4px; height: 21px; padding: 0 6px; cursor: pointer; color: var(--muted); font: 600 var(--fs-tiny) 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); }
   .cell-null:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
   .badge-new { display: inline-block; padding: 1px 5px; color: #fff; font-size: var(--fs-tiny); border-radius: 3px; background: linear-gradient(135deg, var(--blue), var(--accent)); }
   .sql-grid td.idx, .sql-grid th.idx { width: 42px; padding: 0 8px; color: var(--muted-2); text-align: right; }
@@ -1940,7 +1941,7 @@
   .sql-where { display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 4px 0 0; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
   .sql-where:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .sql-where.active { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
-  .sql-where-tag { height: 100%; display: grid; place-items: center; padding: 0 6px; color: var(--muted-2); font: 600 9.6px 'Cascadia Code', monospace; border-right: 1px solid var(--line); background: var(--panel-2); border-radius: 8px 0 0 8px; }
+  .sql-where-tag { height: 100%; display: grid; place-items: center; padding: 0 6px; color: var(--muted-2); font: 600 var(--fs-tiny) 'Cascadia Code', monospace; border-right: 1px solid var(--line); background: var(--panel-2); border-radius: 8px 0 0 8px; }
   .sql-where input { min-width: 150px; width: 150px; color: var(--text); font: 500 var(--fs-xs) 'Cascadia Code', monospace; border: 0; outline: 0; background: transparent; }
   .sql-where input::placeholder { color: var(--muted-2); }
   .sql-where-clear { width: 18px; height: 18px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); font-size: var(--fs-xs); border: 0; border-radius: 4px; background: transparent; }
@@ -1957,7 +1958,7 @@
   .sql-history { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 360px; max-height: 260px; padding: 5px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
   .sql-history button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; color: var(--text); font-size: var(--fs-xs); text-align: left; border: 0; border-radius: 8px; background: transparent; }
   .sql-history button:hover { background: var(--hover); }
-  .sql-history button span { flex: 0 0 auto; color: var(--muted-2); font: 500 9.6px 'Cascadia Code', monospace; }
+  .sql-history button span { flex: 0 0 auto; color: var(--muted-2); font: 500 var(--fs-tiny) 'Cascadia Code', monospace; }
   .sql-history button code { min-width: 0; overflow: hidden; color: var(--muted); font: 400 var(--fs-xs)/1.5 'Cascadia Code', monospace; text-overflow: ellipsis; white-space: nowrap; }
   .sql-history-empty { padding: 14px; color: var(--muted-2); font-size: var(--fs-tiny); text-align: center; }
   .sql-help-wrap { position: relative; }
@@ -1995,7 +1996,7 @@
   .sql-completion button.active { background: var(--accent-soft); }
   .sql-completion code { font: 500 13px 'Cascadia Code', monospace; }
   .sql-result-bar { flex: 0 0 auto; display: flex; align-items: center; gap: 10.5px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .sql-result-chip { padding: 2px 7px; color: var(--blue); font: 700 9.8px 'Cascadia Code', monospace; border-radius: 4px; background: color-mix(in srgb, var(--blue) 12%, transparent); }
+  .sql-result-chip { padding: 2px 7px; color: var(--blue); font: 700 var(--fs-tiny) 'Cascadia Code', monospace; border-radius: 4px; background: color-mix(in srgb, var(--blue) 12%, transparent); }
   .sql-result-chip.query { color: var(--accent); background: var(--accent-soft); }
   .sql-result-bar b { font-size: var(--fs-sm); }
   .sql-result-bar small { color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', monospace; }
@@ -2008,8 +2009,11 @@
   .sql-modal > header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-modal > header b { font-size: var(--fs-lg); }
   .sql-modal > header small { display: block; margin-top: 2px; color: var(--muted-2); font-size: var(--fs-tiny); }
-  .sql-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; overflow-y: auto; }
+  .sql-form { display: grid; grid-template-columns: minmax(0, 1fr) 108px minmax(0, 1fr); gap: 12px; padding: 16px; overflow-y: auto; }
   .sql-form .full { grid-column: 1 / -1; }
+  .sql-form .port { grid-column: 2; }
+  .sql-form .ssl-cell { grid-column: 3; }
+  .sql-form .pwd { grid-column: 2 / -1; }
   .sql-form label, .sql-form > div { display: flex; flex-direction: column; gap: 6px; }
   .sql-form label > span { color: var(--muted); font-size: var(--fs-sm); }
   .sql-form input { height: 30px; padding: 0 11px; color: var(--text); font: 500 var(--fs-xs) 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .15s ease; }
@@ -2028,7 +2032,9 @@
   .sql-db-picker { display: flex; align-items: center; gap: 8px; }
   .sql-db-picker input { min-width: 0; flex: 1; }
   .sql-db-picker .sql-btn { flex: 0 0 auto; height: 30px; }
-  .ssl-row { grid-column: 1 / -1; display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 2px 10px; background: var(--w-025); }
+  .ssl-cell { display: flex; flex-direction: column; gap: 6px; }
+  .ssl-cell > span { color: var(--muted); font-size: var(--fs-sm); }
+  .ssl-secret { display: flex; align-items: center; height: 30px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--w-025); }
   .ssl-inline { display: inline-flex; flex-direction: row; align-items: center; gap: 5px; white-space: nowrap; cursor: pointer; }
   .ssl-inline input { width: auto; }
   .ssl-inline span { color: var(--muted); font-size: var(--fs-sm); }

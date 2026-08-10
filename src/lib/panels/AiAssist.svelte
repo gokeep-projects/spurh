@@ -155,7 +155,7 @@
   .ai-send:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
   .ai-stream { min-width: 0; display: flex; flex-direction: column; gap: 7px; max-height: 300px; overflow-y: auto; padding: 2px; }
   .ai-reasoning, .ai-content { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-  .ai-reasoning small, .ai-content small { color: var(--muted-2); font: 600 8px 'Cascadia Code', monospace; letter-spacing: .8px; }
+  .ai-reasoning small, .ai-content small { color: var(--muted-2); font: 600 var(--fs-tiny) 'Cascadia Code', monospace; letter-spacing: .8px; }
   .ai-reasoning p { margin: 0; padding: 8px 10px; color: var(--muted); font-size: var(--fs-xs); line-height: 1.6; border-left: 2px solid var(--line-2); background: var(--bg); }
   .ai-content pre { margin: 0; padding: 10px 12px; overflow-x: auto; color: var(--text); font: 500 13.5px 'Cascadia Code', monospace; line-height: 1.65; white-space: pre-wrap; word-break: break-word; border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--accent) 4%, var(--bg)); }
   .ai-waiting { display: flex; align-items: center; gap: 8px; padding: 12px; color: var(--muted); font-size: var(--fs-xs); }
