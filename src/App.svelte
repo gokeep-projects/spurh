@@ -409,6 +409,9 @@
   function startAboutTilt(stage: HTMLElement): () => void {
     const target = stage.querySelector<HTMLElement>('.about-logo-wrap');
     if (!target) return () => {};
+    const aurora = stage.querySelector<HTMLElement>('.about-aurora');
+    const orbA = stage.querySelector<HTMLElement>('.about-orb-a');
+    const orbB = stage.querySelector<HTMLElement>('.about-orb-b');
     let raf = 0;
     const onMove = (e: PointerEvent) => {
       const r = stage.getBoundingClientRect();
@@ -417,12 +420,18 @@
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         target.style.transform = `perspective(900px) rotateX(${(-ny * 8).toFixed(2)}deg) rotateY(${(nx * 12).toFixed(2)}deg) translateZ(0)`;
+        if (aurora) { aurora.style.setProperty('--ax', (nx * 14).toFixed(1) + 'px'); aurora.style.setProperty('--ay', (ny * 10).toFixed(1) + 'px'); }
+        if (orbA) { orbA.style.setProperty('--dx', (nx * -18).toFixed(1) + 'px'); orbA.style.setProperty('--dy', (ny * -14).toFixed(1) + 'px'); }
+        if (orbB) { orbB.style.setProperty('--dx', (nx * 16).toFixed(1) + 'px'); orbB.style.setProperty('--dy', (ny * 12).toFixed(1) + 'px'); }
       });
     };
     const onLeave = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         target.style.transform = '';
+        if (aurora) { aurora.style.removeProperty('--ax'); aurora.style.removeProperty('--ay'); }
+        if (orbA) { orbA.style.removeProperty('--dx'); orbA.style.removeProperty('--dy'); }
+        if (orbB) { orbB.style.removeProperty('--dx'); orbB.style.removeProperty('--dy'); }
       });
     };
     stage.addEventListener('pointermove', onMove, { passive: true });
