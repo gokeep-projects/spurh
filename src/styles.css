@@ -3543,6 +3543,9 @@ kbd {
 
 /* —— 浅色：灰蓝框架 + 白色卡片 + 淡蓝输入 —— */
 .app.light {
+  --panel: #e7edf9;
+  --panel-2: #dbe4f3;
+  --bg: #aebfe0;
   --glass: rgba(242, 247, 255, .92);
   --glass-strong: rgba(247, 250, 255, .97);
 }

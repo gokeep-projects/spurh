@@ -1753,7 +1753,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               {#if resultRawMode}
                 <pre class="result-raw">{currentSessionResult()!.output}</pre>
               {:else}
-                <ResultView result={currentSessionResult()!} />
+                <ResultView result={currentSessionResult()!} exportName={activePluginId} />
               {/if}
             {:else}
               <div class="output-empty"><span class="tool-icon large">{@html iconHtml(activePlugin.icon)}</span><b>等待输入</b></div>

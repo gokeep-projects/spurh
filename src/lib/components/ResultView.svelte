@@ -1,12 +1,13 @@
 ﻿<script lang="ts">
   import { highlightCode } from '../highlight';
-  import { copyText as copyTextNative } from '../env';
+  import { copyText as copyTextNative, safeInvoke, isTauri } from '../env';
   import type { PluginResult } from '../plugins';
   import JsonView from './JsonView.svelte';
 
-  let { result }: { result: PluginResult } = $props();
+  let { result, exportName = '' }: { result: PluginResult; exportName?: string } = $props();
 
   let copiedKey = $state('');
+  let exportState = $state('');
 
   function record(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -35,6 +36,25 @@
     await copyTextNative(value);
     copiedKey = key;
     setTimeout(() => { if (copiedKey === key) copiedKey = ''; }, 1100);
+  }
+
+
+  async function exportResult(): Promise<void> {
+    if (!isTauri) {
+      exportState = '仅桌面端可用';
+      setTimeout(() => { if (exportState === '仅桌面端可用') exportState = ''; }, 1600);
+      return;
+    }
+    try {
+      const ext = result.language === 'json' ? 'json' : result.language ? result.language.replace(/[^\w-]/g, '') : 'txt';
+      const base = exportName.replace(/[^\w-]/g, '') || 'spurh-export';
+      const saved = await safeInvoke<string | null>('save_text_file', { name: `${base}.${ext}`, content: result.output });
+      exportState = saved ? '已导出 ✓' : '';
+      setTimeout(() => { if (exportState === '已导出 ✓') exportState = ''; }, 1600);
+    } catch {
+      exportState = '导出失败';
+      setTimeout(() => { if (exportState === '导出失败') exportState = ''; }, 1600);
+    }
   }
 
   let data = $derived(record(result.data));
@@ -122,6 +142,9 @@
 </script>
 
 <div class="result-view" class:tree-mode={useTreeView}>
+<div class="result-actions">
+    {#if result.output}<button class="export-btn" onclick={exportResult} title="导出结果到文件">{exportState || '导出'}</button>{/if}
+  </div>
   {#if result.view === 'timestamp' && Object.keys(data).length}
     <div class="time-hero">
       <small>本地时间</small>
@@ -319,6 +342,10 @@
 
 <style>
   .result-view { min-height: 100%; padding: 18px; overflow: auto; background: var(--panel-2); }
+  .result-actions { position: sticky; top: 0; z-index: 6; display: flex; justify-content: flex-end; pointer-events: none; height: 0; }
+  .result-actions .export-btn { pointer-events: auto; margin-top: -2px; margin-right: 2px; height: 28px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 2px 10px color-mix(in srgb, #000 18%, transparent); backdrop-filter: blur(6px); }
+  .result-actions .export-btn:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .tree-mode .result-actions { padding-right: 14px; }
   .result-view.tree-mode { padding: 0; display: flex; flex-direction: column; }
   .result-view.tree-mode :global(.json-tree) { flex: 1; min-height: 100%; }
   .result-view > pre { width: 100%; min-height: 100%; margin: 0; color: var(--text); font: 450 14px/1.72 'Cascadia Code', Consolas, monospace; white-space: pre-wrap; word-break: break-word; }

@@ -82,12 +82,24 @@
   const EXAMPLES = [
     { label: '每分钟', expr: '* * * * *' },
     { label: '每 5 分钟', expr: '*/5 * * * *' },
+    { label: '每 15 分钟', expr: '*/15 * * * *' },
+    { label: '每 30 分钟', expr: '*/30 * * * *' },
     { label: '每 10 秒', expr: '*/10 * * * * *' },
     { label: '每小时', expr: '0 * * * *' },
+    { label: '每 2 小时', expr: '0 */2 * * *' },
     { label: '每天 09:00', expr: '0 9 * * *' },
+    { label: '每天中午 12:00', expr: '0 12 * * *' },
+    { label: '每天 23:59', expr: '59 23 * * *' },
     { label: '工作日 09:30', expr: '30 9 * * 1-5' },
+    { label: '工作日每 30 分钟', expr: '*/30 9-18 * * 1-5' },
     { label: '每周一 09:00', expr: '0 9 * * 1' },
+    { label: '每周五 17:00', expr: '0 17 * * 5' },
+    { label: '周末 10:00', expr: '0 10 * * 0,6' },
     { label: '每月 1 号 00:00', expr: '0 0 1 * *' },
+    { label: '每月 15 号 10:00', expr: '0 10 15 * *' },
+    { label: '每月最后一天 23:00', expr: '0 23 L * *' },
+    { label: '每年 1 月 1 日 00:00', expr: '0 0 1 1 *' },
+    { label: '每季度首日 08:00', expr: '0 8 1 1,4,7,10 *' },
   ];
 
   function applyExample(expr: string): void {
@@ -148,6 +160,7 @@
         {/each}
       </div>
 
+      <p class="cron-legend">格式：<b>分</b> <b>时</b> <b>日</b> <b>月</b> <b>周</b> · <i>*</i> 任意 <i>/</i> 间隔 <i>,</i> 列表 <i>-</i> 范围 <i>L</i> 最后一天（前 5 段为标准表达式，第 6 段为秒）</p>
       <div class="cron-sec-title"><b>配置</b><small>调整后实时生成表达式</small></div>
       <div class="cron-controls">
         {#if type === 'seconds'}
@@ -313,4 +326,7 @@
   .cron-examples button { width: 100%; min-width: 0; min-height: 30px; padding: 5px 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); line-height: 1.3; border: 1px dashed var(--line-2); border-radius: 12px; background: transparent; white-space: normal; word-break: break-word; }
   .cron-examples button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
   .cron-examples button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
+  .cron-legend { margin: 8px 2px 0; color: var(--muted-2); font-size: var(--fs-sm); line-height: 1.7; }
+  .cron-legend b { display: inline-block; min-width: 18px; margin-right: 2px; padding: 0 5px; color: var(--text); font-weight: 600; text-align: center; border: 1px solid var(--line-2); border-radius: 5px; background: var(--w-04); }
+  .cron-legend i { padding: 0 2px; color: var(--accent); font-style: normal; font-weight: 600; }
 </style>
