@@ -177,6 +177,7 @@
 </script>
 
 <div class="cron-panel">
+  <p class="cron-intro">Cron ?????<code>????</code>??????????????????????????????????????????????????? 5 ??????</p>
   <div class="cron-layout">
     <section class="cron-config">
       <div class="cron-sec-title"><b>类型</b></div>
@@ -316,6 +317,8 @@
 
 <style>
   .cron-panel { display: flex; flex-direction: column; gap: 10px; width: 100%; min-width: 0; }
+  .cron-intro { margin: 0 2px; padding: 8px 12px; color: var(--muted); font-size: var(--fs-sm); line-height: 1.7; border: 1px solid var(--line); border-radius: 10px; background: var(--w-03); }
+  .cron-intro code { padding: 1px 6px; color: var(--c-cyan); font-weight: 600; border: 1px solid var(--line-2); border-radius: 5px; background: var(--w-05); }
   .cron-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: start; }
   @media (max-width: 900px) {
     .cron-layout { grid-template-columns: 1fr; }

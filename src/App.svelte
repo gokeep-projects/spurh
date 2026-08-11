@@ -947,6 +947,40 @@
       }
     }
 
+    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey && (activePluginId === 'spurh.json' || activePluginId === 'spurh.sql')) {
+      // ???????JSON/SQL ????????????????
+      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const linePrefix = value.slice(lineStart, start);
+      const indentMatch = linePrefix.match(/^[\t ]*/);
+      const lineIndent = indentMatch ? indentMatch[0] : '';
+      const stripStr = (s: string): string => s.replace(/"(\\.|[^"\\])*"/g, '');
+      const depthOf = (s: string): number => {
+        let d = 0;
+        for (const ch of s) {
+          if (ch === '{' || ch === '[' || ch === '(') d++;
+          else if (ch === '}' || ch === ']' || ch === ')') d = Math.max(0, d - 1);
+        }
+        return d;
+      };
+      const deeper = /[{\[(:]\s*$/.test(stripStr(linePrefix)) && !/[{}[\]]$/.test(stripStr(linePrefix).trim());
+      const nextNonWs = value.slice(end).match(/^\s*(\S)/)?.[1] ?? '';
+      const baseIndent = lineIndent + (deeper ? '  ' : '');
+      if (deeper && '}])'.includes(nextNonWs)) {
+        event.preventDefault();
+        const insert = '\n' + baseIndent + '\n' + lineIndent;
+        changeInput(value.slice(0, start) + insert + value.slice(end));
+        flushSync();
+        target.selectionStart = target.selectionEnd = start + 1 + baseIndent.length;
+        return;
+      }
+      event.preventDefault();
+      const insert = '\n' + baseIndent;
+      changeInput(value.slice(0, start) + insert + value.slice(end));
+      flushSync();
+      target.selectionStart = target.selectionEnd = start + 1 + baseIndent.length;
+      return;
+    }
+
     if (event.key === 'Tab') {
       event.preventDefault();
       if (start === end) {
