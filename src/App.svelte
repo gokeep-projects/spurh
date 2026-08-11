@@ -948,7 +948,7 @@
     }
 
     if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey && (activePluginId === 'spurh.json' || activePluginId === 'spurh.sql')) {
-      // ???????JSON/SQL ????????????????
+      // 自动换行缩进：JSON/SQL 结构感知，括号后回车自动补闭合行
       const lineStart = value.lastIndexOf('\n', start - 1) + 1;
       const linePrefix = value.slice(lineStart, start);
       const indentMatch = linePrefix.match(/^[\t ]*/);
