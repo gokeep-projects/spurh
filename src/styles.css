@@ -1229,6 +1229,7 @@ kbd {
   box-shadow: 0 0 0 3px rgba(129, 140, 248, .14);
 }
 .options input[type="datetime-local"] { color-scheme: dark; }
+.app.light .options input[type="datetime-local"], .app.light .ts-input-wrap input[type="datetime-local"] { color-scheme: light; }
 .control-spacer { flex: 1; }
 .quiet-button {
   display: inline-flex;

@@ -896,6 +896,8 @@
 
   /** 编辑器键位：Tab 缩进（Shift+Tab 反缩进）、Enter 延续缩进、括号/引号自动闭合 */
   function handleInputKeys(event: KeyboardEvent): void {
+    // 中文输入法组合中按 Enter 确认候选词：不拦截，避免破坏正在输入的文本
+    if (event.isComposing) return;
     if (event.key === 'Enter' && event.ctrlKey && activePluginId === 'spurh.sql') {
       event.preventDefault();
       runSql();
