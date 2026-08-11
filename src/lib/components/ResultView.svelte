@@ -318,7 +318,7 @@
 </div>
 
 <style>
-  .result-view { min-height: 100%; padding: 18px; overflow: auto; background: var(--panel-2); }
+  .result-view { height: 100%; min-height: 0; padding: 18px; overflow: auto; background: var(--panel-2); }
   .result-actions { position: sticky; top: 0; z-index: 6; display: flex; justify-content: flex-end; pointer-events: none; height: 0; }
   .result-actions .export-btn { pointer-events: auto; margin-top: -2px; margin-right: 2px; height: 28px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 2px 10px color-mix(in srgb, #000 18%, transparent); backdrop-filter: blur(6px); }
   .result-actions .export-btn:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }

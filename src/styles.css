@@ -2258,17 +2258,19 @@ kbd {
 }
 .about-aurora {
   position: absolute;
-  inset: -40% -30% -40% -30%;
+  inset: 0;
+  overflow: hidden;
   background:
     radial-gradient(42% 58% at 22% 28%, rgba(34, 211, 238, .28), transparent 66%),
     radial-gradient(40% 52% at 78% 22%, rgba(139, 92, 246, .3), transparent 67%),
     radial-gradient(46% 60% at 62% 82%, rgba(232, 121, 249, .24), transparent 68%);
+  background-size: 180% 180%;
   animation: about-aurora-drift 14s ease-in-out infinite alternate;
   pointer-events: none;
 }
 @keyframes about-aurora-drift {
-  0% { transform: translate3d(calc(-4% + var(--ax, 0px)), calc(-2% + var(--ay, 0px)), 0) rotate(-4deg); }
-  100% { transform: translate3d(calc(4% + var(--ax, 0px)), calc(3% + var(--ay, 0px)), 0) rotate(5deg); }
+  0% { background-position: calc(6% + var(--ax, 0px)) calc(10% + var(--ay, 0px)), calc(86% + var(--ax, 0px)) calc(6% + var(--ay, 0px)), calc(52% + var(--ax, 0px)) calc(84% + var(--ay, 0px)); }
+  100% { background-position: calc(40% + var(--ax, 0px)) calc(50% + var(--ay, 0px)), calc(58% + var(--ax, 0px)) calc(52% + var(--ay, 0px)), calc(38% + var(--ax, 0px)) calc(26% + var(--ay, 0px)); }
 }
 .about-orb {
   position: absolute;
@@ -2279,7 +2281,7 @@ kbd {
   opacity: .55;
 }
 .about-orb-a { top: -46px; right: -30px; background: radial-gradient(circle at 35% 35%, rgba(34, 211, 238, .55), transparent 70%); animation: about-orb-float 9s ease-in-out infinite; }
-.about-orb-b { bottom: -52px; left: -34px; background: radial-gradient(circle at 35% 35%, rgba(232, 121, 249, .48), transparent 70%); animation: about-orb-float 11s ease-in-out infinite reverse; }
+.about-orb-b { bottom: -8px; left: -16px; background: radial-gradient(circle at 35% 35%, rgba(232, 121, 249, .48), transparent 70%); animation: about-orb-float 11s ease-in-out infinite reverse; }
 .about-aurora, .about-orb { will-change: transform; transition: transform .18s ease-out; }
 @keyframes about-orb-float {
   0%, 100% { transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0) scale(1); }
@@ -2318,10 +2320,23 @@ kbd {
 }
 .about-stage .about-logo { position: relative; }
 .about-logo-wrap {
+  position: relative;
   display: inline-flex;
   transition: transform .18s ease-out;
   transform-style: preserve-3d;
   will-change: transform;
+}
+.about-logo-ring {
+  position: absolute;
+  inset: -11px;
+  border-radius: 22px;
+  border: 1.5px dashed color-mix(in srgb, var(--c-violet) 62%, transparent);
+  animation: about-logo-ring-spin 12s linear infinite;
+  pointer-events: none;
+  opacity: .9;
+}
+@keyframes about-logo-ring-spin {
+  to { transform: rotate(360deg); }
 }
 .about-spark {
   display: block;
@@ -3738,7 +3753,6 @@ kbd {
 }
 
 /* —— 关于页：浅色压住粉紫扫光，深色保留氛围但更克制 —— */
-.app.light .about-aurora::after { opacity: .2; filter: blur(0); }
 .app.light .about-stage {
   background: rgba(247, 250, 255, .72);
   box-shadow: 0 0 0 1px rgba(35, 58, 122, .16), 0 18px 60px rgba(35, 58, 122, .2);
@@ -3758,7 +3772,6 @@ kbd {
   background: rgba(255, 255, 255, .92);
   border-color: rgba(35, 58, 122, .3);
 }
-.app .about-aurora::after { will-change: transform; }
 /* ═══════════ 聚焦框下拉：改为实底，杜绝透过页面内容造成的“重叠错乱” ═══════════ */
 .dispatch-matches {
   background:
@@ -3877,8 +3890,6 @@ kbd {
 .app.light .about-eq i{background:linear-gradient(#0e7490,#5b21b6)}
 .app.light .about-title{background:linear-gradient(92deg,#0e7490,#5b21b6 40%,#be185d 65%,#0e7490) 0 0/220%;color:#0000;-webkit-background-clip:text;background-clip:text;animation:7s linear infinite about-title-flow}
 .about-aurora{isolation:isolate}
-.about-aurora:after{content:"";z-index:0;pointer-events:none;background:conic-gradient(from 0deg,transparent 0 6%,var(--c-cyan) 13%,transparent 21%,transparent 38%,var(--c-violet) 47%,transparent 56%,transparent 74%,var(--c-magenta) 83%,transparent 92%);opacity:.34;filter:blur(8px);animation:11s linear infinite about-stage-sweep;position:absolute;top:-80%;bottom:-80%;left:-80%;right:-80%}
-@keyframes about-stage-sweep{to{transform:rotate(360deg)}}
 .about-status>div b{align-items:center;gap:7px;display:inline-flex}
 .about-status>div b:before{content:"";background:var(--c-green);width:8px;height:8px;box-shadow:0 0 0 0 color-mix(in srgb,var(--c-green) 55%,transparent);border-radius:50%;flex:none;animation:2s ease-out infinite about-pulse}
 .about-version .about-clock{letter-spacing:1px;background:linear-gradient(92deg,var(--c-cyan),var(--c-violet) 45%,var(--c-magenta) 75%,var(--c-cyan));color:#0000;text-shadow:none;background-size:230%;-webkit-background-clip:text;background-clip:text;font-family:Cascadia Code,Consolas,monospace;font-size:21px;font-style:normal;font-weight:650;line-height:1.25;animation:6s linear infinite about-title-flow}
