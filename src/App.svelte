@@ -54,6 +54,7 @@
     hiddenTools: string[];
     topBarFullscreen: boolean;
     topBarSettings: boolean;
+    fontSizeMigrated?: boolean;
   };
 
   type ContextInfo = { path: string; content: string };
@@ -67,7 +68,7 @@
     const fallback: AppSettings = {
       theme: 'dark', trayEnabled: true, contextMenuEnabled: true, dispatchHotkey: 'ctrl+shift+space',
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
-      fontSize: 14, fontFamily: '微软雅黑',
+      fontSize: 15, fontFamily: '微软雅黑',
       sidebarShortcuts: false,
       sidebarOpen: true,
       hiddenTools: [],
@@ -77,12 +78,19 @@
     try {
       const stored = localStorage.getItem(SETTINGS_KEY);
       const parsed = stored ? JSON.parse(stored) : {};
+      // 迁移：旧默认 14px 偏小，一次性提升到 15px（未手动调大的用户生效，之后可自由调节）
+      let migratedFontSize = typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : fallback.fontSize;
+      if (!parsed.fontSizeMigrated && migratedFontSize < 15) {
+        migratedFontSize = 15;
+        parsed.fontSizeMigrated = true;
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...parsed, fontSize: 15, fontSizeMigrated: true }));
+      }
       return {
         ...fallback,
         ...parsed,
         hiddenTools: Array.isArray(parsed.hiddenTools) ? parsed.hiddenTools : fallback.hiddenTools,
-        // 字号：用户手动档位直接采用（默认 14）
-        fontSize: typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : fallback.fontSize,
+        // 字号：用户手动档位直接采用（默认 15）
+        fontSize: migratedFontSize,
         fontFamily: FONT_STACKS[parsed.fontFamily] ? parsed.fontFamily : '系统默认',
       };
     } catch {
