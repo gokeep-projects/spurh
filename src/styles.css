@@ -1281,7 +1281,7 @@ kbd {
   flex: 1;
   min-height: 210px;
   display: grid;
-  grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   border: 1px solid var(--line);
   border-radius: 0 0 var(--radius) var(--radius);
   overflow: hidden;
