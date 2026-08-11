@@ -28,6 +28,19 @@
   const M = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
   let copied = $state(false);
+  let examplesOpen = $state(false);
+  const EXAMPLES_SHOWN = 8;
+  const EXAMPLE_GROUPS = [
+    { g: '???', pat: /^(\*\/|? |???)/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '??', pat: /^??|^??????/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '??', pat: /^?[???]|^??/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '??', pat: /^??/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '?? / ??', pat: /^??|^??|^??/, items: [] as Array<{ label: string; expr: string }> },
+  ];
+  for (const ex of EXAMPLES) {
+    const group = EXAMPLE_GROUPS.find((grp) => grp.pat.test(ex.label));
+    (group ?? EXAMPLE_GROUPS[EXAMPLE_GROUPS.length - 1]).items.push(ex);
+  }
   // 记录已同步到生成器的输入，仅在新内容路由进来时切换「自定义」模式，避免与用户手动切换类型冲突
   let syncedInput: string | null = null;
 
@@ -208,11 +221,26 @@
         </div>
       </div>
 
-      <div class="cron-examples">
-        <span>试试</span>
-        {#each EXAMPLES as ex}
+      <div class="cron-examples" class:open={examplesOpen}>
+        <span class="cron-examples-label">??</span>
+        {#each EXAMPLES.slice(0, EXAMPLES_SHOWN) as ex}
           <button class:active={type === 'custom' && (session.options.customExpr || '').trim() === ex.expr} title={ex.expr} onclick={() => applyExample(ex.expr)}>{ex.label}</button>
         {/each}
+        <button class="cron-examples-more" onclick={() => (examplesOpen = !examplesOpen)} title={examplesOpen ? '???????' : '?????????'}>{examplesOpen ? '?? ?' : `?? ${EXAMPLES.length} ? ?`}</button>
+        {#if examplesOpen}
+          <div class="cron-examples-panel">
+            {#each EXAMPLE_GROUPS as group}
+              <div class="cron-examples-group">
+                <small>{group.g}</small>
+                <div class="cron-examples-grid">
+                  {#each group.items as ex}
+                    <button class:active={type === 'custom' && (session.options.customExpr || '').trim() === ex.expr} title={ex.expr} onclick={() => applyExample(ex.expr)}>{ex.label}</button>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
       </div>
 
       <p class="cron-legend">格式：<b>分</b> <b>时</b> <b>日</b> <b>月</b> <b>周</b> · <i>*</i> 任意 <i>/</i> 间隔 <i>,</i> 列表 <i>-</i> 范围 <i>L</i> 最后一天（前 5 段为标准表达式，第 6 段为秒）</p>
@@ -378,7 +406,20 @@
   .cron-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid transparent; border-radius: 8px; background: transparent; }
   .cron-clear:hover { color: var(--text); border-color: var(--line); }
   .control-spacer { flex: 1; }
-  .cron-examples { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 2px 10px; max-height: 108px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+  .cron-examples { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 8px 2px 6px; }
+  .cron-examples > button { height: 26px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line-2); border-radius: 999px; background: var(--w-03); transition: all .15s ease; white-space: nowrap; }
+  .cron-examples > button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: var(--accent-soft); }
+  .cron-examples > button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
+  .cron-examples-label { flex: 0 0 auto; color: var(--muted-2); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 1px; }
+  .cron-examples-more { color: var(--accent) !important; border-style: dashed !important; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)) !important; background: var(--accent-soft) !important; }
+  .cron-examples-panel { width: 100%; margin-top: 4px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: 0 10px 30px color-mix(in srgb, #000 22%, transparent); animation: cronPanelIn .25s cubic-bezier(.2,.9,.3,1.15); }
+  @keyframes cronPanelIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .cron-examples-group { display: flex; flex-direction: column; gap: 6px; }
+  .cron-examples-group > small { color: var(--muted-2); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 1px; }
+  .cron-examples-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+  .cron-examples-grid button { height: 26px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line-2); border-radius: 999px; background: var(--w-03); transition: all .15s ease; white-space: nowrap; }
+  .cron-examples-grid button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: var(--accent-soft); }
+  .cron-examples-grid button.active { color: #fff; border-color: transparent; background: var(--btn-gradient); }
   .cron-examples > span { flex: 0 0 auto; color: var(--muted-2); font-size: var(--fs-xs); padding-right: 2px; }
   .cron-examples button { flex: 0 0 auto; min-width: 0; height: 28px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); line-height: 1; border: 1px dashed var(--line-2); border-radius: 999px; background: transparent; white-space: nowrap; }
   .cron-examples button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
