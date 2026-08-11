@@ -45,11 +45,11 @@
 
   /** 文本输入日期 → 写回 pickDateTime（YYYY-MM-DDTHH:mm），支持多种写法 */
   function parseDateTimeText(value: string): void {
-    const m = value.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?/);
+    const m = value.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
     if (!m) return;
     const p = (n: number) => String(n).padStart(2, '0');
-    const norm = `${m[1]}-${p(Number(m[2]))}-${p(Number(m[3]))}T${p(Number(m[4] ?? 0))}:${p(Number(m[5] ?? 0))}`;
-    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4] ?? 0), Number(m[5] ?? 0));
+    const norm = `${m[1]}-${p(Number(m[2]))}-${p(Number(m[3]))}T${p(Number(m[4] ?? 0))}:${p(Number(m[5] ?? 0))}:${p(Number(m[6] ?? 0))}`;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4] ?? 0), Number(m[5] ?? 0), Number(m[6] ?? 0));
     if (Number.isNaN(d.getTime())) return;
     onChangeOption('pickDateTime', norm);
   }
@@ -229,14 +229,15 @@
     const cur = session.options.pickDateTime || nowValue();
     const dm = cur.match(/^(\d{4})-(\d{2})-(\d{2})T/);
     if (!dm) return;
-    onChangeOption('pickDateTime', `${dm[1]}-${dm[2]}-${dm[3]}T${p(hh)}:${p(mm)}`);
+    onChangeOption('pickDateTime', `${dm[1]}-${dm[2]}-${dm[3]}T${p(hh)}:${p(mm)}:${p(ss)}`);
   }
-  const timeText = $derived((session.options.pickDateTime || '').replace('T', ' ').slice(11, 16) || '00:00');
+  const timeText = $derived((session.options.pickDateTime || '').replace('T', ' ').slice(11, 19) || '00:00:00');
   const dateText = $derived((session.options.pickDateTime || '').slice(0, 10) || '');
 
 </script>
 
 <div class="ts-panel">
+  <div class="ts-panel-clock"><i class="ts-clock-dot"></i><b>{tsClock}</b><small>本地时间 · 实时</small></div>
   <div class="ts-modes">
     {#each MODES as m}
       <button class:active={session.actionId === m.id} title={m.desc} onclick={() => switchMode(m.id)}>
@@ -298,7 +299,7 @@
                   {/if}
                 {/each}
               </div>
-              <footer class="ts-cal-foot"><button onclick={() => { quickPick('today'); calOpen = false; }}>今天</button><button onclick={() => { calOpen = false; }}>关闭</button></footer>
+              <footer class="ts-cal-foot"><button onclick={() => { quickPick('today'); calOpen = false; }}>今天</button><button class="ts-cal-clear" onclick={() => { onChangeOption('pickDateTime', ''); calOpen = false; }}>清除</button><button onclick={() => { calOpen = false; }}>关闭</button></footer>
             </div>
           {/if}
         </div>
@@ -341,6 +342,11 @@
 
 <style>
   .ts-panel { display: flex; flex-direction: column; gap: 12px; }
+  .ts-panel-clock { display: inline-flex; align-items: center; gap: 9px; align-self: flex-start; padding: 6px 14px 6px 10px; border: 1px solid color-mix(in srgb, var(--c-green) 34%, var(--line)); border-radius: 999px; background: linear-gradient(120deg, color-mix(in srgb, var(--c-green) 9%, var(--panel)), var(--panel)); box-shadow: 0 3px 12px color-mix(in srgb, var(--c-green) 10%, transparent); }
+  .ts-panel-clock b { font: 650 var(--fs-sm) 'Cascadia Code', Consolas, monospace; color: var(--c-green); font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+  .ts-panel-clock small { color: var(--muted); font-size: var(--fs-xs); }
+  .ts-clock-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-green) 55%, transparent); animation: tsPulse 2s ease-out infinite; }
+  @keyframes tsPulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-green) 50%, transparent); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
   .ts-modes { display: flex; gap: 6px; flex-wrap: wrap; }
   .ts-modes button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; border: 1px solid var(--line); border-radius: 999px; background: var(--w-03); transition: all var(--transition); }
   .ts-modes button:hover { color: var(--text); border-color: var(--line-strong); background: var(--w-06); }

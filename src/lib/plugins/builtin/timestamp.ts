@@ -75,7 +75,7 @@ export const timestampPlugin: SpurhPlugin = {
       const typed = input.trim().replace(/^(?:timestamp|时间戳)[:：]\s*/i, '');
       // 仅当共享输入确实像日期时才优先使用，避免其他模式残留的时间戳文本被误解析
       const dateLike = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(typed);
-      const fromPicker = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+      const fromPicker = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
       let date: Date;
       if (typed && dateLike) {
         // 文本框内容优先（粘贴/输入日期），避免被 picker 默认值覆盖
@@ -88,7 +88,7 @@ export const timestampPlugin: SpurhPlugin = {
           date = new Date(typed.replace('T', ' '));
         }
       } else if (fromPicker) {
-        const strict = strictLocalDate([Number(fromPicker[1]), Number(fromPicker[2]), Number(fromPicker[3]), Number(fromPicker[4]), Number(fromPicker[5]), 0]);
+        const strict = strictLocalDate([Number(fromPicker[1]), Number(fromPicker[2]), Number(fromPicker[3]), Number(fromPicker[4]), Number(fromPicker[5]), Number(fromPicker[6] ?? 0)]);
         if (!strict) throw new Error('选择的日期时间无效');
         date = strict;
       } else if (raw) {
