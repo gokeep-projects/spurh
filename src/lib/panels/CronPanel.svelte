@@ -142,6 +142,10 @@
     { label: '每年 10 月 1 日 00:00', expr: '0 0 1 10 *' },
     { label: '每周日 00:00', expr: '0 0 * * 0' },
     { label: '每年 12 月 31 日 23:59', expr: '59 23 31 12 *' },
+    { label: '每季度首日 09:00', expr: '0 9 1 1,4,7,10 *' },
+    { label: '每月最后工作日 18:00', expr: '0 18 LW * *' },
+    { label: '工作日每 15 分钟(9-18)', expr: '*/15 9-18 * * 1-5' },
+
   ];
 
   function applyExample(expr: string): void {
