@@ -35,3 +35,6 @@ final-*.png
 # Local test artifacts
 _test.db
 preview_light.jpg
+
+# 诊断截图目录
+.shots-*/

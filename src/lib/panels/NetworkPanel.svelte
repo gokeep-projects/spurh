@@ -479,7 +479,7 @@ const MIME_TYPES: Array<[string, string]> = [
         {#if tcpProtocol === 'tcp' && !tcpConnected && !tcpConnecting}
           <span class="net-tcp-hint"><i></i>请先点击「连接」建立长连接，再发送数据（UDP 无需连接）</span>
         {/if}
-        <label class="net-field grow net-data"><span>数据</span><textarea rows={tcpHexMode ? 2 : 16} value={tcpData} oninput={(e) => (tcpData = e.currentTarget.value)} placeholder="要发送的内容，如 GET / HTTP/1.1" spellcheck="false" onkeydown={(e) => e.ctrlKey && e.key === 'Enter' && sendTcp()}></textarea><small class="net-data-hint">Ctrl+Enter 发送 · 支持多行报文 · 可拖拽调整高度</small></label>
+        <label class="net-field grow net-data"><span>数据</span><textarea rows={tcpHexMode ? 5 : 16} value={tcpData} oninput={(e) => (tcpData = e.currentTarget.value)} placeholder="要发送的内容，如 GET / HTTP/1.1" spellcheck="false" onkeydown={(e) => e.ctrlKey && e.key === 'Enter' && sendTcp()}></textarea><small class="net-data-hint">Ctrl+Enter 发送 · 支持多行报文 · 可拖拽调整高度</small></label>
         <label class="tcp-hex"><input type="checkbox" checked={tcpHexMode} onchange={(e) => (tcpHexMode = e.currentTarget.checked)} />HEX</label>
         <button class="net-run" class:busy={tcpSending} disabled={tcpSending || (tcpProtocol === 'tcp' && !tcpConnected && !tcpConnecting)} onclick={sendTcp} title={tcpProtocol === 'tcp' && !tcpConnected ? '请先点击「连接」建立长连接' : '发送数据并等待响应'}>
           <span class="net-dot"></span>{tcpSending ? '发送中…' : '发送'}

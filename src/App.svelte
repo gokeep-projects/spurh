@@ -216,6 +216,7 @@
   let aboutLive = $state({ mem: 0, cpu: 0 });
   let aboutSpark = $state<HTMLCanvasElement | undefined>(undefined);
   let aboutStageEl = $state<HTMLDivElement | undefined>(undefined);
+  let aboutFlashTick = $state(0);
   let sparkHistory: Array<[number, number]> = [];
   let sparkStatsAvailable = false;
   let sparkTick = 0;
@@ -488,6 +489,7 @@
                 aboutCpu = (Math.round(stats.cpuPercent * 10) / 10).toFixed(1);
                 aboutLive = { ...aboutLive, cpu: Math.max(0, Math.min(100, Math.round(stats.cpuPercent))) };
               }
+              aboutFlashTick += 1;
               sparkHistory = [...sparkHistory, [aboutLive.mem, aboutLive.cpu] as [number, number]].slice(-44);
             }
           } catch {
@@ -2018,6 +2020,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               <div class="about-stage" bind:this={aboutStageEl}>
                 <div class="about-aurora" aria-hidden="true"></div>
                 <div class="about-frame" aria-hidden="true"></div>
+                <div class="about-scanline" aria-hidden="true"></div>
                 <div class="about-orb about-orb-a" aria-hidden="true"></div>
                 <div class="about-orb about-orb-b" aria-hidden="true"></div>
                 <div class="about-particles" aria-hidden="true"><i style="--px:16%;--pd:.0s;--ps:8px"></i><i style="--px:38%;--pd:1.1s;--ps:6px"></i><i style="--px:58%;--pd:.5s;--ps:7px"></i><i style="--px:76%;--pd:1.9s;--ps:5px"></i><i style="--px:26%;--pd:2.7s;--ps:4px"></i><i style="--px:68%;--pd:3.4s;--ps:6px"></i></div>
@@ -2058,9 +2061,9 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                     <div class="about-version">
                       <div class="about-ver-head"><b>v0.1.0</b><small>构建 {BUILD_STAMP}</small></div>
                       <div class="about-metrics">
-                        <span><em>系统内存</em><b>{aboutHeap}</b></span>
-                        <span><em>系统 CPU</em><b>{aboutCpu}%</b></span>
-                        <span><em>已运行</em><b>{formatUptime(aboutUptime)}</b></span>
+                        <span><em>系统内存</em>{#key aboutFlashTick}<b>{aboutHeap}</b>{/key}</span>
+                        <span><em>系统 CPU</em>{#key aboutFlashTick}<b>{aboutCpu}%</b>{/key}</span>
+                        <span><em>已运行</em>{#key aboutFlashTick}<b>{formatUptime(aboutUptime)}</b>{/key}</span>
                       </div>
                       <canvas bind:this={aboutSpark} class="about-spark" aria-hidden="true"></canvas>
                       <i class="about-clock">{aboutClock}</i>

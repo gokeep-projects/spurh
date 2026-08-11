@@ -54,6 +54,24 @@ fn friendly_db_error(context: &str, raw: &str) -> String {
     format!("{context}：{msg}")
 }
 
+/// 提取完整错误链：tokio-postgres 的 Display 对数据库错误只输出 "db error"，
+/// 真实的服务端信息在 source() 链上，这里逐层拼接。
+fn error_text_of(error: &dyn std::error::Error) -> String {
+    let mut text = error.to_string();
+    let mut source = error.source();
+    while let Some(inner) = source {
+        let part = inner.to_string();
+        if !part.is_empty() && !text.contains(&part) {
+            text = format!("{text}: {part}");
+        }
+        source = inner.source();
+    }
+    text
+}
+
+fn friendly_db_error_from(context: &str, error: &dyn std::error::Error) -> String {
+    friendly_db_error(context, &error_text_of(error))
+}
 
 
 #[derive(Debug, Deserialize, Clone)]
@@ -154,7 +172,7 @@ fn mysql_exec(profile: &SqlProfile, sql: &str, max_rows: usize) -> Result<SqlExe
         let query = is_query_sql(sql);
         let mut result = conn
             .query_iter(sql)
-            .map_err(|error| friendly_db_error(&format!("SQL 执行失败"), &error.to_string()))?;
+            .map_err(|error| friendly_db_error_from(&format!("SQL 执行失败"), &error))?;
         let columns = result
             .columns()
             .as_ref()
@@ -164,7 +182,7 @@ fn mysql_exec(profile: &SqlProfile, sql: &str, max_rows: usize) -> Result<SqlExe
         let mut rows = Vec::new();
         let mut truncated = false;
         for row in result.by_ref() {
-            let row = row.map_err(|error| friendly_db_error(&format!("读取结果失败"), &error.to_string()))?;
+            let row = row.map_err(|error| friendly_db_error_from(&format!("读取结果失败"), &error))?;
             rows.push(row.unwrap().into_iter().map(mysql_value_to_json).collect::<Vec<_>>());
             if rows.len() >= max_rows {
                 truncated = true;
@@ -208,12 +226,12 @@ fn sqlite_exec_on(
 ) -> Result<SqlExecResult, String> {
     let started = Instant::now();
     if is_query_sql(sql) {
-        let mut stmt = conn.prepare(sql).map_err(|error| friendly_db_error(&format!("SQL 解析失败"), &error.to_string()))?;
+        let mut stmt = conn.prepare(sql).map_err(|error| friendly_db_error_from(&format!("SQL 解析失败"), &error))?;
         let columns = stmt.column_names().iter().map(|name| name.to_string()).collect::<Vec<_>>();
         let mut rows = Vec::new();
         let mut truncated = false;
-        let mut rows_iter = stmt.query([]).map_err(|error| friendly_db_error(&format!("SQL 执行失败"), &error.to_string()))?;
-        while let Some(row) = rows_iter.next().map_err(|error| friendly_db_error(&format!("读取结果失败"), &error.to_string()))? {
+        let mut rows_iter = stmt.query([]).map_err(|error| friendly_db_error_from(&format!("SQL 执行失败"), &error))?;
+        while let Some(row) = rows_iter.next().map_err(|error| friendly_db_error_from(&format!("读取结果失败"), &error))? {
             let mut cells = Vec::with_capacity(columns.len());
             for index in 0..columns.len() {
                 let value = row.get::<usize, rusqlite::types::Value>(index).unwrap_or(rusqlite::types::Value::Null);
@@ -243,7 +261,7 @@ fn sqlite_exec_on(
         // affected 取「本次调用」的变更行数差值（total_changes 是连接累计值）
         let before = conn.total_changes();
         conn.execute_batch(sql)
-            .map_err(|error| friendly_db_error(&format!("SQL 执行失败"), &error.to_string()))?;
+            .map_err(|error| friendly_db_error_from(&format!("SQL 执行失败"), &error))?;
         let result = SqlExecResult {
             columns: Vec::new(),
             rows: Vec::new(),
@@ -283,13 +301,13 @@ fn pg_exec(profile: &SqlProfile, sql: &str, max_rows: usize) -> Result<SqlExecRe
             // query_raw 流式读取：达到 MAX_ROWS 即停止，避免大表全量载入内存
             let mut rows_iter = client
                 .query_raw(sql, std::iter::empty::<&(dyn postgres::types::ToSql + Sync)>())
-                .map_err(|error| friendly_db_error(&format!("SQL 执行失败"), &error.to_string()))?;
+                .map_err(|error| friendly_db_error_from(&format!("SQL 执行失败"), &error))?;
             let mut out = Vec::new();
             let mut truncated = false;
             let mut columns: Vec<String> = Vec::new();
             while let Some(row) = rows_iter
                 .next()
-                .map_err(|error| friendly_db_error(&format!("读取结果失败"), &error.to_string()))?
+                .map_err(|error| friendly_db_error_from(&format!("读取结果失败"), &error))?
             {
                 if columns.is_empty() {
                     columns = row
@@ -315,7 +333,7 @@ fn pg_exec(profile: &SqlProfile, sql: &str, max_rows: usize) -> Result<SqlExecRe
         } else {
             let affected = client
                 .execute(sql, &[])
-                .map_err(|error| friendly_db_error(&format!("SQL 执行失败"), &error.to_string()))?;
+                .map_err(|error| friendly_db_error_from(&format!("SQL 执行失败"), &error))?;
             Ok(SqlExecResult {
                 columns: Vec::new(),
                 rows: Vec::new(),
@@ -343,14 +361,14 @@ fn run_test(profile: &SqlProfile) -> Result<SqlTestResult, String> {
         "mysql" => {
             use mysql::prelude::*;
             let mut conn = mysql_conn_with(profile, None, |opts| opts)?;
-            let value: Option<String> = conn.query_first("SELECT VERSION()").map_err(|error| friendly_db_error(&format!("查询版本失败"), &error.to_string()))?;
+            let value: Option<String> = conn.query_first("SELECT VERSION()").map_err(|error| friendly_db_error_from(&format!("查询版本失败"), &error))?;
             value.unwrap_or_else(|| "未知".into())
         }
         "sqlite" => {
             let path = profile.file.as_deref().filter(|path| !path.trim().is_empty()).ok_or("SQLite 需要指定数据库文件路径")?;
-            let conn = rusqlite::Connection::open(path).map_err(|error| friendly_db_error(&format!("打开 SQLite 失败"), &error.to_string()))?;
+            let conn = rusqlite::Connection::open(path).map_err(|error| friendly_db_error_from(&format!("打开 SQLite 失败"), &error))?;
             conn.query_row("SELECT sqlite_version()", [], |row| row.get::<_, String>(0))
-                .map_err(|error| friendly_db_error(&format!("查询版本失败"), &error.to_string()))?
+                .map_err(|error| friendly_db_error_from(&format!("查询版本失败"), &error))?
         }
         "postgres" => {
             let mut config = postgres::Config::new();
@@ -362,7 +380,7 @@ fn run_test(profile: &SqlProfile) -> Result<SqlTestResult, String> {
                 config.dbname(database);
             }
             let mut client = pg_connect(&mut config, profile.ssl)?;
-            let row = client.query_one("SELECT version()", &[]).map_err(|error| friendly_db_error(&format!("查询版本失败"), &error.to_string()))?;
+            let row = client.query_one("SELECT version()", &[]).map_err(|error| friendly_db_error_from(&format!("查询版本失败"), &error))?;
             row.try_get::<_, String>(0).unwrap_or_else(|_| "未知".into())
         }
         other => return Err(format!("不支持的数据库类型：{other}（支持 mysql / sqlite / postgres）")),
@@ -380,7 +398,7 @@ pub async fn sql_test(profile: SqlProfile) -> Result<SqlTestResult, String> {
     let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task)
         .await
         .map_err(|_| "连接测试超过 15 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
@@ -395,7 +413,7 @@ pub async fn sql_execute(profile: SqlProfile, sql: String) -> Result<SqlExecResu
         let interrupt = conn.get_interrupt_handle();
         let task = tauri::async_runtime::spawn_blocking(move || sqlite_exec_on(conn, &profile, &sql, MAX_ROWS));
         return match tokio::time::timeout(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS), task).await {
-            Ok(joined) => joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?,
+            Ok(joined) => joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?,
             Err(_) => {
                 // 真正中断底层 SQLite 查询：任务随即结束并把连接归还缓存
                 interrupt.interrupt();
@@ -407,7 +425,7 @@ pub async fn sql_execute(profile: SqlProfile, sql: String) -> Result<SqlExecResu
     let joined = tokio::time::timeout(std::time::Duration::from_secs(QUERY_TIMEOUT_SECS), task)
         .await
         .map_err(|_| format!("SQL 执行超过 {QUERY_TIMEOUT_SECS} 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作"))?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 // ── 元数据浏览与数据编辑（Navicat 风格） ──────────────────────────
 
@@ -599,22 +617,22 @@ fn mysql_conn_with(
         opts = opts.ssl_opts(mysql::SslOpts::default());
     }
     let opts = extra(opts);
-    mysql::Conn::new(opts).map_err(|error| friendly_db_error(&format!("连接 MySQL 失败"), &error.to_string()))
+    mysql::Conn::new(opts).map_err(|error| friendly_db_error_from(&format!("连接 MySQL 失败"), &error))
 }
 
 fn pg_connect(config: &mut postgres::Config, ssl: bool) -> Result<postgres::Client, String> {
     if ssl {
         let connector = postgres_native_tls::MakeTlsConnector::new(
-            native_tls::TlsConnector::new().map_err(|error| friendly_db_error(&format!("创建 TLS 连接器失败"), &error.to_string()))?,
+            native_tls::TlsConnector::new().map_err(|error| friendly_db_error_from(&format!("创建 TLS 连接器失败"), &error))?,
         );
         config.ssl_mode(postgres::config::SslMode::Require);
         config
             .connect(connector)
-            .map_err(|error| friendly_db_error(&format!("连接 PostgreSQL 失败"), &error.to_string()))
+            .map_err(|error| friendly_db_error_from(&format!("连接 PostgreSQL 失败"), &error))
     } else {
         config
             .connect(postgres::NoTls)
-            .map_err(|error| friendly_db_error(&format!("连接 PostgreSQL 失败"), &error.to_string()))
+            .map_err(|error| friendly_db_error_from(&format!("连接 PostgreSQL 失败"), &error))
     }
 }
 
@@ -640,7 +658,7 @@ fn pg_client(profile: &SqlProfile, database: Option<&str>) -> Result<postgres::C
 
 fn sqlite_conn(profile: &SqlProfile) -> Result<rusqlite::Connection, String> {
     let path = profile.file.as_deref().filter(|path| !path.trim().is_empty()).ok_or("SQLite 需要指定数据库文件路径")?;
-    rusqlite::Connection::open(path).map_err(|error| friendly_db_error(&format!("打开 SQLite 失败"), &error.to_string()))
+    rusqlite::Connection::open(path).map_err(|error| friendly_db_error_from(&format!("打开 SQLite 失败"), &error))
 }
 
 fn run_databases(profile: &SqlProfile) -> Result<Vec<String>, String> {
@@ -648,7 +666,7 @@ fn run_databases(profile: &SqlProfile) -> Result<Vec<String>, String> {
         "mysql" => {
             use mysql::prelude::*;
             with_mysql(profile, None, |conn| {
-                let names: Vec<String> = conn.query("SHOW DATABASES").map_err(|error| friendly_db_error(&format!("查询数据库列表失败"), &error.to_string()))?;
+                let names: Vec<String> = conn.query("SHOW DATABASES").map_err(|error| friendly_db_error_from(&format!("查询数据库列表失败"), &error))?;
                 Ok(names)
             })
         }
@@ -656,7 +674,7 @@ fn run_databases(profile: &SqlProfile) -> Result<Vec<String>, String> {
             with_pg(profile, None, |client| {
                 let rows = client
                     .query("SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname", &[])
-                    .map_err(|error| friendly_db_error(&format!("查询数据库列表失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("查询数据库列表失败"), &error))?;
                 Ok(rows.iter().map(|row| row.get::<_, String>(0)).collect())
             })
         }
@@ -678,7 +696,7 @@ fn run_tables(profile: &SqlProfile, database: String) -> Result<Vec<SqlTableInfo
             with_mysql(profile, Some(&database.clone()), |conn| {
                 let rows: Vec<(String, String)> = conn
                     .exec("SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = ? ORDER BY table_name", vec![database])
-                    .map_err(|error| friendly_db_error(&format!("查询表列表失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("查询表列表失败"), &error))?;
                 Ok(rows.into_iter().map(|(name, kind)| SqlTableInfo { name, kind: if kind == "BASE TABLE" { "TABLE".into() } else { kind } }).collect())
             })
         }
@@ -686,7 +704,7 @@ fn run_tables(profile: &SqlProfile, database: String) -> Result<Vec<SqlTableInfo
             with_pg(profile, Some(&database), |client| {
                 let rows = client
                     .query("SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name", &[])
-                    .map_err(|error| friendly_db_error(&format!("查询表列表失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("查询表列表失败"), &error))?;
                 Ok(rows.iter().map(|row| SqlTableInfo {
                     name: row.get::<_, String>(0),
                     kind: {
@@ -700,13 +718,13 @@ fn run_tables(profile: &SqlProfile, database: String) -> Result<Vec<SqlTableInfo
             let conn = sqlite_take(profile)?;
             let mut stmt = conn
                 .prepare("SELECT name, type FROM sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY name")
-                .map_err(|error| friendly_db_error(&format!("查询表列表失败"), &error.to_string()))?;
+                .map_err(|error| friendly_db_error_from(&format!("查询表列表失败"), &error))?;
             let rows = stmt
                 .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
-                .map_err(|error| friendly_db_error(&format!("查询表列表失败"), &error.to_string()))?;
+                .map_err(|error| friendly_db_error_from(&format!("查询表列表失败"), &error))?;
             let mut out = Vec::new();
             for row in rows {
-                let (name, kind) = row.map_err(|error| friendly_db_error(&format!("读取表列表失败"), &error.to_string()))?;
+                let (name, kind) = row.map_err(|error| friendly_db_error_from(&format!("读取表列表失败"), &error))?;
                 out.push(SqlTableInfo { name, kind: kind.to_uppercase() });
             }
             drop(stmt);
@@ -731,7 +749,7 @@ fn run_columns(profile: &SqlProfile, database: String, table: String) -> Result<
                         "SELECT column_name, data_type, is_nullable, column_key, column_default, extra, column_comment FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position",
                         vec![database, table],
                     )
-                    .map_err(|error| friendly_db_error(&format!("查询字段失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("查询字段失败"), &error))?;
                 Ok(rows.into_iter().map(|(name, data_type, nullable, key, default, extra, comment)| SqlColumnInfo {
                     name, data_type, nullable: nullable == "YES", key, default, extra, comment,
                 }).collect())
@@ -744,13 +762,13 @@ fn run_columns(profile: &SqlProfile, database: String, table: String) -> Result<
                         "SELECT c.column_name, c.data_type, c.is_nullable, c.column_default, col_description(format('%I.%I', c.table_schema, c.table_name)::regclass, c.ordinal_position) FROM information_schema.columns c WHERE c.table_schema = 'public' AND c.table_name = $1 ORDER BY c.ordinal_position",
                         &[&table],
                     )
-                    .map_err(|error| friendly_db_error(&format!("查询字段失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("查询字段失败"), &error))?;
                 let pk_rows = client
                     .query(
                         "SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) WHERE i.indrelid = $1::regclass AND i.indisprimary",
                         &[&format!("public.\"{}\"", table)],
                     )
-                    .map_err(|error| friendly_db_error(&format!("查询主键失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("查询主键失败"), &error))?;
                 let pk: Vec<String> = pk_rows.iter().map(|row| row.get::<_, String>(0)).collect();
                 Ok(rows.iter().map(|row| SqlColumnInfo {
                     name: row.get::<_, String>(0),
@@ -765,13 +783,13 @@ fn run_columns(profile: &SqlProfile, database: String, table: String) -> Result<
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
-            let mut stmt = conn.prepare(&format!("PRAGMA table_info({quoted})")).map_err(|error| friendly_db_error(&format!("查询字段失败"), &error.to_string()))?;
+            let mut stmt = conn.prepare(&format!("PRAGMA table_info({quoted})")).map_err(|error| friendly_db_error_from(&format!("查询字段失败"), &error))?;
             let rows = stmt
                 .query_map([], |row| Ok((row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, i64>(3)?, row.get::<_, Option<String>>(4)?, row.get::<_, i64>(5)?)))
-                .map_err(|error| friendly_db_error(&format!("查询字段失败"), &error.to_string()))?;
+                .map_err(|error| friendly_db_error_from(&format!("查询字段失败"), &error))?;
             let mut out = Vec::new();
             for row in rows {
-                let (name, data_type, notnull, default, pk) = row.map_err(|error| friendly_db_error(&format!("读取字段失败"), &error.to_string()))?;
+                let (name, data_type, notnull, default, pk) = row.map_err(|error| friendly_db_error_from(&format!("读取字段失败"), &error))?;
                 out.push(SqlColumnInfo {
                     name,
                     data_type: if data_type.is_empty() { "TEXT".into() } else { data_type },
@@ -810,13 +828,13 @@ fn run_rows(
         "mysql" => {
             use mysql::prelude::*;
             with_mysql(profile, Some(&database), |conn| {
-                let total: u64 = conn.query_first(format!("SELECT COUNT(*) FROM {quoted}{where_clause}")).map_err(|error| friendly_db_error(&format!("统计行数失败"), &error.to_string()))?.unwrap_or(0);
+                let total: u64 = conn.query_first(format!("SELECT COUNT(*) FROM {quoted}{where_clause}")).map_err(|error| friendly_db_error_from(&format!("统计行数失败"), &error))?.unwrap_or(0);
                 let mut result = conn
                     .exec_iter(format!("SELECT * FROM {quoted}{where_clause} LIMIT ? OFFSET ?"), (limit, offset))
-                    .map_err(|error| friendly_db_error(&format!("查询数据失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("查询数据失败"), &error))?;
                 let mut out = Vec::new();
                 for row in result.by_ref() {
-                    let row = row.map_err(|error| friendly_db_error(&format!("读取数据失败"), &error.to_string()))?;
+                    let row = row.map_err(|error| friendly_db_error_from(&format!("读取数据失败"), &error))?;
                     out.push(row.unwrap().into_iter().map(mysql_value_to_json).collect::<Vec<_>>());
                 }
                 Ok((out, total))
@@ -824,18 +842,18 @@ fn run_rows(
         }
         "postgres" => {
             with_pg(profile, Some(&database), |client| {
-                let total: i64 = client.query_one(&format!("SELECT COUNT(*) FROM {quoted}{where_clause}"), &[]).map_err(|error| friendly_db_error(&format!("统计行数失败"), &error.to_string()))?.get(0);
+                let total: i64 = client.query_one(&format!("SELECT COUNT(*) FROM {quoted}{where_clause}"), &[]).map_err(|error| friendly_db_error_from(&format!("统计行数失败"), &error))?.get(0);
                 let result = client
                     .query(&format!("SELECT * FROM {quoted}{where_clause} LIMIT $1 OFFSET $2"), &[&(limit as i64), &(offset as i64)])
-                    .map_err(|error| friendly_db_error(&format!("查询数据失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("查询数据失败"), &error))?;
                 let out = result.iter().map(|row| (0..columns.len()).map(|index| pg_cell(row, index)).collect::<Vec<_>>()).collect::<Vec<_>>();
                 Ok((out, total as u64))
             })
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
-            let total: i64 = conn.query_row(&format!("SELECT COUNT(*) FROM {quoted}{where_clause}"), [], |row| row.get(0)).map_err(|error| friendly_db_error(&format!("统计行数失败"), &error.to_string()))?;
-            let mut stmt = conn.prepare(&format!("SELECT * FROM {quoted}{where_clause} LIMIT ? OFFSET ?")).map_err(|error| friendly_db_error(&format!("查询数据失败"), &error.to_string()))?;
+            let total: i64 = conn.query_row(&format!("SELECT COUNT(*) FROM {quoted}{where_clause}"), [], |row| row.get(0)).map_err(|error| friendly_db_error_from(&format!("统计行数失败"), &error))?;
+            let mut stmt = conn.prepare(&format!("SELECT * FROM {quoted}{where_clause} LIMIT ? OFFSET ?")).map_err(|error| friendly_db_error_from(&format!("查询数据失败"), &error))?;
             let rows_iter = stmt
                 .query_map(rusqlite::params![limit as i64, offset as i64], |row| {
                     let mut cells = Vec::with_capacity(columns.len());
@@ -845,10 +863,10 @@ fn run_rows(
                     }
                     Ok(cells)
                 })
-                .map_err(|error| friendly_db_error(&format!("查询数据失败"), &error.to_string()))?;
+                .map_err(|error| friendly_db_error_from(&format!("查询数据失败"), &error))?;
             let mut out = Vec::new();
             for row in rows_iter {
-                out.push(row.map_err(|error| friendly_db_error(&format!("读取数据失败"), &error.to_string()))?);
+                out.push(row.map_err(|error| friendly_db_error_from(&format!("读取数据失败"), &error))?);
             }
             drop(stmt);
             sqlite_put(profile, conn);
@@ -866,7 +884,7 @@ fn pg_type_map(profile: &SqlProfile, database: String, table: &str) -> Result<st
                 "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1",
                 &[&table],
             )
-            .map_err(|error| friendly_db_error(&format!("查询字段类型失败"), &error.to_string()))?;
+            .map_err(|error| friendly_db_error_from(&format!("查询字段类型失败"), &error))?;
         let mut map = std::collections::HashMap::new();
         for row in rows {
             let mut ty: String = row.get(1);
@@ -905,7 +923,7 @@ fn run_update_row(profile: &SqlProfile, database: String, table: String, keys: V
                 for k in &keys {
                     params.push(match &k.value { Some(v) => mysql::Value::from(v.clone()), None => mysql::Value::NULL });
                 }
-                conn.exec_drop(sql, params).map_err(|error| friendly_db_error(&format!("更新数据失败"), &error.to_string()))?;
+                conn.exec_drop(sql, params).map_err(|error| friendly_db_error_from(&format!("更新数据失败"), &error))?;
                 Ok(conn.affected_rows())
             })
         }
@@ -923,7 +941,7 @@ fn run_update_row(profile: &SqlProfile, database: String, table: String, keys: V
                 let mut params: Vec<Option<String>> = changes.iter().map(|c| c.value.clone()).collect();
                 params.extend(keys.iter().map(|k| k.value.clone()));
                 let refs: Vec<&(dyn postgres::types::ToSql + Sync)> = params.iter().map(|p| p as &(dyn postgres::types::ToSql + Sync)).collect();
-                let affected = client.execute(&sql, &refs).map_err(|error| friendly_db_error(&format!("更新数据失败"), &error.to_string()))?;
+                let affected = client.execute(&sql, &refs).map_err(|error| friendly_db_error_from(&format!("更新数据失败"), &error))?;
                 Ok(affected)
             })
         }
@@ -939,7 +957,7 @@ fn run_update_row(profile: &SqlProfile, database: String, table: String, keys: V
             for k in &keys {
                 params.push(match &k.value { Some(v) => rusqlite::types::Value::Text(v.clone()), None => rusqlite::types::Value::Null });
             }
-            let affected = conn.execute(&sql, rusqlite::params_from_iter(params)).map_err(|error| friendly_db_error(&format!("更新数据失败"), &error.to_string()))?;
+            let affected = conn.execute(&sql, rusqlite::params_from_iter(params)).map_err(|error| friendly_db_error_from(&format!("更新数据失败"), &error))?;
             sqlite_put(profile, conn);
             Ok(affected as u64)
         }
@@ -961,7 +979,7 @@ fn run_insert_row(profile: &SqlProfile, database: String, table: String, columns
                 let placeholders = vec!["?".to_string(); values.len()].join(", ");
                 let sql = format!("INSERT INTO {quoted} ({}) VALUES ({placeholders})", cols.join(", "));
                 let params: Vec<mysql::Value> = values.iter().map(|v| match v { Some(s) => mysql::Value::from(s.clone()), None => mysql::Value::NULL }).collect();
-                conn.exec_drop(sql, params).map_err(|error| friendly_db_error(&format!("插入数据失败"), &error.to_string()))?;
+                conn.exec_drop(sql, params).map_err(|error| friendly_db_error_from(&format!("插入数据失败"), &error))?;
                 Ok(conn.affected_rows())
             })
         }
@@ -973,7 +991,7 @@ fn run_insert_row(profile: &SqlProfile, database: String, table: String, columns
                     .collect();
                 let sql = format!("INSERT INTO {quoted} ({}) VALUES ({})", cols.join(", "), placeholders.join(", "));
                 let refs: Vec<&(dyn postgres::types::ToSql + Sync)> = values.iter().map(|v| v as &(dyn postgres::types::ToSql + Sync)).collect();
-                let affected = client.execute(&sql, &refs).map_err(|error| friendly_db_error(&format!("插入数据失败"), &error.to_string()))?;
+                let affected = client.execute(&sql, &refs).map_err(|error| friendly_db_error_from(&format!("插入数据失败"), &error))?;
                 Ok(affected)
             })
         }
@@ -982,7 +1000,7 @@ fn run_insert_row(profile: &SqlProfile, database: String, table: String, columns
             let placeholders = vec!["?".to_string(); values.len()].join(", ");
             let sql = format!("INSERT INTO {quoted} ({}) VALUES ({placeholders})", cols.join(", "));
             let params: Vec<rusqlite::types::Value> = values.iter().map(|v| match v { Some(s) => rusqlite::types::Value::Text(s.clone()), None => rusqlite::types::Value::Null }).collect();
-            let affected = conn.execute(&sql, rusqlite::params_from_iter(params)).map_err(|error| friendly_db_error(&format!("插入数据失败"), &error.to_string()))?;
+            let affected = conn.execute(&sql, rusqlite::params_from_iter(params)).map_err(|error| friendly_db_error_from(&format!("插入数据失败"), &error))?;
             sqlite_put(profile, conn);
             Ok(affected as u64)
         }
@@ -1004,7 +1022,7 @@ fn run_delete_rows(profile: &SqlProfile, database: String, table: String, key_co
                 let placeholders = vec!["?".to_string(); key_values.len()].join(", ");
                 let sql = format!("DELETE FROM {quoted} WHERE {col} IN ({placeholders})");
                 let params: Vec<mysql::Value> = key_values.iter().map(|v| mysql::Value::from(v.clone())).collect();
-                conn.exec_drop(sql, params).map_err(|error| friendly_db_error(&format!("删除数据失败"), &error.to_string()))?;
+                conn.exec_drop(sql, params).map_err(|error| friendly_db_error_from(&format!("删除数据失败"), &error))?;
                 Ok(conn.affected_rows())
             })
         }
@@ -1015,7 +1033,7 @@ fn run_delete_rows(profile: &SqlProfile, database: String, table: String, key_co
                 let placeholders: Vec<String> = (1..=key_values.len()).map(|i| format!("${i}::{ty}")).collect();
                 let sql = format!("DELETE FROM {quoted} WHERE {col} IN ({})", placeholders.join(", "));
                 let refs: Vec<&(dyn postgres::types::ToSql + Sync)> = key_values.iter().map(|v| v as &(dyn postgres::types::ToSql + Sync)).collect();
-                let affected = client.execute(&sql, &refs).map_err(|error| friendly_db_error(&format!("删除数据失败"), &error.to_string()))?;
+                let affected = client.execute(&sql, &refs).map_err(|error| friendly_db_error_from(&format!("删除数据失败"), &error))?;
                 Ok(affected)
             })
         }
@@ -1024,7 +1042,7 @@ fn run_delete_rows(profile: &SqlProfile, database: String, table: String, key_co
             let placeholders = vec!["?".to_string(); key_values.len()].join(", ");
             let sql = format!("DELETE FROM {quoted} WHERE {col} IN ({placeholders})");
             let params: Vec<rusqlite::types::Value> = key_values.iter().map(|v| rusqlite::types::Value::Text(v.clone())).collect();
-            let affected = conn.execute(&sql, rusqlite::params_from_iter(params)).map_err(|error| friendly_db_error(&format!("删除数据失败"), &error.to_string()))?;
+            let affected = conn.execute(&sql, rusqlite::params_from_iter(params)).map_err(|error| friendly_db_error_from(&format!("删除数据失败"), &error))?;
             sqlite_put(profile, conn);
             Ok(affected as u64)
         }
@@ -1045,7 +1063,7 @@ fn run_table_ddl(profile: &SqlProfile, database: String, table: String) -> Resul
                     return Ok(ddl);
                 }
                 let sql = format!("SHOW CREATE VIEW {quoted}");
-                let result = conn.query_first::<(String, String), _>(&sql).map_err(|error| friendly_db_error(&format!("查询建表语句失败"), &error.to_string()))?;
+                let result = conn.query_first::<(String, String), _>(&sql).map_err(|error| friendly_db_error_from(&format!("查询建表语句失败"), &error))?;
                 Ok(result.map(|(_, ddl)| ddl).unwrap_or_default())
             })
         }
@@ -1053,7 +1071,7 @@ fn run_table_ddl(profile: &SqlProfile, database: String, table: String) -> Resul
             let conn = sqlite_take(profile)?;
             let ddl: Option<String> = conn
                 .query_row("SELECT sql FROM sqlite_master WHERE name = ?", rusqlite::params![table], |row| row.get(0))
-                .map_err(|error| friendly_db_error(&format!("查询建表语句失败"), &error.to_string()))?;
+                .map_err(|error| friendly_db_error_from(&format!("查询建表语句失败"), &error))?;
             sqlite_put(profile, conn);
             Ok(ddl.unwrap_or_else(|| format!("CREATE TABLE {quoted} (未找到建表语句)")))
         }
@@ -1306,14 +1324,14 @@ fn run_table_export(profile: &SqlProfile, database: String, table: String, with_
                 with_mysql(profile, Some(&database), |conn| {
                     let sql = format!("SELECT * FROM {quoted}");
                     // query_iter 流式读取：达到上限即停止，避免大表全量载入内存
-                    let mut result = conn.query_iter(sql).map_err(|error| friendly_db_error(&format!("读取数据失败"), &error.to_string()))?;
+                    let mut result = conn.query_iter(sql).map_err(|error| friendly_db_error_from(&format!("读取数据失败"), &error))?;
                     let max_rows = 20_000;
                     for row in result.by_ref() {
                         if rows >= max_rows {
                             truncated = true;
                             break;
                         }
-                        let row = row.map_err(|error| friendly_db_error(&format!("读取数据失败"), &error.to_string()))?;
+                        let row = row.map_err(|error| friendly_db_error_from(&format!("读取数据失败"), &error))?;
                         let values: Vec<String> = (0..row.len())
                             .map(|index| mysql_value_literal(row.as_ref(index).unwrap_or(&mysql::Value::NULL)))
                             .collect();
@@ -1330,19 +1348,19 @@ fn run_table_export(profile: &SqlProfile, database: String, table: String, with_
                 let conn = sqlite_take(profile)?;
                 let mut stmt = conn
                     .prepare(&format!("SELECT * FROM {quoted}"))
-                    .map_err(|error| friendly_db_error(&format!("读取数据失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("读取数据失败"), &error))?;
                 let column_count = stmt.column_count();
-                let mut rows_iter = stmt.query([]).map_err(|error| friendly_db_error(&format!("读取数据失败"), &error.to_string()))?;
+                let mut rows_iter = stmt.query([]).map_err(|error| friendly_db_error_from(&format!("读取数据失败"), &error))?;
                 let max_rows = 20_000;
                 let mut count: u64 = 0;
-                while let Some(row) = rows_iter.next().map_err(|error| friendly_db_error(&format!("读取数据失败"), &error.to_string()))? {
+                while let Some(row) = rows_iter.next().map_err(|error| friendly_db_error_from(&format!("读取数据失败"), &error))? {
                     if count >= max_rows {
                         truncated = true;
                         break;
                     }
                     let mut values = Vec::with_capacity(column_count);
                     for index in 0..column_count {
-                        let value = row.get_ref(index).map_err(|error| friendly_db_error(&format!("读取数据失败"), &error.to_string()))?;
+                        let value = row.get_ref(index).map_err(|error| friendly_db_error_from(&format!("读取数据失败"), &error))?;
                         values.push(sqlite_value_literal(&value));
                     }
                     out.push_str(&format!("INSERT INTO {quoted} VALUES ({});\n", values.join(", ")));
@@ -1359,7 +1377,7 @@ fn run_table_export(profile: &SqlProfile, database: String, table: String, with_
             "postgres" => {
                 with_pg(profile, Some(&database), |client| {
                     let sql = format!("COPY {quoted} TO STDOUT");
-                    let reader = client.copy_out(&sql).map_err(|error| friendly_db_error(&format!("读取数据失败"), &error.to_string()))?;
+                    let reader = client.copy_out(&sql).map_err(|error| friendly_db_error_from(&format!("读取数据失败"), &error))?;
                     let mut data = Vec::new();
                     let mut reader = reader;
                     use std::io::Read;
@@ -1376,7 +1394,7 @@ fn run_table_export(profile: &SqlProfile, database: String, table: String, with_
                                     break;
                                 }
                             }
-                            Err(error) => return Err(friendly_db_error(&format!("读取数据失败"), &error.to_string())),
+                            Err(error) => return Err(friendly_db_error_from(&format!("读取数据失败"), &error)),
                         }
                     }
                     out.push_str(&format!("COPY {quoted} FROM stdin;\n"));
@@ -1406,7 +1424,7 @@ fn run_table_export(profile: &SqlProfile, database: String, table: String, with_
 pub async fn sql_export_table(profile: SqlProfile, database: String, table: String, with_data: bool) -> Result<SqlExportResult, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_table_export(&profile, database, table, with_data));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(60), task).await.map_err(|_| "导出超过 60 秒未返回，已超时；请缩小数据量后重试".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 /* ── 表设计器：建表 / 改表 DDL ────────────────────────────── */
@@ -1577,17 +1595,17 @@ fn run_create_table(profile: &SqlProfile, database: String, table: String, colum
         "mysql" => {
             use mysql::prelude::*;
             let mut conn = open_mysql(profile, Some(&database))?;
-            conn.query_drop(&sql).map_err(|error| friendly_db_error(&format!("建表失败"), &error.to_string()))?;
+            conn.query_drop(&sql).map_err(|error| friendly_db_error_from(&format!("建表失败"), &error))?;
             Ok(1)
         }
         "postgres" => {
             let mut client = pg_client(profile, Some(&database))?;
-            client.batch_execute(&sql).map_err(|error| friendly_db_error(&format!("建表失败"), &error.to_string()))?;
+            client.batch_execute(&sql).map_err(|error| friendly_db_error_from(&format!("建表失败"), &error))?;
             Ok(1)
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
-            let result = conn.execute_batch(&sql).map_err(|error| friendly_db_error(&format!("建表失败"), &error.to_string()));
+            let result = conn.execute_batch(&sql).map_err(|error| friendly_db_error_from(&format!("建表失败"), &error));
             sqlite_put(profile, conn);
             result.map(|_| 1)
         }
@@ -1676,12 +1694,12 @@ fn run_alter_table(
         }
         "postgres" => {
             let mut client = pg_client(profile, Some(&database))?;
-            client.batch_execute(&statements.join("\n")).map_err(|error| friendly_db_error(&format!("更新表结构失败"), &error.to_string()))?;
+            client.batch_execute(&statements.join("\n")).map_err(|error| friendly_db_error_from(&format!("更新表结构失败"), &error))?;
             Ok(statements.len() as u64)
         }
         "sqlite" => {
             let conn = sqlite_take(profile)?;
-            let result = conn.execute_batch(&statements.join("\n")).map_err(|error| friendly_db_error(&format!("更新表结构失败"), &error.to_string()));
+            let result = conn.execute_batch(&statements.join("\n")).map_err(|error| friendly_db_error_from(&format!("更新表结构失败"), &error));
             sqlite_put(profile, conn);
             result.map(|_| statements.len() as u64)
         }
@@ -1693,14 +1711,14 @@ fn run_alter_table(
 pub async fn sql_create_table(profile: SqlProfile, database: String, table: String, columns: Vec<SqlColumnDef>) -> Result<u64, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_create_table(&profile, database, table, columns));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "建表超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
 pub async fn sql_alter_table(profile: SqlProfile, database: String, table: String, adds: Vec<SqlColumnDef>, drops: Vec<String>, modifies: Vec<SqlColumnChange>) -> Result<u64, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_alter_table(&profile, database, table, adds, drops, modifies));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "更新表结构超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
@@ -1716,21 +1734,21 @@ pub fn sql_disconnect(profile: SqlProfile) -> Result<(), String> {
 pub async fn sql_databases(profile: SqlProfile) -> Result<Vec<String>, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_databases(&profile));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询数据库超过 15 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
 pub async fn sql_tables(profile: SqlProfile, database: String) -> Result<Vec<SqlTableInfo>, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_tables(&profile, database));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询表超过 15 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
 pub async fn sql_table_columns(profile: SqlProfile, database: String, table: String) -> Result<Vec<SqlColumnInfo>, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_columns(&profile, database, table));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询字段超过 15 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
@@ -1744,35 +1762,35 @@ pub async fn sql_table_rows(
 ) -> Result<SqlRowsResult, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_rows(&profile, database, table, offset, limit.min(1000), filter));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "查询数据超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
 pub async fn sql_update_row(profile: SqlProfile, database: String, table: String, keys: Vec<SqlCellRef>, changes: Vec<SqlCellRef>) -> Result<u64, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_update_row(&profile, database, table, keys, changes));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "更新数据超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
 pub async fn sql_insert_row(profile: SqlProfile, database: String, table: String, columns: Vec<String>, values: Vec<Option<String>>) -> Result<u64, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_insert_row(&profile, database, table, columns, values));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "插入数据超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
 pub async fn sql_delete_rows(profile: SqlProfile, database: String, table: String, key_column: String, key_values: Vec<String>) -> Result<u64, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_delete_rows(&profile, database, table, key_column, key_values));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "删除数据超过 30 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
 pub async fn sql_table_ddl(profile: SqlProfile, database: String, table: String) -> Result<String, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_table_ddl(&profile, database, table));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "查询建表语句超过 15 秒未返回，已超时；操作可能仍在后台执行，请确认结果后再重复操作".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 /* ── 用户管理与权限（MySQL / PostgreSQL；SQLite 无用户概念） ── */
@@ -1905,7 +1923,7 @@ fn run_users(profile: &SqlProfile) -> Result<Vec<SqlUserInfo>, String> {
             with_pg(profile, None, |client| {
                 let rows = client
                     .query("SELECT rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin, rolconnlimit, rolreplication FROM pg_roles ORDER BY rolname", &[])
-                    .map_err(|error| friendly_db_error(&format!("读取角色列表失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("读取角色列表失败"), &error))?;
                 Ok(rows.iter().map(|row| {
                     let name: String = row.get(0);
                     let attributes = vec![
@@ -1941,7 +1959,7 @@ fn run_user_grants(profile: &SqlProfile, name: &str, host: Option<&str>) -> Resu
                 let mut lines = Vec::new();
                 let table_rows = client
                     .query("SELECT privilege_type, table_schema, table_name FROM information_schema.role_table_grants WHERE grantee = $1 ORDER BY table_schema, table_name, privilege_type", &[&name])
-                    .map_err(|error| friendly_db_error(&format!("读取 {name} 的表权限失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("读取 {name} 的表权限失败"), &error))?;
                 for row in table_rows {
                     let priv_name: String = row.get(0);
                     let schema: String = row.get(1);
@@ -1954,14 +1972,14 @@ fn run_user_grants(profile: &SqlProfile, name: &str, host: Option<&str>) -> Resu
                         "SELECT column_name FROM information_schema.columns WHERE table_schema = 'information_schema' AND table_name = 'role_usage_grants' AND column_name IN ('object_schema', 'table_schema') ORDER BY column_name DESC LIMIT 1",
                         &[],
                     )
-                    .map_err(|error| friendly_db_error(&format!("读取 {name} 的 schema 权限失败"), &error.to_string()))?
+                    .map_err(|error| friendly_db_error_from(&format!("读取 {name} 的 schema 权限失败"), &error))?
                     .get(0);
                 let usage_sql = format!(
                     "SELECT privilege_type, {schema_col} FROM information_schema.role_usage_grants WHERE grantee = $1 ORDER BY {schema_col}"
                 );
                 let usage_rows = client
                     .query(&usage_sql, &[&name])
-                    .map_err(|error| friendly_db_error(&format!("读取 {name} 的 schema 权限失败"), &error.to_string()))?;
+                    .map_err(|error| friendly_db_error_from(&format!("读取 {name} 的 schema 权限失败"), &error))?;
                 for row in usage_rows {
                     let priv_name: String = row.get(0);
                     let schema: String = row.get(1);
@@ -1987,14 +2005,14 @@ fn run_statements(profile: &SqlProfile, statements: Vec<String>) -> Result<Vec<S
 pub async fn sql_users(profile: SqlProfile) -> Result<Vec<SqlUserInfo>, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_users(&profile));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "读取用户列表超过 15 秒未返回，已超时".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
 pub async fn sql_user_grants(profile: SqlProfile, name: String, host: Option<String>) -> Result<Vec<String>, String> {
     let task = tauri::async_runtime::spawn_blocking(move || run_user_grants(&profile, &name, host.as_deref()));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "读取权限超过 15 秒未返回，已超时".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("数据库任务失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("数据库任务失败"), &error))?
 }
 
 #[tauri::command]
@@ -2003,18 +2021,57 @@ pub async fn sql_create_user(profile: SqlProfile, name: String, host: String, pa
     let sql = stmt.clone();
     let task = tauri::async_runtime::spawn_blocking(move || run_sql(&profile, &sql));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "创建用户超过 15 秒未返回，已超时".to_string())?;
-    let _ = joined.map_err(|error| friendly_db_error(&format!("创建用户失败"), &error.to_string()))?;
-    Ok(stmt)
+    joined
+        .map_err(|error| friendly_db_error_from(&format!("创建用户失败"), &error))?
+        .map(|_| stmt)
+}
+
+/// PostgreSQL 删除角色前，先在其可达的每个数据库里 DROP OWNED BY，
+/// 否则角色持有其他库的对象权限时 DROP ROLE 会因 2BP01 失败（类似 Navicat 的自动清理）。
+fn pg_revoke_all_for(profile: &SqlProfile, name: &str) -> Result<(), String> {
+    let role = quote_ident("postgres", name);
+    // 先清理当前连接的库
+    with_pg(profile, None, |client| {
+        client
+            .execute(&format!("DROP OWNED BY {role}"), &[])
+            .map(|_| ())
+            .map_err(|error| friendly_db_error_from(&format!("回收 {name} 的权限失败"), &error))
+    })?;
+    // 再逐个尝试其余可连接的库（某个库连接失败不阻塞整体）
+    let databases: Vec<String> = with_pg(profile, None, |client| {
+        client
+            .query("SELECT datname FROM pg_database WHERE datallowconn AND NOT datistemplate ORDER BY datname", &[])
+            .map(|rows| rows.iter().map(|row| row.get::<_, String>(0)).collect())
+            .map_err(|error| friendly_db_error_from(&format!("查询数据库列表失败"), &error))
+    })?;
+    for database in databases {
+        let _ = with_pg(profile, Some(&database), |client| {
+            client
+                .execute(&format!("DROP OWNED BY {role}"), &[])
+                .map(|_| ())
+                .map_err(|error| friendly_db_error_from(&format!("回收 {name} 在 {database} 的权限失败"), &error))
+        });
+    }
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn sql_drop_user(profile: SqlProfile, name: String, host: String) -> Result<String, String> {
     let stmt = build_drop_user_sql(&profile.kind, &name, &host)?;
+    let kind = profile.kind.clone();
     let sql = stmt.clone();
-    let task = tauri::async_runtime::spawn_blocking(move || run_sql(&profile, &sql));
-    let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "删除用户超过 15 秒未返回，已超时".to_string())?;
-    let _ = joined.map_err(|error| friendly_db_error(&format!("删除用户失败"), &error.to_string()))?;
-    Ok(stmt)
+    let task = tauri::async_runtime::spawn_blocking(move || {
+        if kind == "postgres" {
+            pg_revoke_all_for(&profile, &name)?;
+        }
+        run_sql(&profile, &sql).map_err(|error| {
+            let detail = error.strip_prefix("SQL 执行失败：").unwrap_or(&error);
+            format!("删除用户失败：{detail}")
+        })?;
+        Ok::<String, String>(stmt)
+    });
+    let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "删除用户超过 30 秒未返回，已超时".to_string())?;
+    joined.map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -2023,8 +2080,9 @@ pub async fn sql_set_password(profile: SqlProfile, name: String, host: String, p
     let sql = stmt.clone();
     let task = tauri::async_runtime::spawn_blocking(move || run_sql(&profile, &sql));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(15), task).await.map_err(|_| "修改密码超过 15 秒未返回，已超时".to_string())?;
-    let _ = joined.map_err(|error| friendly_db_error(&format!("修改密码失败"), &error.to_string()))?;
-    Ok(stmt)
+    joined
+        .map_err(|error| friendly_db_error_from(&format!("修改密码失败"), &error))?
+        .map(|_| stmt)
 }
 
 #[tauri::command]
@@ -2041,7 +2099,7 @@ pub async fn sql_grant_privileges(
     let sql_list = statements.clone();
     let task = tauri::async_runtime::spawn_blocking(move || run_statements(&profile, sql_list));
     let joined = tokio::time::timeout(std::time::Duration::from_secs(30), task).await.map_err(|_| "授权操作超过 30 秒未返回，已超时".to_string())?;
-    joined.map_err(|error| friendly_db_error(&format!("授权操作失败"), &error.to_string()))?
+    joined.map_err(|error| friendly_db_error_from(&format!("授权操作失败"), &error))?
 }
 
 #[cfg(test)]
