@@ -1087,6 +1087,8 @@ kbd {
   100% { opacity: .8; }
 }
 .workspace > * { position: relative; }
+.panel-fade-host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.panel-loading { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
 .tool-header {
   flex: 0 0 auto;
   display: flex;
@@ -4367,4 +4369,47 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 }
 .app.light .about-ver-head b::after {
   background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, .8) 50%, transparent 58%);
+}
+
+
+/* ===== 2026-08-11 ????: ??/????? ===== */
+
+/* ???????: ??????, ?????? */
+.sql-conn-tab { max-width: 230px; }
+.sql-conn-tab b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ????: ????? + ??????, ????? */
+.app.light .workspace {
+  background:
+    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .20), transparent 60%),
+    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .16), transparent 58%),
+    #bccbe8;
+}
+.app.light .tool-controls {
+  background: #eef3fc;
+  border-color: rgba(35, 58, 122, .30);
+  box-shadow: 0 8px 22px rgba(35, 58, 122, .16);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.app.light .editor-pane {
+  background: #ffffff;
+  border: 1px solid rgba(35, 58, 122, .45);
+  box-shadow: 0 14px 40px rgba(35, 58, 122, .24);
+}
+.app.light .editor-input { background: #f2f6fd; }
+.app.light .result-view { background: #f2f6fd; }
+.app.light .json-tree { background: #f2f6fd; }
+.app.light .editor-pane > header { background: rgba(35, 58, 122, .07); }
+.app.light .result-raw { background: #f2f6fd; }
+
+/* ???: ??????????(?????) */
+.about-aurora {
+  background:
+    radial-gradient(42% 58% at 22% 28%, rgba(34, 211, 238, .42), transparent 66%),
+    radial-gradient(40% 52% at 78% 22%, rgba(139, 92, 246, .46), transparent 67%),
+    radial-gradient(46% 60% at 62% 82%, rgba(232, 121, 249, .38), transparent 68%);
+}
+.about-logo-ring {
+  border-color: rgba(34, 211, 238, .6) transparent rgba(139, 92, 246, .6) transparent;
 }

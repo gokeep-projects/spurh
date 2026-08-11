@@ -981,7 +981,8 @@
       // 自动补全：JSON 工具中光标前为未闭合开放括号且光标后无内容 → 补闭合括号换行（VS Code 风格）
       const AUTO_CLOSERS: Record<string, string> = { '{': '}', '[': ']', '(': ')' };
       const lastNonSpace = beforeCursor.trimEnd().slice(-1);
-      if (activePluginId === 'spurh.json' && AUTO_CLOSERS[lastNonSpace] && !afterCursor.trim()) {
+      const restAfterLine = value.slice(lineEndPos).trim();
+      if (activePluginId === 'spurh.json' && AUTO_CLOSERS[lastNonSpace] && !afterCursor.trim() && restAfterLine === '') {
         const closer = AUTO_CLOSERS[lastNonSpace];
         const newIndent = indent + '  '.repeat(level);
         const newText = '\n' + newIndent + '\n' + indent + closer;
@@ -1844,7 +1845,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               <div class="error-box"><span>{@html UI_ICONS.info}</span><div><b>处理失败</b><p>{activeSession.error}</p><button onclick={runAiProcessing}><span class="btn-ai">{@html UI_ICONS.sparkle}</span>AI 处理</button></div></div>
             {:else if currentSessionResult()}
               {#if resultRawMode}
-                <pre class="result-raw">{currentSessionResult()!.output}</pre>
+                <pre class="result-raw" class:plain={currentSessionResult()!.language === 'text'}>{@html highlightCode(currentSessionResult()!.output, currentSessionResult()!.language)}</pre>
               {:else}
                 <ResultView result={currentSessionResult()!} exportName={activePluginId} />
               {/if}
