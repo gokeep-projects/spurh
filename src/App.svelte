@@ -32,7 +32,7 @@
   type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts' | 'tools';
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif",
+    '系统默认': "'Microsoft YaHei UI', 'Microsoft YaHei', 'Segoe UI Variable Text', 'Segoe UI', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Noto Sans SC', system-ui, sans-serif",
     '微软雅黑': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'HarmonyOS Sans SC', sans-serif",
     '等线': "'DengXian', 'DengXian Light', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'SimHei', '黑体', 'Microsoft YaHei', sans-serif",
@@ -67,7 +67,7 @@
     const fallback: AppSettings = {
       theme: 'dark', trayEnabled: true, contextMenuEnabled: true, dispatchHotkey: 'ctrl+shift+space',
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
-      fontSize: 14, fontFamily: '系统默认',
+      fontSize: 14, fontFamily: '微软雅黑',
       sidebarShortcuts: false,
       sidebarOpen: true,
       hiddenTools: [],

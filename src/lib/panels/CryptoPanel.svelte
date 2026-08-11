@@ -78,6 +78,14 @@
   ];
 
   const needsSecret = $derived(['aes-encrypt', 'aes-decrypt', 'jwt-verify', 'jwt-gen', 'HMAC-SHA256', 'HMAC-SHA512'].includes(session.actionId));
+
+  function randomKey(): void {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    let key = '';
+    for (const b of bytes) key += String.fromCharCode(b);
+    onChangeOption('secret', btoa(key).replace(/=+$/, ''));
+  }
 </script>
 
 <div class="crypto-panel">
@@ -101,6 +109,7 @@
         </div>
       </label>
       <div class="control-spacer"></div>
+      <button class="crypto-randkey" onclick={randomKey} title="生成随机 32 字节密钥（Base64）">{@html UI_ICONS.refresh} 随机密钥</button>
       <button class="crypto-clear" onclick={onClear}>清空</button>
     </div>
     {#if secretEmpty}
@@ -125,7 +134,7 @@
   .crypto-key-row label { display: flex; align-items: center; gap: 6px; }
   .crypto-key-row label > span { color: var(--muted); font-size: var(--fs-xs); }
   .secret-wrap { position: relative; display: flex; align-items: center; min-width: 0; }
-  .secret-wrap input { height: 28px; width: min(20vw, 220px); max-width: 100%; padding: 0 34px 0 11px; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 9px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .2s ease; }
+  .secret-wrap input { height: 32px; width: min(20vw, 220px); max-width: 100%; padding: 0 34px 0 11px; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 9px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .2s ease; }
   .secret-wrap input:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .secret-toggle { position: absolute; right: 4px; width: 26px; height: 26px; display: grid; place-items: center; cursor: pointer; font-size: var(--fs-xs); border: 0; border-radius: 7px; background: transparent; }
   /* svelte-ignore css_unused_selector */
@@ -133,6 +142,9 @@
   .secret-toggle:hover { background: var(--hover); }
   .crypto-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid transparent; border-radius: 8px; background: transparent; }
   .crypto-clear:hover { color: var(--text); border-color: var(--line); }
+  .crypto-randkey { height: 30px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 700; border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line)); border-radius: 8px; background: var(--accent-soft); transition: all .15s ease; }
+  .crypto-randkey:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 18%, transparent); }
+  :global(.crypto-randkey svg) { width: 12px; height: 12px; }
   .crypto-hint { margin: 0; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.6; }
   .crypto-hint.warn { color: var(--warn); }
   .crypto-hint.warn b { font-weight: 700; }
