@@ -506,9 +506,9 @@
           }
         }
         if (!sparkStatsAvailable) {
-          // 统计不可用时不再用假正弦数据，避免误导
+          // 统计不可用时不再用假正弦数据，避免误导；首轮立即拉取系统统计，仅浏览器预览显示“—”
           aboutLive = { mem: 0, cpu: 0 };
-          aboutHeap = '统计加载中…';
+          aboutHeap = '—';
           aboutCpu = '--';
           sparkHistory = [...sparkHistory, [0, 0] as [number, number]].slice(-44);
         }

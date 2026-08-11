@@ -167,8 +167,8 @@ button { cursor: pointer; border: 0; background: none; }
   --muted: #4a577e;
   --muted-2: #3f4d77;
   --hover: rgba(28, 38, 84, .08);
-  --glass: rgba(242, 246, 253, .92);
-  --glass-strong: rgba(251, 253, 255, .98);
+  --glass: rgba(255, 255, 255, .94);
+  --glass-strong: rgba(255, 255, 255, .99);
   --w-02: rgba(28, 38, 84, .03);
   --w-025: rgba(28, 38, 84, .035);
   --w-03: rgba(28, 38, 84, .045);
@@ -1980,28 +1980,33 @@ kbd {
 }
 .model-field input:focus, .model-field select:focus { border-color: rgba(129, 140, 248, .6); box-shadow: 0 0 0 3px rgba(129, 140, 248, .14); }
 .model-field input[type="password"] { font-family: ui-monospace, Consolas, monospace; letter-spacing: 1px; }
-.model-field > div { display: flex; align-items: center; gap: 6px; }
-.model-field > div input, .model-field > div select { flex: 1; min-width: 0; }
+.model-field > div { position: relative; display: flex; align-items: center; gap: 7px; }
+.model-field > div input, .model-field > div select { flex: 1; min-width: 0; padding-right: 86px; }
 .model-field button {
-  height: 32px;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 24px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 12px;
+  gap: 5px;
+  padding: 0 9px;
   flex: 0 0 auto;
   cursor: pointer;
   color: var(--muted);
-  font-size: var(--fs-xs);
+  font-size: calc(var(--fs-xs) - .5px);
   font-weight: 600;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--w-05);
+  border-radius: 8px;
+  background: var(--w-08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
   transition: all var(--transition);
 }
-.model-field button:hover:not(:disabled) { color: var(--c-cyan); border-color: color-mix(in srgb, var(--c-cyan) 40%, var(--line)); }
+.model-field button:hover:not(:disabled) { color: var(--c-cyan); border-color: color-mix(in srgb, var(--c-cyan) 40%, var(--line)); box-shadow: 0 2px 8px rgba(34, 211, 238, .14); }
 .model-field button:disabled { opacity: .45; cursor: default; }
 .model-field button span { display: inline-flex; }
-.model-field button svg { width: 13px; height: 13px; }
+.model-field button svg { width: 12px; height: 12px; }
 .config-fields { padding: 12px; border-radius: 12px; background: var(--w-04); border: 1px solid var(--line); }
 .ai-secret { display: flex; align-items: center; gap: 6px; }
 .ai-secret input { flex: 1; min-width: 0; }
@@ -3824,14 +3829,14 @@ kbd {
 }
 .app.light .workspace {
   background:
-    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .13), transparent 60%),
-    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .13), transparent 58%),
-    #e8eef7;
+    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .16), transparent 60%),
+    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .14), transparent 58%),
+    #dbe3f1;
 }
 .app.light .tool-controls {
-  background: rgba(255, 255, 255, .6);
-  border-color: rgba(35, 58, 122, .22);
-  box-shadow: 0 10px 26px rgba(35, 58, 122, .08);
+  background: rgba(255, 255, 255, .82);
+  border-color: rgba(35, 58, 122, .28);
+  box-shadow: 0 10px 26px rgba(35, 58, 122, .1);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -3842,10 +3847,10 @@ kbd {
 }
 .app.light .editor-pane {
   background: #ffffff;
-  border: 1px solid rgba(35, 58, 122, .22);
-  box-shadow: 0 12px 34px rgba(35, 58, 122, .14);
+  border: 1px solid rgba(35, 58, 122, .28);
+  box-shadow: 0 12px 34px rgba(35, 58, 122, .18);
 }
-.app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .18); }
+.app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .22); }
 .app.light .editor-pane > header {
   background: rgba(35, 58, 122, .05);
   border-bottom-color: rgba(35, 58, 122, .18);
@@ -4117,6 +4122,18 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .settings-modal.about-mode .about-stage{animation:.45s cubic-bezier(.22,.9,.3,1.2) both about-stage-in}
 .settings-modal.about-mode .about-stage .about-hero{animation:.55s cubic-bezier(.22,.9,.3,1.2) 60ms both about-stage-in}
 .settings-modal.about-mode .about-stage .about-status,.settings-modal.about-mode .about-stage .about-version,.settings-modal.about-mode .about-stage .about-rings,.settings-modal.about-mode .about-stage .about-term,.settings-modal.about-mode .about-stage .about-ticker{animation:.5s cubic-bezier(.22,.9,.3,1.2) .12s both about-stage-in}
+
+/* ==== About premium dynamics ==== */
+.settings-modal.about-mode .about-grid article{transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.settings-modal.about-mode .about-grid article:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--c-violet) 42%,var(--line));box-shadow:0 10px 24px color-mix(in srgb,var(--c-violet) 16%,transparent)}
+.settings-modal.about-mode .about-ring{transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,background .18s ease}
+.settings-modal.about-mode .about-ring:hover{transform:translateY(-3px);border-color:color-mix(in srgb,currentColor 45%,var(--line));box-shadow:0 10px 26px color-mix(in srgb,currentColor 20%,transparent)}
+.settings-modal.about-mode .about-actions a,.settings-modal.about-mode .about-actions button{transition:transform .15s ease,box-shadow .18s ease,border-color .18s ease}
+.settings-modal.about-mode .about-actions a:hover,.settings-modal.about-mode .about-actions button:hover{transform:translateY(-1px);box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 22%,transparent)}
+.settings-modal.about-mode .about-status{transition:border-color .2s ease,box-shadow .2s ease}
+.settings-modal.about-mode .about-status:hover{border-color:color-mix(in srgb,var(--c-green) 40%,var(--line));box-shadow:0 10px 26px color-mix(in srgb,var(--c-green) 12%,transparent)}
+.app.light .about-stage{background-color:#f2f5fb}
+.app.light .about-cols{scrollbar-color:rgba(35,58,122,.25) transparent}
 
 
 .about-logo-ring {
