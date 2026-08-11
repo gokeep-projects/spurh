@@ -255,8 +255,9 @@
   .ts-chip small { color: var(--muted-2); }
   .ts-chip b { font: 600 var(--fs-xs) 'Cascadia Code', Consolas, monospace; color: var(--text); font-variant-numeric: tabular-nums; }
   .ts-chip:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); transform: translateY(-1px); }
-  .ts-input-wrap input[type="datetime-local"] { min-height: 38px; }
-  .ts-input-wrap input[type="datetime-local"]::-webkit-calendar-picker-indicator { width: 20px; height: 20px; margin-right: 52px; cursor: pointer; }
+  .ts-input-wrap input[type="datetime-local"] { min-height: 38px; color-scheme: dark; }
+  .app.light .ts-input-wrap input[type="datetime-local"] { color-scheme: light; }
+  .ts-input-wrap input[type="datetime-local"]::-webkit-calendar-picker-indicator { width: 20px; height: 20px; margin-right: 52px; cursor: pointer; opacity: .7; }
   .ts-now-inline { top: 50%; transform: translateY(-50%); }
   .ts-dtfield .ts-live-unix { display: none; }
   .ts-dtfield:has(.ts-inline-card) { min-width: 100%; max-width: none; width: 100%; }

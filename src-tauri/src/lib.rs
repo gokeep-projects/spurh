@@ -441,18 +441,27 @@ fn set_autostart(enabled: bool) -> Result<bool, String> {
 
 /// 绉诲嚭鏂囦欢锛氬脊鍑哄師鐢熶繚瀛樺璇濇骞跺啓鍏ユ枃浠讹紝闃叉浜嬩欢绾跨▼鍫电獝 UI
 #[tauri::command]
-async fn save_text_file(name: String, content: String) -> Result<Option<String>, String> {
-    let path = tauri::async_runtime::spawn_blocking(move || {
-        rfd::FileDialog::new()
-            .set_title("鍏蜂綋淇濆瓨鏂囦欢")
-            .set_file_name(&name)
-            .save_file()
-    })
-    .await
-    .map_err(|e| e.to_string())?;
-    let Some(path) = path else { return Ok(None) };
-    std::fs::write(&path, content).map_err(|e| e.to_string())?;
-    Ok(Some(path.display().to_string()))
+async fn save_text_file(name: String, content: String) -> Result<String, String> {
+    let dir = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .map(|home| std::path::PathBuf::from(home).join("Downloads"))
+        .map_err(|_| "无法定位系统下载目录".to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("创建下载目录失败：{e}"))?;
+    let dot = name.rfind('.');
+    let (stem, ext) = match dot {
+        Some(p) => (&name[..p], &name[p..]),
+        None => (name.as_str(), ""),
+    };
+    let mut base = name.clone();
+    let mut candidate = dir.join(&base);
+    let mut i = 1;
+    while candidate.exists() {
+        base = format!("{stem}-{i}{ext}");
+        candidate = dir.join(&base);
+        i += 1;
+    }
+    std::fs::write(&candidate, content).map_err(|e| format!("写入文件失败：{e}"))?;
+    Ok(candidate.display().to_string())
 }
 
 #[tauri::command]

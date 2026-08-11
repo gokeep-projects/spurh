@@ -8,6 +8,7 @@
 
   let copiedKey = $state('');
   let exportState = $state('');
+  let exportPath = $state('');
 
   function record(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -48,9 +49,15 @@
     try {
       const ext = result.language === 'json' ? 'json' : result.language ? result.language.replace(/[^\w-]/g, '') : 'txt';
       const base = exportName.replace(/[^\w-]/g, '') || 'spurh-export';
-      const saved = await safeInvoke<string | null>('save_text_file', { name: `${base}.${ext}`, content: result.output });
-      exportState = saved ? '已导出 ✓' : '';
-      setTimeout(() => { if (exportState === '已导出 ✓') exportState = ''; }, 1600);
+      const saved = await safeInvoke<string>('save_text_file', { name: `${base}.${ext}`, content: result.output });
+      if (saved) {
+        exportState = '已导出 ✓';
+        exportPath = saved;
+        copyTextNative(saved).catch(() => undefined);
+      } else {
+        exportState = '';
+      }
+      setTimeout(() => { if (exportState === '已导出 ✓') exportState = ''; }, 2000);
     } catch {
       exportState = '导出失败';
       setTimeout(() => { if (exportState === '导出失败') exportState = ''; }, 1600);
@@ -159,7 +166,7 @@
     {#if canTreeView}
       <button class="export-btn" onclick={() => (useTreeView = !useTreeView)} title={useTreeView ? '切换为格式化文本' : '切换为折叠树视图'}>{useTreeView ? '文本' : '树视图'}</button>
     {/if}
-    {#if result.output}<button class="export-btn" onclick={exportResult} title="导出结果到文件">{exportState || '导出'}</button>{/if}
+    {#if result.output}<button class="export-btn" onclick={exportResult} title={exportPath ? `已保存到 ${exportPath}（路径已复制到剪贴板）` : '导出结果到文件'}>{exportState || '导出'}</button>{/if}
   </div>
   {#if result.view === 'timestamp' && Object.keys(data).length}
     {@const heroData = withHeroExtra(data)}
