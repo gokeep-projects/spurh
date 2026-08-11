@@ -4413,3 +4413,61 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .about-logo-ring {
   border-color: rgba(34, 211, 238, .6) transparent rgba(139, 92, 246, .6) transparent;
 }
+/* ===== 关于页：炫酷动态增强（纯视觉叠加，不改变布局） ===== */
+/* 标题渐变流光 */
+.settings-modal.about-mode .about-hero h3 {
+  background-size: 220% 220%;
+  animation: about-title-flow 5.5s ease-in-out infinite;
+}
+@keyframes about-title-flow {
+  0%, 100% { background-position: 0% 50%; filter: drop-shadow(0 0 10px rgba(129, 140, 248, .28)); }
+  50% { background-position: 100% 50%; filter: drop-shadow(0 0 22px rgba(232, 121, 249, .5)); }
+}
+/* hero 卡片霓虹呼吸（与入场动画组合，互不覆盖） */
+.settings-modal.about-mode .about-stage .about-hero {
+  animation: about-hero-breathe 4.2s ease-in-out infinite, .55s cubic-bezier(.22,.9,.3,1.2) 60ms both about-stage-in;
+}
+@keyframes about-hero-breathe {
+  0%, 100% { box-shadow: 0 0 0 rgba(34, 211, 238, .12), 0 6px 22px rgba(129, 140, 248, .12); }
+  50% { box-shadow: 0 0 26px rgba(34, 211, 238, .26), 0 8px 30px rgba(139, 92, 246, .2); }
+}
+/* logo 引擎光环：双层旋转辉光 */
+.settings-modal.about-mode .about-logo-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(34, 211, 238, .5), transparent 28%, rgba(139, 92, 246, .55) 52%, transparent 78%, rgba(232, 121, 249, .45));
+  -webkit-mask: radial-gradient(circle, transparent 56%, #000 60%, #000 62%, transparent 66%);
+  mask: radial-gradient(circle, transparent 56%, #000 60%, #000 62%, transparent 66%);
+  animation: about-engine-spin 3.4s linear infinite;
+  pointer-events: none;
+  opacity: .85;
+}
+@keyframes about-engine-spin {
+  to { transform: rotate(360deg); }
+}
+/* 实时时钟荧光数字 */
+.settings-modal.about-mode .about-clock {
+  color: var(--c-cyan);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 12px rgba(34, 211, 238, .45);
+  animation: about-clock-glow 2.6s ease-in-out infinite;
+}
+@keyframes about-clock-glow {
+  0%, 100% { text-shadow: 0 0 8px rgba(34, 211, 238, .3); }
+  50% { text-shadow: 0 0 18px rgba(34, 211, 238, .65); }
+}
+/* 状态栏脉冲光晕（与入场动画组合） */
+.settings-modal.about-mode .about-stage .about-status {
+  animation: about-status-pulse 3.8s ease-in-out infinite, .5s cubic-bezier(.22,.9,.3,1.2) .12s both about-stage-in;
+}
+@keyframes about-status-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(52, 211, 153, 0); }
+  50% { box-shadow: 0 0 22px rgba(52, 211, 153, .18); }
+}
+/* 浅色主题下标题流光节奏放缓，保持可读 */
+.app.light .settings-modal.about-mode .about-hero h3 {
+  animation-duration: 6.5s;
+}
