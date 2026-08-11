@@ -125,7 +125,7 @@
   .crypto-key-row label { display: flex; align-items: center; gap: 6px; }
   .crypto-key-row label > span { color: var(--muted); font-size: var(--fs-xs); }
   .secret-wrap { position: relative; display: flex; align-items: center; min-width: 0; }
-  .secret-wrap input { height: 28px; width: min(24vw, 240px); max-width: 100%; padding: 0 34px 0 11px; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 9px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .2s ease; }
+  .secret-wrap input { height: 28px; width: min(20vw, 220px); max-width: 100%; padding: 0 34px 0 11px; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 9px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .2s ease; }
   .secret-wrap input:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .secret-toggle { position: absolute; right: 4px; width: 26px; height: 26px; display: grid; place-items: center; cursor: pointer; font-size: var(--fs-xs); border: 0; border-radius: 7px; background: transparent; }
   /* svelte-ignore css_unused_selector */

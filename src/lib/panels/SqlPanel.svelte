@@ -1873,7 +1873,7 @@
   .sql-conn-dot.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   .sql-conn-ops { display: none; align-items: center; gap: 2px; padding-right: 6px; }
   .sql-conn:hover .sql-conn-ops { display: flex; }
-  .sql-conn-ops button { width: 20px; height: 20px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); border: 0; border-radius: 8px; background: transparent; }
+  .sql-conn-ops button { width: 24px; height: 24px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); border: 0; border-radius: 8px; background: transparent; }
   :global(.sql-conn-ops button svg) { width: 11px; height: 11px; }
   .sql-conn-ops button:hover { color: var(--text); background: var(--panel-2); }
   .sql-conn-ops button.confirm { color: #fff; background: var(--danger); font-size: var(--fs-tiny); }

@@ -195,7 +195,7 @@ button { cursor: pointer; border: 0; background: none; }
   --c-magenta: #c026d3;
   --c-blue: #1d4ed8;
   --c-green: #047857;
-  --c-amber: #b45309;
+  --c-amber: #92400e;
   --c-red: #dc2626;
   --accent: #4f46e5;
   --accent-soft: rgba(79, 70, 229, .14);
@@ -2188,6 +2188,15 @@ kbd {
   padding: 16px 16px 12px;
   box-shadow: 0 0 0 1px rgba(129, 140, 248, .16), 0 0 34px rgba(99, 102, 241, .14);
 }
+/* 关于页：科技网格底纹（纯 background-image，零重绘） */
+.about-stage {
+  background-image:
+    linear-gradient(rgba(139, 92, 246, .05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, .045) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+/* 关于页：指标数字平滑过渡 + 扫描光条 */
+.about-metrics b { transition: color .6s ease, text-shadow .6s ease; }
 .about-stage::after {
   content: "";
   position: absolute;
@@ -3686,7 +3695,11 @@ kbd {
 
 /* —— 浅色：深蓝灰框架 + 纯白卡片 + 淡蓝输入（告别白蒙，层次分明） —— */
 .app.light {
-  --bg0: #5b7199;
+  background:
+    radial-gradient(58vw 44vh at 82% -8%, rgba(139, 92, 246, .09), transparent 62%),
+    radial-gradient(52vw 40vh at 6% 108%, rgba(34, 211, 238, .07), transparent 60%),
+    var(--bg0);
+  --bg0: #58709c;
   --bg1: #7e94bc;
   --bg2: #e6edf9;
   --bg3: #7f96bd;
@@ -3700,45 +3713,80 @@ kbd {
   --line-strong: rgba(35, 58, 122, .85);
 }
 .app.light .app-bar {
-  background: linear-gradient(180deg, #d5e2f4 0%, #9fb6d8 100%);
+  background: linear-gradient(180deg, #c9d8ee 0%, #96aed6 100%);
   border-bottom: 1px solid rgba(35, 58, 122, .45);
   box-shadow: 0 8px 28px rgba(35, 58, 122, .18);
 }
 .app.light .sidebar {
-  background: linear-gradient(180deg, #b0c4e4 0%, #7890c0 100%);
+  background: linear-gradient(180deg, #6d89c1 0%, #45629f 100%);
   border-right: 1px solid rgba(35, 58, 122, .55);
-  box-shadow: 4px 0 22px rgba(35, 58, 122, .1);
+  box-shadow: 4px 0 22px rgba(35, 58, 122, .12);
 }
 .app.light .workspace {
   background:
-    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .18), transparent 60%),
-    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .18), transparent 58%),
-    #8aa1c9;
+    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .16), transparent 60%),
+    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .16), transparent 58%),
+    #7f9bc9;
 }
 .app.light .tool-controls {
-  background: #a3b8d9;
+  background: #9db5d8;
   border-color: rgba(35, 58, 122, .55);
 }
 .app.light .editor-grid {
-  background: #8aa1c9;
+  background: #7f9bc9;
   border-color: rgba(35, 58, 122, .55);
   box-shadow: 0 18px 46px rgba(35, 58, 122, .3);
 }
 .app.light .editor-pane {
-  background: #ffffff;
+  background: #f3f7fc;
   border: 1px solid rgba(35, 58, 122, .42);
   box-shadow: 0 12px 34px rgba(35, 58, 122, .18);
 }
 .app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .48); }
 .app.light .editor-pane > header {
-  background: rgba(35, 58, 122, .07);
+  background: rgba(35, 58, 122, .08);
   border-bottom-color: rgba(35, 58, 122, .24);
 }
 .app.light .editor-input { background: #f7fafd; }
-.app.light .result-view { background: #d9e4f4; }
-.app.light .json-tree { background: #d9e4f4; }
+.app.light .result-view { background: #dfe9f7; }
+.app.light .json-tree { background: #dfe9f7; }
 .app.light .workspace { padding: 14px 18px 16px; }
 .app.light .workspace .tool-controls { border-radius: var(--radius) var(--radius) 0 0; }
+/* 浅色侧栏：深蓝底 + 白字，保证小字可读 */
+.app.light .side-heading small { color: rgba(255, 255, 255, .85); }
+.app.light .side-manage {
+  color: #eef2ff;
+  border-color: rgba(255, 255, 255, .4);
+  background: rgba(255, 255, 255, .12);
+}
+.app.light .side-manage:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, .7);
+  background: rgba(255, 255, 255, .22);
+}
+.app.light .tool-name small { color: rgba(255, 255, 255, .76); }
+.app.light .tool-kbd { color: rgba(255, 255, 255, .62); }
+.app.light .tool-search > span { color: rgba(255, 255, 255, .72); }
+.app.light .tool-search input {
+  color: #fff;
+  background: rgba(255, 255, 255, .16);
+  border-color: rgba(255, 255, 255, .35);
+}
+.app.light .tool-search input::placeholder { color: rgba(255, 255, 255, .6); }
+.app.light .tool-search input:focus {
+  border-color: rgba(255, 255, 255, .75);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .16);
+}
+.app.light .tool-search .tool-search-clear { color: rgba(255, 255, 255, .75); }
+.app.light .tool-search .tool-search-clear:hover { color: #fff; background: rgba(255, 255, 255, .2); }
+.app.light .category-tabs button { color: rgba(255, 255, 255, .8); }
+.app.light .category-tabs button:hover { color: #fff; background: rgba(255, 255, 255, .14); }
+.app.light .tool-list button:hover { background: rgba(255, 255, 255, .1); }
+.app.light .tool-list button:hover .tool-icon { box-shadow: 0 0 14px rgba(255, 255, 255, .22); }
+.app.light .tool-list button.active:hover { background: var(--grad-main); }
+/* 浅色 Cron 表达式预览：淡底深字 */
+.app.light .cron-preview code { background: #e9eff9; border-color: rgba(35, 58, 122, .3); }
+.app.light .preview-runs span { background: #e9eff9; }
 /* 浅色其他输入框统一淡蓝底，边框更清晰 */
 .app.light .options input, .app.light .options select,
 .app.light .ts-field input, .app.light .ts-field select,
@@ -3754,7 +3802,7 @@ kbd {
 
 /* —— 关于页：浅色压住粉紫扫光，深色保留氛围但更克制 —— */
 .app.light .about-stage {
-  background: rgba(247, 250, 255, .72);
+  background-color: rgba(247, 250, 255, .72);
   box-shadow: 0 0 0 1px rgba(35, 58, 122, .16), 0 18px 60px rgba(35, 58, 122, .2);
 }
 .app.light .about-stage::after {
@@ -4124,8 +4172,8 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 
 
 /* ===== 浅色主题：最终一致性覆盖（保证唯一生效值） ===== */
-.app.light .side-heading small { color: #3d4878; }
-.app.light .tool-kbd { color: #42508c; }
+.app.light .side-heading small { color: rgba(255, 255, 255, .85); }
+.app.light .tool-kbd { color: rgba(255, 255, 255, .62); }
 .app.light .actions button:hover:not(.active) { color: #0e7490; }
 .app.light .quiet-button { color: #3d4671; }
 .app.light .actions { background: rgba(35, 58, 122, .08); border-color: rgba(35, 58, 122, .3); }

@@ -161,9 +161,9 @@
   .ai-send { height: 31px; flex: 0 0 auto; padding: 0 16px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 10px; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); background-size: 180% 100%; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 24%, transparent); transition: background-position .3s ease, transform .15s ease; }
   .ai-send:hover:not(:disabled) { background-position: 100% 0; transform: translateY(-1px); }
   .ai-send:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
-  .ai-stream { display: flex; flex-direction: column; gap: 9px; max-height: min(34vh, 360px); overflow: auto; padding-right: 2px; }
-  .ai-content { width: min(100%, 760px); align-self: center; }
-  .ai-reasoning { width: min(100%, 760px); align-self: center; }
+  .ai-stream { display: flex; flex-direction: column; gap: 9px; max-height: min(28vh, 300px); overflow: auto; padding-right: 2px; }
+  .ai-content { width: 100%; align-self: stretch; }
+  .ai-reasoning { width: 100%; align-self: stretch; }
   .ai-reasoning, .ai-content { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .ai-reasoning small, .ai-content small { color: var(--muted-2); font: 600 var(--fs-tiny) 'Cascadia Code', monospace; letter-spacing: .8px; }
   .ai-reasoning p { margin: 0; padding: 9px 12px; color: var(--muted); font-size: var(--fs-xs); line-height: 1.65; border: 1px solid var(--line); border-left: 2px solid var(--c-cyan); border-radius: 8px; background: color-mix(in srgb, var(--c-cyan) 4%, var(--bg)); }
