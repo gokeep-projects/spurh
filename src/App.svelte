@@ -635,7 +635,8 @@
         try {
           const { getCurrentWindow } = await import('@tauri-apps/api/window');
           const win = getCurrentWindow();
-          const next = !isFullscreen;
+          // 以真实窗口状态为准，避免本地状态与系统状态失同步
+          const next = !(await win.isFullscreen());
           await win.setFullscreen(next);
           isFullscreen = next;
           return;
@@ -653,7 +654,22 @@
     }
   }
   $effect(() => {
-    if (isTauri) return;
+    if (isTauri) {
+      // Tauri 下窗口 API 没有 fullscreenchange 事件，改用 resize 监听
+      let disposed = false;
+      let unlisten: (() => void) | undefined;
+      import('@tauri-apps/api/window')
+        .then(async ({ getCurrentWindow }) => {
+          if (disposed) return;
+          const win = getCurrentWindow();
+          win.isFullscreen().then((f) => { if (!disposed) isFullscreen = f; }).catch(() => undefined);
+          unlisten = await win.onResized(() => {
+            win.isFullscreen().then((f) => { if (!disposed) isFullscreen = f; }).catch(() => undefined);
+          });
+        })
+        .catch(() => undefined);
+      return () => { disposed = true; unlisten?.(); };
+    }
     const onChange = (): void => { isFullscreen = Boolean(document.fullscreenElement); };
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
