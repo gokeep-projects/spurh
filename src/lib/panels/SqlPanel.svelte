@@ -102,6 +102,11 @@
   }
 
   onMount(() => { migrateAndHydrateSecrets(); });
+  onMount(() => {
+    const close = () => { formOpen = false; };
+    window.addEventListener('spurh:settings-open', close);
+    return () => window.removeEventListener('spurh:settings-open', close);
+  });
 
   function freshConn(): SavedConn {
     return { id: crypto.randomUUID(), name: '', kind: 'mysql', host: '127.0.0.1', port: 3306, user: 'root', password: '', database: '', file: '', ssl: false, createdAt: Date.now() };
@@ -2068,7 +2073,7 @@
   .sql-result-grid { flex: 1; }
 
   /* ── 连接表单 ── */
-  .sql-modal-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(2, 4, 6, .5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); animation: fade-in .14s ease-out; }
+  .sql-modal-backdrop { position: fixed; z-index: 320; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(2, 4, 6, .5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); animation: fade-in .14s ease-out; }
   .sql-modal { width: min(520px, 100%); max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel-2); box-shadow: 0 30px 90px rgba(0, 0, 0, .45); animation: palette-in .18s cubic-bezier(.2, .9, .3, 1.2); }
   .sql-modal > header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .sql-modal > header b { font-size: var(--fs-lg); }

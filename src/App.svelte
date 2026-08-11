@@ -1271,6 +1271,8 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     aiTestStatus = 'idle'; aiTestMessage = ''; settingsError = ''; settingsNotice = notice; settingsTab = tab; settingsOpen = true;
     recordingTool = null; recordingDispatch = false; hotkeyError = '';
     resetDeleteConfirm();
+    // 打开设置时关闭工具面板内打开的弹窗（连接表单等），避免弹窗堆叠互相遮挡
+    window.dispatchEvent(new CustomEvent('spurh:settings-open'));
   }
 
   function selectAiProvider(provider: string): void {

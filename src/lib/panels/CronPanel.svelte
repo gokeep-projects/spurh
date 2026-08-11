@@ -356,7 +356,7 @@
   .cron-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid transparent; border-radius: 8px; background: transparent; }
   .cron-clear:hover { color: var(--text); border-color: var(--line); }
   .control-spacer { flex: 1; }
-  .cron-examples { display: flex; align-items: center; gap: 6px; padding: 8px 2px 10px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+  .cron-examples { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 2px 10px; max-height: 108px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
   .cron-examples > span { flex: 0 0 auto; color: var(--muted-2); font-size: var(--fs-xs); padding-right: 2px; }
   .cron-examples button { flex: 0 0 auto; min-width: 0; height: 28px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); line-height: 1; border: 1px dashed var(--line-2); border-radius: 999px; background: transparent; white-space: nowrap; }
   .cron-examples button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }

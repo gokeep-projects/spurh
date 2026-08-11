@@ -90,6 +90,11 @@
   }
 
   onMount(() => { migrateAndHydrateSecrets(); });
+  onMount(() => {
+    const close = () => { sysPanel = false; filePanel = false; };
+    window.addEventListener('spurh:settings-open', close);
+    return () => window.removeEventListener('spurh:settings-open', close);
+  });
 
   function freshSession(): RemoteSession {
     return {
@@ -729,7 +734,7 @@
   .form-save:hover:not(:disabled) { transform: translateY(-1px); }
   .form-save:disabled { cursor: default; opacity: .4; }
   .rt-quiet:disabled { opacity: .4; cursor: default; }
-  .rt-modal-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(4, 6, 10, .68); backdrop-filter: blur(12px); animation: fade-in .14s ease-out; }
+  .rt-modal-backdrop { position: fixed; z-index: 320; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(4, 6, 10, .68); backdrop-filter: blur(12px); animation: fade-in .14s ease-out; }
   .rt-modal { width: min(560px, 100%); overflow: hidden; border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel-2); box-shadow: 0 30px 100px rgba(0, 0, 0, .55); }
   .rt-modal > header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); }
   .rt-modal > header b { font-size: var(--fs-xs); }

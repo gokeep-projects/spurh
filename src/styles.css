@@ -157,18 +157,18 @@ button { cursor: pointer; border: 0; background: none; }
   opacity: .6;
 }
 .app.light {
-  --bg0: #64799f;
-  --bg1: #8ba0c6;
-  --bg2: #e6edf9;
-  --bg3: #8399c0;
-  --line: rgba(42, 60, 128, .6);
-  --line-strong: rgba(42, 60, 128, .82);
-  --text: #0b1030;
-  --muted: #333e6b;
-  --muted-2: #33407a;
-  --hover: rgba(28, 38, 84, .09);
-  --glass: rgba(240, 246, 255, .9);
-  --glass-strong: rgba(246, 250, 255, .97);
+  --bg0: #202b4d;
+  --bg1: #28355f;
+  --bg2: #f3f6fc;
+  --bg3: #31406e;
+  --line: rgba(35, 58, 122, .38);
+  --line-strong: rgba(35, 58, 122, .6);
+  --text: #151c38;
+  --muted: #4a577e;
+  --muted-2: #3f4d77;
+  --hover: rgba(28, 38, 84, .08);
+  --glass: rgba(242, 246, 253, .92);
+  --glass-strong: rgba(251, 253, 255, .98);
   --w-02: rgba(28, 38, 84, .03);
   --w-025: rgba(28, 38, 84, .035);
   --w-03: rgba(28, 38, 84, .045);
@@ -185,9 +185,9 @@ button { cursor: pointer; border: 0; background: none; }
   --w-14: rgba(28, 38, 84, .18);
 
   background:
-    radial-gradient(58vw 44vh at 82% -8%, rgba(124, 74, 228, .16), transparent 62%),
-    radial-gradient(52vw 40vh at 6% 108%, rgba(8, 145, 178, .13), transparent 60%),
-    radial-gradient(40vw 34vh at 50% 110%, rgba(190, 24, 93, .07), transparent 62%),
+    radial-gradient(58vw 44vh at 82% -8%, rgba(124, 74, 228, .14), transparent 62%),
+    radial-gradient(52vw 40vh at 6% 108%, rgba(8, 145, 178, .12), transparent 60%),
+    radial-gradient(40vw 34vh at 50% 110%, rgba(190, 24, 93, .06), transparent 62%),
     var(--bg0);
 
   --c-cyan: #0e7490;
@@ -3765,60 +3765,94 @@ kbd {
 /* —— 浅色：深蓝灰框架 + 纯白卡片 + 淡蓝输入（告别白蒙，层次分明） —— */
 .app.light {
   background:
-    radial-gradient(58vw 44vh at 82% -8%, rgba(139, 92, 246, .09), transparent 62%),
-    radial-gradient(52vw 40vh at 6% 108%, rgba(34, 211, 238, .07), transparent 60%),
+    radial-gradient(58vw 44vh at 82% -8%, rgba(139, 92, 246, .1), transparent 62%),
+    radial-gradient(52vw 40vh at 6% 108%, rgba(34, 211, 238, .08), transparent 60%),
     var(--bg0);
-  --bg0: #58709c;
-  --bg1: #7e94bc;
-  --bg2: #e6edf9;
-  --bg3: #7f96bd;
-  --panel: #dfe8f6;
-  --panel-2: #cfdcf0;
-  --bg: #7e94bc;
-  --hover: rgba(28, 38, 84, .12);
-  --glass: rgba(230, 239, 251, .94);
-  --glass-strong: rgba(240, 246, 253, .97);
-  --line: rgba(35, 58, 122, .66);
-  --line-strong: rgba(35, 58, 122, .88);
+  --bg0: #202b4d;
+  --bg1: #28355f;
+  --bg2: #f3f6fc;
+  --bg3: #31406e;
+  --panel: #f3f6fc;
+  --panel-2: #e9eff9;
+  --bg: #eef3fb;
+  --sidebar: #28355f;
+  --hover: rgba(28, 38, 84, .1);
+  --glass: rgba(242, 246, 253, .94);
+  --glass-strong: rgba(251, 253, 255, .98);
+  --line: rgba(35, 58, 122, .38);
+  --line-strong: rgba(35, 58, 122, .6);
 }
+/* ????????????+??? + ???????????? */
 .app.light .app-bar {
-  background: linear-gradient(180deg, #bfd1e9 0%, #8fa9d6 100%);
-  border-bottom: 1px solid rgba(35, 58, 122, .5);
-  box-shadow: 0 8px 28px rgba(35, 58, 122, .2);
+  background: linear-gradient(180deg, #33436e 0%, #212c52 100%);
+  border-bottom: 1px solid rgba(8, 14, 38, .45);
+  box-shadow: 0 10px 34px rgba(14, 22, 54, .35);
 }
+.app.light .app-bar .sidebar-toggle { color: rgba(255, 255, 255, .82); }
+.app.light .app-bar .sidebar-toggle:hover { color: #fff; background: rgba(255, 255, 255, .12); }
+.app.light .app-bar .brand:hover { background: rgba(255, 255, 255, .08); }
+.app.light .brand b {
+  background: linear-gradient(92deg, #7dd3fc, #c4b5fd 55%, #f9a8d4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.app.light .dispatcher {
+  background: rgba(12, 19, 44, .55);
+  border-color: rgba(255, 255, 255, .24);
+  color: #fff;
+}
+.app.light .dispatcher:hover { border-color: rgba(255, 255, 255, .42); }
+.app.light .dispatcher > kbd { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .26); color: rgba(255, 255, 255, .72); }
+.app.light .dispatcher textarea::placeholder, .app.light .dispatcher input::placeholder { color: rgba(255, 255, 255, .52); }
+.app.light .app-actions .settings-button {
+  color: rgba(255, 255, 255, .9);
+  border-color: rgba(255, 255, 255, .28);
+  background: rgba(255, 255, 255, .08);
+}
+.app.light .app-actions .settings-button:hover { color: #fff; background: rgba(255, 255, 255, .16); }
+.app.light .model-switcher {
+  color: rgba(255, 255, 255, .92);
+  border-color: rgba(255, 255, 255, .3);
+  background: rgba(255, 255, 255, .08);
+}
+.app.light .model-switcher:hover { color: #fff; border-color: rgba(255, 255, 255, .55); box-shadow: 0 0 0 3px rgba(255, 255, 255, .1); }
 .app.light .sidebar {
-  background: linear-gradient(180deg, #6d89c1 0%, #45629f 100%);
-  border-right: 1px solid rgba(35, 58, 122, .55);
-  box-shadow: 4px 0 22px rgba(35, 58, 122, .12);
+  background: linear-gradient(180deg, #26345f 0%, #1a2547 100%);
+  border-right: 1px solid rgba(8, 14, 38, .45);
+  box-shadow: 4px 0 22px rgba(14, 22, 54, .2);
 }
 .app.light .workspace {
   background:
-    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .16), transparent 60%),
-    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .16), transparent 58%),
-    #7f9bc9;
+    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .13), transparent 60%),
+    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .13), transparent 58%),
+    #e8eef7;
 }
 .app.light .tool-controls {
-  background: #9db5d8;
-  border-color: rgba(35, 58, 122, .55);
+  background: rgba(255, 255, 255, .6);
+  border-color: rgba(35, 58, 122, .22);
+  box-shadow: 0 10px 26px rgba(35, 58, 122, .08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .app.light .editor-grid {
-  background: #7f9bc9;
-  border-color: rgba(35, 58, 122, .55);
-  box-shadow: 0 18px 46px rgba(35, 58, 122, .3);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 .app.light .editor-pane {
-  background: #e0eaf8;
-  border: 1px solid rgba(35, 58, 122, .52);
-  box-shadow: 0 12px 34px rgba(35, 58, 122, .22);
+  background: #ffffff;
+  border: 1px solid rgba(35, 58, 122, .22);
+  box-shadow: 0 12px 34px rgba(35, 58, 122, .14);
 }
-.app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .48); }
+.app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .18); }
 .app.light .editor-pane > header {
-  background: rgba(35, 58, 122, .08);
-  border-bottom-color: rgba(35, 58, 122, .24);
+  background: rgba(35, 58, 122, .05);
+  border-bottom-color: rgba(35, 58, 122, .18);
 }
-.app.light .editor-input { background: #e9f1fc; }
-.app.light .result-view { background: #d9e6f6; }
-.app.light .json-tree { background: #d9e6f6; }
+.app.light .editor-input { background: #f6f9fe; }
+.app.light .result-view { background: #f6f9fe; }
+.app.light .json-tree { background: #f6f9fe; }
 .app.light .workspace { padding: 14px 18px 16px; }
 .app.light .workspace .tool-controls { border-radius: var(--radius) var(--radius) 0 0; }
 /* 浅色侧栏：深蓝底 + 白字，保证小字可读 */
@@ -3834,6 +3868,13 @@ kbd {
   background: rgba(255, 255, 255, .22);
 }
 .app.light .tool-name small { color: rgba(255, 255, 255, .76); }
+.app.light .tool-list .tool-name b {
+  color: rgba(255, 255, 255, .92);
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+}
 .app.light .tool-kbd { color: rgba(255, 255, 255, .62); }
 .app.light .tool-search > span { color: rgba(255, 255, 255, .72); }
 .app.light .tool-search input {
