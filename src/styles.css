@@ -4618,3 +4618,118 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app.light .editor-input .syntax-number { color: #b45309; }
 .app.light .editor-input .syntax-boolean { color: #0e7490; }
 .app.light .editor-input { color: #1c2440; }
+
+/* ===== Final override v5.3: light theme contrast + about page dynamics ===== */
+.app.light {
+  --muted: #3b4872;
+  --muted-2: #32406b;
+  --line: rgba(35, 58, 122, .42);
+  --line-strong: rgba(35, 58, 122, .64);
+}
+.app.light .workspace {
+  background:
+    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .26), transparent 62%),
+    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .2), transparent 60%),
+    #b2c2e4;
+}
+.app.light .editor-pane {
+  background: #ffffff;
+  border-color: rgba(35, 58, 122, .62);
+  box-shadow: 0 18px 46px rgba(35, 58, 122, .3), 0 2px 6px rgba(35, 58, 122, .14);
+}
+.app.light .editor-pane > header {
+  background: rgba(35, 58, 122, .09);
+  border-bottom-color: rgba(35, 58, 122, .26);
+}
+.app.light .editor-input,
+.app.light .result-view,
+.app.light .json-tree,
+.app.light .result-raw {
+  background: #e7edf9;
+}
+.app.light .tool-controls {
+  background: rgba(255, 255, 255, .82);
+  border-color: rgba(35, 58, 122, .55);
+  box-shadow: 0 10px 30px rgba(35, 58, 122, .2);
+}
+.app.light .settings-modal { background: #ffffff; }
+.app.light .settings-nav, .app.light .settings-content { color: var(--text); }
+.app.light .setting-copy small, .app.light .settings-section-title small { color: var(--muted); }
+
+@property --about-spin {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.settings-modal.about-mode .about-stage {
+  position: relative;
+  isolation: isolate;
+}
+.settings-modal.about-mode .about-stage::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--about-spin),
+    rgba(34, 211, 238, .85),
+    rgba(99, 102, 241, .35) 22%,
+    rgba(139, 92, 246, .9) 46%,
+    rgba(232, 121, 249, .4) 68%,
+    rgba(34, 211, 238, .85) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: about-frame-spin 7s linear infinite;
+  pointer-events: none;
+}
+@keyframes about-frame-spin {
+  to { --about-spin: 360deg; }
+}
+.settings-modal.about-mode .about-scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 3;
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, .8), rgba(232, 121, 249, .8), transparent);
+  filter: blur(.4px);
+  opacity: .65;
+  animation: about-beam 5.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes about-beam {
+  0% { top: 4%; opacity: 0; }
+  8% { opacity: .7; }
+  46% { top: 96%; opacity: .25; }
+  54% { opacity: 0; }
+  100% { top: 4%; opacity: 0; }
+}
+.settings-modal.about-mode .about-chips span {
+  position: relative;
+  transition: transform .18s ease, box-shadow .2s ease, color .2s ease;
+}
+.settings-modal.about-mode .about-chips span:hover {
+  transform: translateY(-2px) scale(1.06);
+  color: var(--c-cyan);
+  box-shadow: 0 6px 18px rgba(34, 211, 238, .22);
+}
+.settings-modal.about-mode .term-caret {
+  animation: about-caret-blink .85s steps(1) infinite;
+}
+@keyframes about-caret-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.settings-modal.about-mode .about-ticker {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.app.light .settings-modal.about-mode .about-stage::after {
+  opacity: .55;
+}
+.app.light .settings-modal.about-mode .about-scanline {
+  opacity: .4;
+}

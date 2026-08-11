@@ -70,7 +70,7 @@
     const fallback: AppSettings = {
       theme: 'dark', trayEnabled: true, contextMenuEnabled: true, dispatchHotkey: 'ctrl+shift+space',
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
-      fontSize: 15, fontFamily: '系统默认',
+      fontSize: 14, fontFamily: '系统默认',
       sidebarShortcuts: false,
       sidebarOpen: true,
       hiddenTools: [],
@@ -80,19 +80,13 @@
     try {
       const stored = localStorage.getItem(SETTINGS_KEY);
       const parsed = stored ? JSON.parse(stored) : {};
-      // 迁移：历史 14px 用户一次性提升到 15px 默认（用户可自由调节），移除旧的回退逻辑
-      let migratedFontSize = typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : fallback.fontSize;
-      if (!parsed.fontSizeMigrated3 && migratedFontSize === 14) {
-        migratedFontSize = 15;
-        parsed.fontSizeMigrated3 = true;
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...parsed, fontSize: 15, fontSizeMigrated3: true }));
-      }
+      // 字号：用户手动档位直接采用（默认 14），仅接受 12–20 合理范围
+      const userFontSize = typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : fallback.fontSize;
       return {
         ...fallback,
         ...parsed,
         hiddenTools: Array.isArray(parsed.hiddenTools) ? parsed.hiddenTools : fallback.hiddenTools,
-        // 字号：用户手动档位直接采用（默认 15）
-        fontSize: migratedFontSize,
+        fontSize: userFontSize,
         fontFamily: FONT_STACKS[parsed.fontFamily] ? parsed.fontFamily : '系统默认',
       };
     } catch {
@@ -2176,7 +2170,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                     <div class="about-grid">
                       <article><small>作者</small><b>xuning</b></article>
                       <article><small>版本</small><b>0.1.0</b></article>
-                      <article><small>内置工具</small><b>{aboutPanelsShown} 个面板</b></article>
+                      <article><small>内置工具</small><b>{aboutPanelsShown} 个</b></article>
                       <article><small>许可</small><b>MIT</b></article>
                     </div>
                     <div class="about-actions">
