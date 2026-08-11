@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-  import { onMount, type Component } from 'svelte';
+  import { flushSync, onMount, type Component } from 'svelte';
   import { isTauri, safeInvoke, safeListen, copyText, readClipboardText } from './lib/env';
   import { AI_PRESETS, createAiProfile, deleteProfileSecret, fetchAiModels, flushLegacyAiSecrets, hydrateAiSecrets, isAiConfigured, loadAiProfileStore, processWithAi, saveAiProfileStore, saveProfileSecret, testAiConnection, type AiModel, type AiProfile } from './lib/ai';
   import { PROVIDER_NAMES, providerIcon } from './lib/providerIcons';
@@ -911,7 +911,8 @@
       if (start === end) {
         // 单点：插入两个空格
         changeInput(value.slice(0, start) + '  ' + value.slice(end));
-        requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 2; });
+        flushSync();
+        target.selectionStart = target.selectionEnd = start + 2;
         return;
       }
       // 多行选区：整块缩进 / 反缩进
@@ -925,7 +926,9 @@
           : '  ' + line,
       ).join('\n');
       changeInput(value.slice(0, lineStart) + next + value.slice(blockEnd));
-      requestAnimationFrame(() => { target.selectionStart = lineStart; target.selectionEnd = lineStart + next.length; });
+      flushSync();
+      target.selectionStart = lineStart;
+      target.selectionEnd = lineStart + next.length;
       return;
     }
 
@@ -968,7 +971,8 @@
         const afterClose = afterCursor.slice(closeMatch[0].length);
         const newText = '\n' + newIndent + '\n' + indent + closeMatch[1] + afterClose + value.slice(lineEndPos);
         changeInput(value.slice(0, start) + newText);
-        requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 1 + newIndent.length; });
+        flushSync();
+        target.selectionStart = target.selectionEnd = start + 1 + newIndent.length;
         return;
       }
       // 自动补全：JSON 工具中光标前为未闭合开放括号且光标后无内容 → 补闭合括号换行（VS Code 风格）
@@ -979,7 +983,8 @@
         const newIndent = indent + '  '.repeat(level);
         const newText = '\n' + newIndent + '\n' + indent + closer;
         changeInput(value.slice(0, start) + newText + value.slice(end));
-        requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 1 + newIndent.length; });
+        flushSync();
+        target.selectionStart = target.selectionEnd = start + 1 + newIndent.length;
         return;
       }
       const newIndent = indent + '  '.repeat(level);
@@ -991,7 +996,8 @@
         if (/^[}\])]/.test(nextLine.trim()) && newIndent.length > nextIndent.length) {
           const insertAlign = '\n' + nextIndent;
           changeInput(value.slice(0, start) + insertAlign + value.slice(end));
-          requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + insertAlign.length; });
+          flushSync();
+        target.selectionStart = target.selectionEnd = start + insertAlign.length;
           return;
         }
       }
@@ -1001,7 +1007,8 @@
       const prefixText = value.slice(0, start);
       const suffixText = suffix ? suffix : value.slice(end, lineEndPos);
       changeInput(prefixText + insert + suffixText + value.slice(lineEndPos));
-      requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + insert.length; });
+      flushSync();
+        target.selectionStart = target.selectionEnd = start + insert.length;
       return;
     }
     // 输入闭合括号时自动配对
@@ -1025,7 +1032,8 @@
                 if (tail.startsWith(event.key)) tail = tail.slice(1);
                 else if (tail.startsWith('\n' + event.key)) tail = tail.slice(2);
                 changeInput(value.slice(0, cLineStart) + openIndent + event.key + tail);
-                requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = cLineStart + openIndent.length + 1; });
+                flushSync();
+        target.selectionStart = target.selectionEnd = cLineStart + openIndent.length + 1;
                 return;
               }
             } else depth--;
@@ -1047,7 +1055,8 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
       if (openChar) {
         event.preventDefault();
         changeInput(value.slice(0, start) + event.key + openChar + value.slice(end));
-        requestAnimationFrame(() => { target.selectionStart = target.selectionEnd = start + 1; });
+        flushSync();
+        target.selectionStart = target.selectionEnd = start + 1;
         return;
       }
     }
