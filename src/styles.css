@@ -1981,13 +1981,11 @@ kbd {
 .model-field input:focus, .model-field select:focus { border-color: rgba(129, 140, 248, .6); box-shadow: 0 0 0 3px rgba(129, 140, 248, .14); }
 .model-field input[type="password"] { font-family: ui-monospace, Consolas, monospace; letter-spacing: 1px; }
 .model-field > div { position: relative; display: flex; align-items: center; gap: 7px; }
-.model-field > div input, .model-field > div select { flex: 1; min-width: 0; padding-right: 86px; }
+.model-field > div input, .model-field > div select { flex: 1; min-width: 0; }
 .model-field button {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 24px;
+  position: static;
+  flex: 0 0 auto;
+  height: 26px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -2817,9 +2815,7 @@ kbd {
 
 /* 通用文本输入 */
 /* 全局输入 / 选择 / 文本域基线：统一高度、圆角、边框与聚焦光晕，组件内联样式可覆盖 */
-.app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-.app select,
-.app textarea {
+.app :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea) {
   height: 34px;
   padding: 0 11px;
   border-radius: 9px;
@@ -2830,16 +2826,16 @@ kbd {
   transition: border-color .15s ease, box-shadow .2s ease, background .15s ease;
 }
 .app textarea { height: auto; padding: 9px 11px; }
-.app input:hover:not(:disabled), .app select:hover:not(:disabled), .app textarea:hover:not(:disabled) {
+.app :where(input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:disabled)) {
   border-color: var(--line-strong);
 }
-.app input:focus, .app select:focus, .app textarea:focus {
+.app :where(input:focus, select:focus, textarea:focus) {
   border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
   box-shadow: 0 0 0 3px var(--accent-soft);
   background: color-mix(in srgb, var(--accent) 3%, var(--w-05));
 }
-.app input:disabled, .app select:disabled, .app textarea:disabled { opacity: .55; cursor: not-allowed; }
-.app input::placeholder, .app textarea::placeholder { color: var(--muted-2); }
+.app :where(input:disabled, select:disabled, textarea:disabled) { opacity: .55; cursor: not-allowed; }
+.app :where(input::placeholder, textarea::placeholder) { color: var(--muted-2); }
 /* 编辑器文本域保持自身布局，不受全局基线影响 */
 .app .editor-input textarea {
   height: 100%;

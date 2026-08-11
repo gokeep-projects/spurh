@@ -247,7 +247,7 @@
   .ts-quick button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: var(--accent-soft); }
   .ts-field { display: flex; flex-direction: column; gap: 5px; }
   .ts-field span { color: var(--muted); font-size: var(--fs-sm); }
-  .ts-field input, .ts-field select { height: 34px; padding: 0 12px; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 10px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .2s ease; }
+  .ts-field input, .ts-field select { height: 40px; padding: 0 12px; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 10px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .2s ease; }
   .ts-field input:hover, .ts-field select:hover { border-color: var(--line-strong); }
   .ts-field input:focus, .ts-field select:focus { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 12px color-mix(in srgb, var(--accent) 10%, transparent); }
   .ts-field-hint { color: var(--accent); font-size: var(--fs-xs); }
@@ -285,8 +285,8 @@
   .ts-live-label { color: var(--muted); font-size: var(--fs-sm); }
 
   .ts-input-wrap { position: relative; display: flex; align-items: stretch; }
-  .ts-input-wrap .ts-dt-text { min-width: 0; flex: 1 1 172px; padding-left: 12px; padding-right: 64px; border-left: 0; border-radius: 0 12px 12px 0; }
-  .ts-input-wrap input[type="datetime-local"] { min-width: 0; width: auto; flex: 0 1 224px; padding-left: 36px; padding-right: 60px; border-radius: 12px 0 0 12px; border-right: 0; }
+  .ts-input-wrap .ts-dt-text { min-width: 0; flex: 1 1 200px; height: 44px; padding-left: 12px; padding-right: 64px; border-left: 0; border-radius: 0 12px 12px 0; }
+  .ts-input-wrap input[type="datetime-local"] { min-width: 0; width: auto; flex: 1 1 264px; padding-left: 36px; padding-right: 60px; border-radius: 12px 0 0 12px; border-right: 0; }
   .ts-input-wrap input[type="datetime-local"]:focus, .ts-input-wrap .ts-dt-text:focus { position: relative; z-index: 1; }
   .ts-input-wrap .ts-now-inline { right: 4px; }
   .ts-input-wrap input { height: 44px; padding-left: 36px; padding-right: 60px; border: 1.5px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 3%, var(--bg)), var(--bg)); color: var(--text); font: 550 var(--fs-sm) 'Cascadia Code', Consolas, monospace; outline: 0; box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent); transition: border-color .15s ease, box-shadow .2s ease, background .15s ease; }
@@ -307,4 +307,5 @@
   .ts-live-clock b { font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; letter-spacing: .4px; font-variant-numeric: tabular-nums; }
   .ts-live-clock small { color: var(--muted-2); font-size: var(--fs-xs); }
 
+/* ts-patch-marker */
 </style>

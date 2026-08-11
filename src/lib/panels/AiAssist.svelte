@@ -165,9 +165,9 @@
   .ai-content { width: 100%; align-self: stretch; }
   .ai-reasoning { width: 100%; align-self: stretch; }
   .ai-reasoning, .ai-content { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-  .ai-reasoning small, .ai-content small { color: var(--muted-2); font: 600 var(--fs-tiny) 'Cascadia Code', monospace; letter-spacing: .8px; }
+  .ai-reasoning small, .ai-content small { color: var(--muted-2); font: 600 var(--fs-tiny) 'Cascadia Code', monospace; letter-spacing: .8px; text-align: center; }
   .ai-reasoning p { margin: 0; padding: 9px 12px; color: var(--muted); font-size: var(--fs-xs); line-height: 1.65; border: 1px solid var(--line); border-left: 2px solid var(--c-cyan); border-radius: 8px; background: color-mix(in srgb, var(--c-cyan) 4%, var(--bg)); }
-  .ai-content pre { margin: 0; padding: 13px 15px; overflow-x: auto; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; line-height: 1.7; white-space: pre-wrap; word-break: break-word; border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); border-radius: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--bg)), var(--bg) 60%); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent); }
+  .ai-content pre { width: min(100%, 680px); margin: 0 auto; padding: 14px 16px; overflow-x: auto; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; line-height: 1.7; white-space: pre-wrap; word-break: break-word; border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); border-radius: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--bg)), var(--bg) 60%); box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 8%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent); }
   .ai-waiting { display: flex; align-items: center; gap: 8px; padding: 12px; color: var(--muted); font-size: var(--fs-xs); }
   .ai-result-actions { display: flex; justify-content: flex-end; gap: 6px; }
   .ai-result-actions button { height: 28px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); transition: all .15s ease; }
