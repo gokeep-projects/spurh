@@ -241,6 +241,7 @@
   const aboutPhrases = ['AI Native Developer Toolbox', '本地优先 · 数据不出设备', '粘贴即用 · 一步完成', '11 个工具 · 一个入口'];
   const aboutToolNames = ['JSON 格式化', '时间戳转换', '文本处理', '随机生成', '加解密', 'Cron 表达式', '编码转换', '正则表达式', '数据库工具', '网络工具', '远程连接'];
   const BUILD_STAMP = __BUILD_DATE__; // 构建标记来自 vite define
+  const APP_LAUNCH_TIME = Date.now(); // 应用启动时刻，用于关于页展示真实运行时长
 
   function startAboutCanvas(canvas: HTMLCanvasElement, stage: HTMLElement, isLight: boolean): () => void {
     const ctx = canvas.getContext('2d');
@@ -466,7 +467,7 @@
   $effect(() => {
     if (settingsOpen && settingsTab === 'about') {
       const isLightTheme = appSettings.theme === 'light' || (appSettings.theme === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
-      aboutUptime = 0;
+      aboutUptime = Math.max(0, Math.floor((Date.now() - APP_LAUNCH_TIME) / 1000));
       aboutClock = formatClock(new Date());
       aboutTimer = setInterval(() => {
         aboutUptime += 1;
@@ -970,6 +971,21 @@
         event.preventDefault();
         const insert = '\n' + nextIndent + '\n' + '  '.repeat(Math.max(0, depth - 1));
         changeInput(value.slice(0, start) + insert + value.slice(end));
+        flushSync();
+        target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
+        return;
+      }
+      if (!trailingOpener && '}])'.includes(nextNonWs)) {
+        // 光标后紧跟闭合符（同一行）：新行按深度缩进，闭合符行对齐到其所属层级
+        event.preventDefault();
+        const rest = value.slice(end);
+        const lineRest = rest.split('\n')[0];
+        const closerIndent = '  '.repeat(Math.max(0, depth - 1));
+        const leadWs = lineRest.match(/^[ \t]*/)?.[0] ?? '';
+        const insert = (leadWs.length !== closerIndent.length)
+          ? '\n' + nextIndent + '\n' + closerIndent + lineRest.slice(leadWs.length)
+          : '\n' + nextIndent;
+        changeInput(value.slice(0, start) + insert + rest.slice(lineRest.length));
         flushSync();
         target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
         return;
