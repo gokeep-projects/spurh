@@ -127,6 +127,19 @@
     return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()] || '';
   })());
   const unixMsPreview = $derived(unixPreview ? String(Number(unixPreview) * 1000) : '');
+  const relativePreview = $derived((() => {
+    const raw = session.options.pickDateTime || '';
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+    if (!m) return '';
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+    const diff = Math.round((d.getTime() - Date.now()) / 1000);
+    const abs = Math.abs(diff);
+    if (diff === 0) return '就是现在';
+    if (abs < 60) return diff > 0 ? '即将到来' : '刚刚';
+    if (abs < 3600) return (diff > 0 ? Math.floor(abs / 60) + ' 分钟后' : Math.floor(abs / 60) + ' 分钟前');
+    if (abs < 86400) return (diff > 0 ? Math.floor(abs / 3600) + ' 小时后' : Math.floor(abs / 3600) + ' 小时前');
+    return (diff > 0 ? Math.floor(abs / 86400) + ' 天后' : Math.floor(abs / 86400) + ' 天前');
+  })());
   let copiedTs = $state('');
   async function copyTs(value: string, key: string): Promise<void> {
     await copyTextNative(value);
@@ -204,6 +217,7 @@
               <span>本地时间</span>
               <b>{localPreview || '—'}</b>
               <em>{weekdayPreview}</em>
+              {#if relativePreview}<i>{relativePreview}</i>{/if}
             </div>
             <div class="ts-inline-cols">
               <button class="ts-chip" onclick={() => copyTs(unixPreview || '', 'sec')} title="点击复制">
@@ -293,6 +307,16 @@
   .ts-input-wrap input::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
   .ts-input-wrap input:hover { border-color: var(--line-strong); }
   .ts-input-wrap input:focus { border-color: color-mix(in srgb, var(--accent) 65%, var(--line)); box-shadow: 0 0 0 3.5px var(--accent-soft), 0 0 16px color-mix(in srgb, var(--accent) 14%, transparent); background: color-mix(in srgb, var(--accent) 3%, var(--bg)); }
+  .ts-input-wrap:focus-within input[type="datetime-local"] { border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); }
+  .ts-input-wrap:focus-within .ts-dt-text { border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); }
+  .ts-inline-card { position: relative; margin-top: 2px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 13px; background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 8%, var(--panel)), var(--panel-2) 60%); box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent); }
+  .ts-inline-card::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120px 60px at 12% 0%, color-mix(in srgb, var(--c-cyan) 12%, transparent), transparent 70%); }
+  .ts-inline-local { position: relative; display: flex; align-items: baseline; gap: 9px; padding: 11px 13px 5px; }
+  .ts-inline-local span { color: var(--muted); font-size: var(--fs-tiny); letter-spacing: .4px; }
+  .ts-inline-local b { font: 700 calc(var(--fs) + 3px)/1.2 'Cascadia Code', Consolas, monospace; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: .2px; }
+  .ts-inline-local em { color: var(--accent); font: 600 var(--fs-xs) sans-serif; font-style: normal; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); }
+  .ts-inline-local i { color: var(--c-green); font: 600 var(--fs-xs) sans-serif; font-style: normal; }
+  .ts-inline-cols { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 6px 13px 12px; }
   .ts-input-wrap:has(input[value]:not([value=""])) input[type="datetime-local"] { border-color: color-mix(in srgb, var(--c-green) 55%, var(--line)); }
   .ts-input-wrap input[type="datetime-local"]::-webkit-calendar-picker-indicator { width: 20px; height: 20px; margin-right: 52px; cursor: pointer; opacity: .75; filter: var(--ico-filter, none); transition: opacity .15s ease; }
   .ts-input-wrap input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }

@@ -61,7 +61,12 @@
   let dropFor = $state('');
   let dropping = $state(false);
   let grantDb = $state('');
-  let grantPrivs = $state<Set<string>>(new Set(['SELECT', 'INSERT', 'UPDATE', 'DELETE']));
+  let grantPrivs = $state<Record<string, Set<string>>>({});
+  const DEFAULT_PRIVS = new Set(['SELECT', 'INSERT', 'UPDATE', 'DELETE']);
+  function privsFor(key: string): Set<string> {
+    if (!grantPrivs[key]) grantPrivs = { ...grantPrivs, [key]: new Set(DEFAULT_PRIVS) };
+    return grantPrivs[key];
+  }
   let grantBusy = $state(false);
   let grantMsg = $state('');
 
@@ -178,16 +183,17 @@
     }
   }
 
-  function togglePriv(p: string, on: boolean): void {
-    const next = new Set(grantPrivs);
+  function togglePriv(key: string, p: string, on: boolean): void {
+    const next = new Set(privsFor(key));
     if (on) next.add(p);
     else next.delete(p);
-    grantPrivs = next;
+    grantPrivs = { ...grantPrivs, [key]: next };
   }
 
   async function applyPrivileges(u: SqlUser, grant: boolean): Promise<void> {
     if (!conn) return;
-    const privileges = Array.from(grantPrivs);
+    const key = userKey(u);
+    const privileges = Array.from(privsFor(key));
     if (privileges.length === 0) {
       grantMsg = '请至少勾选一项权限';
       return;
@@ -302,7 +308,7 @@
                         </select>
                         <span class="sql-privs">
                           {#each ['SELECT','INSERT','UPDATE','DELETE','CREATE','DROP','ALL PRIVILEGES'] as p}
-                            <label><input type="checkbox" checked={grantPrivs.has(p)} onchange={(e) => togglePriv(p, (e.currentTarget as HTMLInputElement).checked)} />{p}</label>
+                            <label><input type="checkbox" checked={privsFor(key).has(p)} onchange={(e) => togglePriv(key, p, (e.currentTarget as HTMLInputElement).checked)} />{p}</label>
                           {/each}
                         </span>
                         <button class="sql-btn ghost" disabled={grantBusy} onclick={() => applyPrivileges(u, true)}>授权</button>
