@@ -152,7 +152,8 @@
     { label: '每季度首日 09:00', expr: '0 9 1 1,4,7,10 *' },
     { label: '每月最后工作日 18:00', expr: '0 18 LW * *' },
     { label: '工作日每 15 分钟(9-18)', expr: '*/15 9-18 * * 1-5' },
-
+    { label: '每 8 小时', expr: '0 */8 * * *' },
+    { label: '工作日 18:00（下班后）', expr: '0 18 * * 1-5' },
   ];
 
   function applyExample(expr: string): void {

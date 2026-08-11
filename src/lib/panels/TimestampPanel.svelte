@@ -166,6 +166,74 @@
     dtTextDraft = value;
     parseDateTimeText(value);
   }
+
+  /* ── 自定义日历弹层（替换原生 datetime-local，交互与观感统一） ── */
+  let calOpen = $state(false);
+  let calYear = $state(new Date().getFullYear());
+  let calMonth = $state(new Date().getMonth());
+  const CAL_WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+  const calTitle = $derived(`${calYear} 年 ${calMonth + 1} 月`);
+  const calDays = $derived.by(() => {
+    const first = new Date(calYear, calMonth, 1);
+    const start = first.getDay();
+    const count = new Date(calYear, calMonth + 1, 0).getDate();
+    const cells: (number | null)[] = [];
+    for (let i = 0; i < start; i++) cells.push(null);
+    for (let d = 1; d <= count; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  });
+  function openCalendar(): void {
+    const cur = session.options.pickDateTime;
+    const m = cur ? cur.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/) : null;
+    const base = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date();
+    calYear = base.getFullYear();
+    calMonth = base.getMonth();
+    calOpen = true;
+  }
+  function calPrevMonth(): void {
+    calMonth -= 1;
+    if (calMonth < 0) { calMonth = 11; calYear -= 1; }
+  }
+  function calNextMonth(): void {
+    calMonth += 1;
+    if (calMonth > 11) { calMonth = 0; calYear += 1; }
+  }
+  function calPickDay(day: number): void {
+    const p = (n: number) => String(n).padStart(2, '0');
+    const cur = session.options.pickDateTime;
+    const m = cur ? cur.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/) : null;
+    const hh = m ? m[4] : '00';
+    const mm = m ? m[5] : '00';
+    onChangeOption('pickDateTime', `${calYear}-${p(calMonth + 1)}-${p(day)}T${hh}:${mm}`);
+    calOpen = false;
+  }
+  function isCalToday(day: number): boolean {
+    const now = new Date();
+    return now.getFullYear() === calYear && now.getMonth() === calMonth && now.getDate() === day;
+  }
+  function isCalSelected(day: number): boolean {
+    const cur = session.options.pickDateTime;
+    const m = cur ? cur.match(/^(\d{4})-(\d{2})-(\d{2})T/) : null;
+    return !!m && Number(m[1]) === calYear && Number(m[2]) === calMonth + 1 && Number(m[3]) === day;
+  }
+  /** 时间文本校验回填：HH:mm（允许 HH:mm:ss） */
+  function handleTimeText(value: string): void {
+    const m = value.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!m) return;
+    const hh = Number(m[1]);
+    const mm = Number(m[2]);
+    const ss = m[3] !== undefined ? Number(m[3]) : 0;
+    if (hh > 23 || mm > 59 || ss > 59) return;
+    const p = (n: number) => String(n).padStart(2, '0');
+    const cur = session.options.pickDateTime || nowValue();
+    const dm = cur.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+    if (!dm) return;
+    onChangeOption('pickDateTime', `${dm[1]}-${dm[2]}-${dm[3]}T${p(hh)}:${p(mm)}`);
+  }
+  const timeText = $derived((session.options.pickDateTime || '').replace('T', ' ').slice(11, 16) || '00:00');
+  const dateText = $derived((session.options.pickDateTime || '').slice(0, 10) || '');
+
 </script>
 
 <div class="ts-panel">
@@ -194,25 +262,49 @@
       <button class="ts-clear" onclick={onClear} title="清空输入">清空</button>
     </div>
     <p class="ts-tip">支持 10 位（秒）与 13 位（毫秒）时间戳，可直接从日志、数据库或 API 响应中复制粘贴。</p>
-  {:else if session.actionId === 'to-unix'}
+    {:else if session.actionId === 'to-unix'}
     <div class="ts-row">
       <label class="ts-field ts-dtfield">
         <span>日期时间</span>
-        <div class="ts-input-wrap">
-          <i class="ts-input-ico">{@html TOOL_ICONS['spurh.timestamp']}</i>
-          <input
-            type="datetime-local"
-            value={session.options.pickDateTime || ''}
-            spellcheck="false"
-            step="60"
-            oninput={(e) => { dtTextDraft = ''; onChangeOption('pickDateTime', e.currentTarget.value); }}
-          />
-          <input class="ts-dt-text" type="text" value={dtTextDraft} placeholder="或直接输入：2024-11-15 10:30" spellcheck="false" oninput={(e) => handleDtText(e.currentTarget.value)} />
+        <div class="ts-pick-box" class:open={calOpen}>
+          <button class="ts-pick-date" onclick={openCalendar} title="点击打开日历选择日期">
+            <i class="ts-cal-ico">{@html TOOL_ICONS['spurh.timestamp']}</i>
+            <b>{dateText || '选择日期'}</b>
+            <em class="ts-cal-caret">▾</em>
+          </button>
+          <span class="ts-pick-sep">·</span>
+          <input class="ts-time-input" value={timeText} placeholder="00:00" spellcheck="false" oninput={(e) => handleTimeText(e.currentTarget.value)} />
           <button class="ts-now-inline" onclick={() => quickPick('now')} title="填入当前时间">现在</button>
+          {#if calOpen}
+            <div class="ts-cal" role="dialog" aria-label="选择日期">
+              <header class="ts-cal-head">
+                <button onclick={calPrevMonth} title="上一月">‹</button>
+                <b>{calTitle}</b>
+                <button onclick={calNextMonth} title="下一月">›</button>
+              </header>
+              <div class="ts-cal-week">
+                {#each CAL_WEEK as w}<span>{w}</span>{/each}
+              </div>
+              <div class="ts-cal-grid">
+                {#each calDays as day, i (i)}
+                  {#if day === null}
+                    <i class="ts-cal-empty"></i>
+                  {:else}
+                    <button
+                      class:today={isCalToday(day)}
+                      class:selected={isCalSelected(day)}
+                      onclick={() => calPickDay(day)}
+                    >{day}</button>
+                  {/if}
+                {/each}
+              </div>
+              <footer class="ts-cal-foot"><button onclick={() => { quickPick('today'); calOpen = false; }}>今天</button><button onclick={() => { calOpen = false; }}>关闭</button></footer>
+            </div>
+          {/if}
         </div>
         {#if session.options.pickDateTime}
           {#key unixPreview || 'empty'}
-          <div class="ts-inline-card">
+          <div class="ts-inline-card ts-inline-card-pop">
             <div class="ts-inline-local">
               <span>本地时间</span>
               <b>{localPreview || '—'}</b>
@@ -230,7 +322,7 @@
           </div>
           {/key}
         {:else}
-          <small class="ts-field-hint">点击输入框打开日历选择，或使用下方快捷预设，结果即时显示</small>
+          <small class="ts-field-hint">点击日期框打开日历，或使用下方快捷预设，结果即时显示</small>
         {/if}
       </label>
       <div class="ts-quick">{#each QUICK_PRESETS as preset}<button class:active={session.options.pickDateTime === presetValue(preset.id)} onclick={() => quickPick(preset.id)}>{preset.label}</button>{/each}</div>
@@ -331,5 +423,40 @@
   .ts-live-clock b { font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; letter-spacing: .4px; font-variant-numeric: tabular-nums; }
   .ts-live-clock small { color: var(--muted-2); font-size: var(--fs-xs); }
 
-/* ts-patch-marker */
+/* 自定义日期选择器 */
+  .ts-pick-box { position: relative; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 12px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(160deg, var(--w-04), var(--w-02)); transition: border-color .15s ease, box-shadow .2s ease, transform .15s ease; }
+  .ts-pick-box:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 14%, transparent); }
+  .ts-pick-box.open { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 6px 22px color-mix(in srgb, var(--accent) 16%, transparent); }
+  .ts-pick-date { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px 0 6px; cursor: pointer; color: var(--text); font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 0; border-radius: 8px; background: var(--w-06); transition: background .15s ease; }
+  .ts-pick-date:hover { background: color-mix(in srgb, var(--accent) 14%, var(--w-06)); }
+  .ts-pick-date b { font-weight: 650; letter-spacing: .4px; }
+  .ts-cal-ico { display: inline-flex; color: var(--accent); }
+  .ts-cal-ico svg { width: 15px; height: 15px; }
+  .ts-cal-caret { display: inline-flex; color: var(--muted); transition: transform .2s ease; }
+  .ts-pick-box.open .ts-cal-caret { transform: rotate(180deg); }
+  .ts-pick-sep { color: var(--muted-2); }
+  .ts-time-input { width: 92px; height: 32px; padding: 0 8px; color: var(--text); font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; text-align: center; border: 1px solid var(--line-2); border-radius: 8px; outline: 0; background: var(--w-04); transition: border-color .15s ease, box-shadow .2s ease; }
+  .ts-time-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+  .ts-now-inline { height: 28px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 650; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line-2)); border-radius: 8px; background: var(--accent-soft); transition: all .15s ease; }
+  .ts-now-inline:hover { transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 22%, transparent); }
+  /* 日历弹层 */
+  .ts-cal { position: absolute; top: calc(100% + 8px); left: 0; z-index: 60; width: 268px; padding: 10px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 14px; background: linear-gradient(170deg, var(--glass-strong), var(--bg2)); box-shadow: 0 18px 46px rgba(3, 5, 10, .4), 0 0 0 1px rgba(129, 140, 248, .12); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); animation: ts-cal-in .18s cubic-bezier(.2, .9, .3, 1.15); }
+  @keyframes ts-cal-in { from { opacity: 0; transform: translateY(-6px) scale(.97); } }
+  .ts-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .ts-cal-head b { font-size: var(--fs-sm); font-weight: 700; }
+  .ts-cal-head button { width: 26px; height: 26px; display: grid; place-items: center; cursor: pointer; color: var(--muted); font-size: 15px; line-height: 1; border: 1px solid var(--line); border-radius: 8px; background: var(--w-04); transition: all .15s ease; }
+  .ts-cal-head button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .ts-cal-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 4px; }
+  .ts-cal-week span { text-align: center; color: var(--muted-2); font-size: 10.5px; line-height: 24px; }
+  .ts-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .ts-cal-grid button, .ts-cal-empty { height: 30px; border-radius: 8px; }
+  .ts-cal-grid button { cursor: pointer; color: var(--text); font-size: var(--fs-xs); border: 1px solid transparent; background: transparent; transition: all .13s ease; }
+  .ts-cal-grid button:hover { background: var(--w-06); border-color: var(--line-2); transform: translateY(-1px); }
+  .ts-cal-grid button.today { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); font-weight: 700; }
+  .ts-cal-grid button.selected { color: #fff; background: var(--btn-gradient); border-color: transparent; box-shadow: 0 4px 14px rgba(129, 140, 248, .45); }
+  .ts-cal-foot { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .ts-cal-foot button { height: 26px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line-2); border-radius: 8px; background: var(--w-03); transition: all .15s ease; }
+  .ts-cal-foot button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: var(--accent-soft); }
+  .ts-inline-card-pop { animation: ts-card-pop .28s cubic-bezier(.2, .9, .3, 1.2); }
+  @keyframes ts-card-pop { from { opacity: 0; transform: translateY(6px) scale(.98); } }
 </style>

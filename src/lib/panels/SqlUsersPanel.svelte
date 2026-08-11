@@ -47,6 +47,7 @@
   let grantsError = $state('');
   let usersMsg = $state('');
   let showCreate = $state(false);
+  let sqliteMode = $derived(conn?.kind === 'sqlite');
   let newUserName = $state('');
   let newUserHost = $state('%');
   let newUserPassword = $state('');
@@ -77,7 +78,7 @@
   async function loadUsers(): Promise<void> {
     if (!conn || conn.kind === 'sqlite') {
       users = [];
-      usersError = conn?.kind === 'sqlite' ? 'SQLite 不支持用户管理：请连接 MySQL 或 PostgreSQL 后使用创建用户、授权、改密等能力' : '';
+      usersError = '';
       return;
     }
     usersLoading = true;
@@ -227,6 +228,14 @@
 </script>
 
 <div class="sql-users">
+          {#if sqliteMode}
+            <div class="sql-users-guide">
+              <span class="sql-users-guide-ico">{@html UI_ICONS.users}</span>
+              <b>当前连接为 SQLite</b>
+              <p>SQLite 是嵌入式数据库，没有用户与权限体系。连接 MySQL 或 PostgreSQL 后即可使用「用户管理」：创建 / 删除用户、修改密码、授权与回收权限。</p>
+              <em>在左侧数据库树顶部「＋ 新建连接」中选择 MySQL / PostgreSQL 即可体验</em>
+            </div>
+          {:else}
           <div class="sql-users-bar">
             <div class="sql-data-title">
               <span class="tbl-ico big">{@html UI_ICONS.users}</span>
@@ -324,7 +333,8 @@
               {/each}
             </div>
           {/if}
-        </div>
+        {/if}
+</div>
 
 <style>
   .sql-users { display: flex; flex-direction: column; gap: 10px; }
@@ -369,4 +379,12 @@
   .sql-error i { width: 6px; height: 6px; flex: 0 0 auto; margin-top: 4px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }
   .sql-ok { display: flex; align-items: center; gap: 8px; padding: 7px 12px; color: var(--accent); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
   .sql-ok i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  .sql-users-guide { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 42px 24px; text-align: center; border: 1px dashed var(--line-strong); border-radius: 14px; background: var(--w-02); }
+  .sql-users-guide-ico { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); }
+  .sql-users-guide-ico svg { width: 24px; height: 24px; }
+  .sql-users-guide b { font-size: var(--fs); }
+  .sql-users-guide p { max-width: 520px; margin: 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.7; }
+  .sql-users-guide em { font-style: normal; color: var(--muted-2); font-size: var(--fs-xs); }
+
 </style>

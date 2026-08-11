@@ -4471,3 +4471,64 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app.light .settings-modal.about-mode .about-hero h3 {
   animation-duration: 6.5s;
 }
+
+/* ===== AI 回答：居中限宽炫酷卡片（不左对齐、不铺满） ===== */
+.output-scroll .stream-preview,
+.output-scroll .answer-preview {
+  max-width: 780px;
+  width: 100%;
+  margin: 12px auto;
+  position: relative;
+}
+.output-scroll .stream-preview {
+  background: linear-gradient(160deg, rgba(232, 121, 249, .07), rgba(34, 211, 238, .05) 60%, rgba(139, 92, 246, .07));
+  border: 1px solid rgba(232, 121, 249, .28);
+  box-shadow: 0 6px 26px rgba(139, 92, 246, .1);
+  animation: ai-card-in .3s cubic-bezier(.22, .9, .35, 1);
+}
+.output-scroll .answer-preview {
+  background:
+    linear-gradient(165deg, rgba(34, 211, 238, .09), rgba(129, 140, 248, .1) 45%, rgba(232, 121, 249, .09)) padding-box,
+    linear-gradient(120deg, rgba(34, 211, 238, .55), rgba(139, 92, 246, .5) 40%, rgba(232, 121, 249, .55)) border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 8px 30px rgba(129, 140, 248, .16);
+  animation: ai-card-in .34s cubic-bezier(.22, .9, .35, 1) .05s both;
+}
+@keyframes ai-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.output-scroll .stream-preview::before,
+.output-scroll .answer-preview::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--c-cyan), var(--c-violet), var(--c-magenta), transparent);
+  border-radius: 13px 13px 0 0;
+  opacity: .8;
+  animation: ai-topline 3.2s ease-in-out infinite;
+  background-size: 200% 100%;
+}
+@keyframes ai-topline {
+  0%, 100% { background-position: 0% 0; }
+  50% { background-position: 100% 0; }
+}
+/* 推理区：思维链标签 */
+.output-scroll .stream-preview header span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(232, 121, 249, .12);
+}
+.output-scroll .stream-preview header span::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--c-magenta);
+  box-shadow: 0 0 8px var(--c-magenta);
+  animation: spark-pulse 1.6s infinite;
+}

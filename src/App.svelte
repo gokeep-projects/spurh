@@ -169,8 +169,6 @@
   let category = $state<(typeof categories)[number]>('全部');
   let copied = $state(false);
   const initialSettings = loadAppSettings();
-  // 迁移：清理已移除功能(Git 仓库/剪贴板历史/旧主题键)的旧版本地数据
-  try { for (const legacyKey of ['spurh.git.recent', 'spurh.clip.deleted', 'spurh.theme.v1']) localStorage.removeItem(legacyKey); } catch { /* 忽略 */ }
   let appSettings = $state(initialSettings);
   // 窄窗口（≤850px）侧栏默认收起，避免覆盖工作区；用户手动切换会持久化
   let sidebarOpen = $state(typeof window !== 'undefined' ? (window.innerWidth > 850 && (initialSettings.sidebarOpen ?? true)) : true);
@@ -682,7 +680,6 @@
   let lightMode = $derived(resolvedTheme === 'light');
   let auroraMode = $derived(resolvedTheme === 'aurora');
   let forestMode = $derived(resolvedTheme === 'forest');
-  let anyAiProcessing = $derived(plugins.some((p) => sessions[p.id].aiProcessing));
   let statusText = $derived(
     activeSession.error ? '处理失败'
       : activeSession.aiProcessing ? 'AI 处理中…'
@@ -1735,13 +1732,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
 
     </div>
     <div class="app-actions">
-      {#if aiStore.profiles.length}
-        <button class="model-switcher" title="当前 AI 模型 · 点击打开设置" onclick={() => openSettings('ai')}>
-          <span class="ms-dot" class:busy={anyAiProcessing}></span>
-          <span class="ms-name">{aiStore.profiles.find((p) => p.id === aiStore.activeId)?.model || aiStore.profiles.find((p) => p.id === aiStore.activeId)?.name || 'AI 模型'}</span>
-          <span class="ms-arrow">{@html UI_ICONS.settings}</span>
-        </button>
-      {/if}
       {#if appSettings.topBarFullscreen && fullscreenSupported}
         <button class="settings-button" onclick={toggleFullscreen} title={isFullscreen ? '退出全屏' : '全屏显示'}>
           <span>{@html isFullscreen ? UI_ICONS.shrink : UI_ICONS.expand}</span>{isFullscreen ? '退出全屏' : '全屏'}

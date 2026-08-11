@@ -700,10 +700,35 @@ const MIME_TYPES: Array<[string, string]> = [
           <span class="lg target">目标节点</span>
         </div>
       {:else}
-        <div class="net-empty">
-          <span class="net-empty-tile">{@html iconHtml(TOOL_ICONS['spurh.network'])}</span>
-          <b>输入目标主机开始实时链路追踪</b>
-          <small>从当前主机出发，逐跳实时渲染路由拓扑</small>
+        <div class="topo-wrap topo-idle">
+          <svg class="trace-topo" viewBox="0 0 {TRACE_W} 320" role="img" aria-label="链路追踪示意拓扑">
+            <defs>
+              <marker id="topo-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" fill="color-mix(in srgb, var(--accent) 55%, transparent)" />
+              </marker>
+            </defs>
+            <!-- 本机 -->
+            <g class="topo-local" transform={`translate(${TRACE_SPINE} 62)`}>
+              <circle class="local-ring" r="26" />
+              <circle class="local-core" r="17" />
+              <text class="topo-num" y="4.5" text-anchor="middle">本机</text>
+            </g>
+            <text class="topo-ip local-ip" x={TRACE_SPINE} y="100" text-anchor="middle">{localInfo ? `${localInfo.hostname} · ${localInfo.ips[0] || ''}` : '本机'}</text>
+            <!-- 虚线链路（脉冲流动） -->
+            <line class="topo-edge idle-edge" x1={TRACE_SPINE} y1="120" x2={TRACE_SPINE} y2="208" />
+            <circle class="idle-pulse-dot" r="4" cy="120">
+              <animate attributeName="cy" values="120;208" dur="2.2s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0;1;1;0" dur="2.2s" repeatCount="indefinite" />
+            </circle>
+            <!-- 目标 -->
+            <g class="topo-target idle-target" transform={`translate(${TRACE_SPINE} 232)`}>
+              <circle class="target-halo" r="22" />
+              <circle r="16" />
+              <text class="topo-num" y="4.5" text-anchor="middle">⌖</text>
+            </g>
+            <text class="topo-ip target-ip" x={TRACE_SPINE} y="268" text-anchor="middle">{traceHost.trim() || '目标主机'}</text>
+            <text class="topo-idle-hint" x={TRACE_SPINE} y="296" text-anchor="middle">输入目标主机（默认 127.0.0.1）并点击「开始追踪」，逐跳实时渲染路由</text>
+          </svg>
         </div>
       {/if}
     {:else}
@@ -938,4 +963,12 @@ const MIME_TYPES: Array<[string, string]> = [
   .topo-edge { stroke-dasharray: 7 5; animation: topo-edge-flow .9s linear infinite; }
   @keyframes topo-edge-flow { to { stroke-dashoffset: -12; } }
   .topo-wrap:has(.topo-node.pending) .topo-edge { animation-duration: .45s; }
+
+  .topo-idle { min-height: 320px; }
+  .idle-edge { stroke-width: 2; }
+  .idle-pulse-dot { fill: var(--accent); filter: drop-shadow(0 0 6px var(--accent)); }
+  .topo-idle .topo-target { animation: idle-target-bob 2.4s ease-in-out infinite; }
+  @keyframes idle-target-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  .topo-idle-hint { fill: var(--muted-2); font-size: var(--fs-xs); }
+
 </style>
