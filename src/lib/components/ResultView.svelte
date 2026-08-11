@@ -48,7 +48,7 @@
     }
     try {
       const ext = result.language === 'json' ? 'json' : result.language ? result.language.replace(/[^\w-]/g, '') : 'txt';
-      const base = exportName.replace(/[^\w-]/g, '') || 'spurh-export';
+      const base = exportName.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'spurh-export';
       const saved = await safeInvoke<string>('save_text_file', { name: `${base}.${ext}`, content: result.output });
       if (saved) {
         exportState = '已导出 ✓';
