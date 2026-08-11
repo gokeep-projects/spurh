@@ -983,7 +983,8 @@
           const insert = '\n' + nextIndent + '\n' + closerIndent + lineRest.slice(leadWs.length);
           changeInput(value.slice(0, start) + insert + rest.slice(lineRest.length));
         } else {
-          changeInput(value.slice(0, start) + '\n' + nextIndent + rest);
+          // 光标位于闭合符行行首：仅在其上方插入新行（按深度缩进），闭合行保持原有缩进不叠加
+          changeInput(value.slice(0, start) + '\n' + nextIndent + '\n' + lineRest + rest.slice(lineRest.length));
         }
         flushSync();
         target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
@@ -1922,7 +1923,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
           <header><div><span>输入</span><small>{activeSession.input.length} 字符</small></div><button onclick={pasteToTool}>粘贴</button></header>
           <div class="editor-input" class:hli={inputLanguage === 'json'}>
             {#if inputLanguage === 'json' && activeSession.input.length <= INPUT_HIGHLIGHT_MAX}<pre class="input-hl" bind:this={inputHighlightElement} aria-hidden="true">{@html inputHighlightHtml}</pre>{/if}
-            <textarea bind:this={inputElement} value={activeSession.input} oninput={handleInputChange} onkeydown={handleInputKeys} onscroll={syncInputScroll} spellcheck="false" wrap={activeSession.input.length > 60_000 ? 'off' : 'soft'} placeholder="输入或粘贴内容…"></textarea>
+            <textarea bind:this={inputElement} value={activeSession.input} oninput={handleInputChange} onkeydown={handleInputKeys} onscroll={syncInputScroll} spellcheck="false" wrap={inputLanguage === 'json' || activeSession.input.length > 60_000 ? 'off' : 'soft'} placeholder="输入或粘贴内容…"></textarea>
           </div>
         </section>
         {/if}

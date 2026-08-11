@@ -1991,16 +1991,17 @@ kbd {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 0 9px;
+  padding: 0 10px;
   flex: 0 0 auto;
   cursor: pointer;
   color: var(--muted);
   font-size: calc(var(--fs-xs) - .5px);
   font-weight: 600;
+  white-space: nowrap;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--w-08);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+  background: var(--w-06);
+  box-shadow: none;
   transition: all var(--transition);
 }
 .model-field button:hover:not(:disabled) { color: var(--c-cyan); border-color: color-mix(in srgb, var(--c-cyan) 40%, var(--line)); box-shadow: 0 2px 8px rgba(34, 211, 238, .14); }
@@ -4483,7 +4484,7 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 /* ===== AI 回答：居中限宽炫酷卡片（不左对齐、不铺满） ===== */
 .output-scroll .stream-preview,
 .output-scroll .answer-preview {
-  max-width: 780px;
+  max-width: 620px;
   width: 100%;
   margin: 12px auto;
   position: relative;
