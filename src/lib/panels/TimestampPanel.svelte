@@ -284,13 +284,16 @@
   .ts-nowrow { align-items: center; }
   .ts-live-label { color: var(--muted); font-size: var(--fs-sm); }
 
-  .ts-input-wrap { position: relative; display: flex; align-items: center; }
+  .ts-input-wrap { position: relative; display: flex; align-items: stretch; }
   .ts-input-wrap .ts-dt-text { min-width: 0; flex: 1 1 168px; padding-left: 10px; padding-right: 64px; border-left: 0; border-radius: 0 10px 10px 0; }
   .ts-input-wrap input[type="datetime-local"] { min-width: 0; width: auto; flex: 0 1 210px; padding-left: 34px; padding-right: 58px; border-radius: 10px 0 0 10px; border-right: 0; }
   .ts-input-wrap input[type="datetime-local"]:focus, .ts-input-wrap .ts-dt-text:focus { position: relative; z-index: 1; }
   .ts-input-wrap .ts-now-inline { right: 4px; }
-  .ts-input-wrap input { padding-left: 34px; padding-right: 58px; }
-  .ts-input-ico { position: absolute; left: 10px; display: inline-flex; color: var(--muted-2); pointer-events: none; }
+  .ts-input-wrap input { height: 38px; padding-left: 34px; padding-right: 58px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; outline: 0; transition: border-color .15s ease, box-shadow .2s ease; }
+  .ts-input-wrap input:hover { border-color: var(--line-strong); }
+  .ts-input-wrap input:focus { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 12px color-mix(in srgb, var(--accent) 12%, transparent); }
+  .ts-input-wrap input[type="datetime-local"]::-webkit-calendar-picker-indicator { width: 20px; height: 20px; margin-right: 52px; cursor: pointer; opacity: .75; filter: var(--ico-filter, none); }
+  .ts-input-ico { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); display: inline-flex; color: var(--muted-2); pointer-events: none; }
   .ts-input-ico :global(svg) { width: 15px; height: 15px; }
   .ts-now-inline { position: absolute; right: 5px; height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 7px; background: var(--accent-soft); transition: all .15s ease; }
   .ts-now-inline:hover { background: color-mix(in srgb, var(--accent) 24%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 20%, transparent); }

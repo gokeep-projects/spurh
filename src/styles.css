@@ -3713,9 +3713,9 @@ kbd {
   --line-strong: rgba(35, 58, 122, .85);
 }
 .app.light .app-bar {
-  background: linear-gradient(180deg, #c9d8ee 0%, #96aed6 100%);
-  border-bottom: 1px solid rgba(35, 58, 122, .45);
-  box-shadow: 0 8px 28px rgba(35, 58, 122, .18);
+  background: linear-gradient(180deg, #bfd1e9 0%, #8fa9d6 100%);
+  border-bottom: 1px solid rgba(35, 58, 122, .5);
+  box-shadow: 0 8px 28px rgba(35, 58, 122, .2);
 }
 .app.light .sidebar {
   background: linear-gradient(180deg, #6d89c1 0%, #45629f 100%);
@@ -3738,18 +3738,18 @@ kbd {
   box-shadow: 0 18px 46px rgba(35, 58, 122, .3);
 }
 .app.light .editor-pane {
-  background: #f3f7fc;
-  border: 1px solid rgba(35, 58, 122, .42);
-  box-shadow: 0 12px 34px rgba(35, 58, 122, .18);
+  background: #eaf1fb;
+  border: 1px solid rgba(35, 58, 122, .46);
+  box-shadow: 0 12px 34px rgba(35, 58, 122, .2);
 }
 .app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .48); }
 .app.light .editor-pane > header {
   background: rgba(35, 58, 122, .08);
   border-bottom-color: rgba(35, 58, 122, .24);
 }
-.app.light .editor-input { background: #f7fafd; }
-.app.light .result-view { background: #dfe9f7; }
-.app.light .json-tree { background: #dfe9f7; }
+.app.light .editor-input { background: #f4f8fd; }
+.app.light .result-view { background: #e2ebf8; }
+.app.light .json-tree { background: #e2ebf8; }
 .app.light .workspace { padding: 14px 18px 16px; }
 .app.light .workspace .tool-controls { border-radius: var(--radius) var(--radius) 0 0; }
 /* 浅色侧栏：深蓝底 + 白字，保证小字可读 */

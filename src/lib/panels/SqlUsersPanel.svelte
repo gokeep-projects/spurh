@@ -343,7 +343,8 @@
   .sql-grants-head select { height: 30px; padding: 0 8px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); outline: 0; }
   .sql-privs { display: flex; gap: 4px 10px; flex-wrap: wrap; }
   .sql-privs label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--fs-xs); flex: 0 0 auto; min-width: 0; }
-  .sql-privs input { width: auto; }
+  .sql-privs input { width: auto; accent-color: var(--accent); cursor: pointer; }
+  .sql-privs label:hover { color: var(--text); }
   .sql-grants-msg { color: var(--accent); font-size: var(--fs-xs); }
   .sql-grants-lines { display: flex; flex-direction: column; gap: 3px; max-height: 220px; overflow: auto; }
   .sql-grants-lines code { padding: 4px 8px; color: var(--text); font: 450 var(--fs-xs)/1.5 'Cascadia Code', monospace; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); white-space: pre-wrap; word-break: break-all; }
