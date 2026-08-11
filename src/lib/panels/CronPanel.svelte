@@ -31,11 +31,11 @@
   let examplesOpen = $state(false);
   const EXAMPLES_SHOWN = 8;
   const EXAMPLE_GROUPS = [
-    { g: '???', pat: /^(\*\/|? |???)/, items: [] as Array<{ label: string; expr: string }> },
-    { g: '??', pat: /^??|^??????/, items: [] as Array<{ label: string; expr: string }> },
-    { g: '??', pat: /^?[???]|^??/, items: [] as Array<{ label: string; expr: string }> },
-    { g: '??', pat: /^??/, items: [] as Array<{ label: string; expr: string }> },
-    { g: '?? / ??', pat: /^??|^??|^??/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '按间隔', pat: /^(\*\/|每 |每小时)/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '每天', pat: /^每天|^工作日每小时/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '每周', pat: /^每[周星末]|^周末/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '每月', pat: /^每月/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '每年 / 其他', pat: /^每年|^每季|^每半/, items: [] as Array<{ label: string; expr: string }> },
   ];
   for (const ex of EXAMPLES) {
     const group = EXAMPLE_GROUPS.find((grp) => grp.pat.test(ex.label));
@@ -222,11 +222,11 @@
       </div>
 
       <div class="cron-examples" class:open={examplesOpen}>
-        <span class="cron-examples-label">??</span>
+        <span class="cron-examples-label">常用</span>
         {#each EXAMPLES.slice(0, EXAMPLES_SHOWN) as ex}
           <button class:active={type === 'custom' && (session.options.customExpr || '').trim() === ex.expr} title={ex.expr} onclick={() => applyExample(ex.expr)}>{ex.label}</button>
         {/each}
-        <button class="cron-examples-more" onclick={() => (examplesOpen = !examplesOpen)} title={examplesOpen ? '???????' : '?????????'}>{examplesOpen ? '?? ?' : `?? ${EXAMPLES.length} ? ?`}</button>
+        <button class="cron-examples-more" onclick={() => (examplesOpen = !examplesOpen)} title={examplesOpen ? '收起全部表达式' : '展开全部常用表达式'}>{examplesOpen ? '收起 ▲' : `更多 ${EXAMPLES.length} 个 ▼`}</button>
         {#if examplesOpen}
           <div class="cron-examples-panel">
             {#each EXAMPLE_GROUPS as group}
