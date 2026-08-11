@@ -28,19 +28,7 @@
   const M = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
   let copied = $state(false);
-  let examplesOpen = $state(false);
-  const EXAMPLES_SHOWN = 8;
-  const EXAMPLE_GROUPS = [
-    { g: '按间隔', pat: /^(\*\/|每 |每小时)/, items: [] as Array<{ label: string; expr: string }> },
-    { g: '每天', pat: /^每天|^工作日每小时/, items: [] as Array<{ label: string; expr: string }> },
-    { g: '每周', pat: /^每[周星末]|^周末/, items: [] as Array<{ label: string; expr: string }> },
-    { g: '每月', pat: /^每月/, items: [] as Array<{ label: string; expr: string }> },
-    { g: '每年 / 其他', pat: /^每年|^每季|^每半/, items: [] as Array<{ label: string; expr: string }> },
-  ];
-  for (const ex of EXAMPLES) {
-    const group = EXAMPLE_GROUPS.find((grp) => grp.pat.test(ex.label));
-    (group ?? EXAMPLE_GROUPS[EXAMPLE_GROUPS.length - 1]).items.push(ex);
-  }
+
   // 记录已同步到生成器的输入，仅在新内容路由进来时切换「自定义」模式，避免与用户手动切换类型冲突
   let syncedInput: string | null = null;
 
@@ -168,6 +156,20 @@
     { label: '每 8 小时', expr: '0 */8 * * *' },
     { label: '工作日 18:00（下班后）', expr: '0 18 * * 1-5' },
   ];
+
+  let examplesOpen = $state(false);
+  const EXAMPLES_SHOWN = 8;
+  const EXAMPLE_GROUPS = [
+    { g: '按间隔', pat: /^(\*\/|每 |每小时)/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '每天', pat: /^每天|^工作日每小时/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '每周', pat: /^每[周星末]|^周末/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '每月', pat: /^每月/, items: [] as Array<{ label: string; expr: string }> },
+    { g: '每年 / 其他', pat: /^每年|^每季|^每半/, items: [] as Array<{ label: string; expr: string }> },
+  ];
+  for (const ex of EXAMPLES) {
+    const group = EXAMPLE_GROUPS.find((grp) => grp.pat.test(ex.label));
+    (group ?? EXAMPLE_GROUPS[EXAMPLE_GROUPS.length - 1]).items.push(ex);
+  }
 
   function applyExample(expr: string): void {
     onChangeOption('type', 'custom');
