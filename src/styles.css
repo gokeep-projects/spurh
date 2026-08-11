@@ -8,8 +8,8 @@
   --line: rgba(140, 158, 255, .24);
   --line-strong: rgba(140, 158, 255, .45);
   --text: #eef1ff;
-  --muted: #97a1c8;
-  --muted-2: #7581b3;
+  --muted: #9aa6d0;
+  --muted-2: #8d99c9;
   --c-cyan: #22d3ee;
   --c-violet: #8b5cf6;
   --c-magenta: #e879f9;
@@ -2202,6 +2202,19 @@ kbd {
     linear-gradient(rgba(139, 92, 246, .05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(34, 211, 238, .045) 1px, transparent 1px);
   background-size: 24px 24px;
+}
+
+/* ???????????? + ?????? */
+.about-stage { animation: about-stage-in .5s cubic-bezier(.22, .9, .35, 1) both; }
+@keyframes about-stage-in {
+  from { opacity: 0; transform: translateY(16px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.about-stage .about-col-left { animation: about-cols-in .55s cubic-bezier(.22, .9, .35, 1) .08s both; }
+.about-stage .about-col-right { animation: about-cols-in .55s cubic-bezier(.22, .9, .35, 1) .16s both; }
+@keyframes about-cols-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 /* 关于页：指标数字平滑过渡 + 扫描光条 */
 .about-metrics b { transition: color .6s ease, text-shadow .6s ease; }

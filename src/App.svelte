@@ -1,5 +1,6 @@
 ﻿<script lang="ts">
   import { flushSync, onMount, type Component } from 'svelte';
+  import { fade } from 'svelte/transition';
   import { isTauri, safeInvoke, safeListen, copyText, readClipboardText } from './lib/env';
   import { AI_PRESETS, createAiProfile, deleteProfileSecret, fetchAiModels, flushLegacyAiSecrets, hydrateAiSecrets, isAiConfigured, loadAiProfileStore, processWithAi, saveAiProfileStore, saveProfileSecret, testAiConnection, type AiModel, type AiProfile } from './lib/ai';
   import { PROVIDER_NAMES, providerIcon } from './lib/providerIcons';
@@ -1758,12 +1759,12 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
         {/if}
         {#if lazyPanel}
           {@const Panel = lazyPanel}
-          <Panel {...lazyPanelProps} />
+          <div class="panel-fade-host" transition:fade={{ duration: 160 }}><Panel {...lazyPanelProps} /></div>
         {:else}
-          <div class="panel-loading"><span class="spinner"></span>正在加载工具…</div>
+          <div class="panel-loading" transition:fade={{ duration: 120 }}><span class="spinner"></span>正在加载工具…</div>
         {/if}
       {:else}
-        <div class="tool-controls">
+        <div class="tool-controls" transition:fade={{ duration: 140 }}>
         {#if activePluginId === 'spurh.cron'}
           <CronPanel session={activeSession} onChangeAction={changeAction} onChangeOption={changeOption} onClear={clearActive} />
         {:else if activePluginId === 'spurh.crypto'}

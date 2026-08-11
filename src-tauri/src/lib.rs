@@ -144,7 +144,7 @@ fn friendly_network_error(error: &reqwest::Error) -> String {
 /// 前端运行时错误转发到 stderr（tauri dev 终端可见），用于诊断「无输出」类问题
 #[tauri::command]
 fn app_log_error(message: String) {
-    eprintln!("[frontend-error] {message}");
+    safe_stderr(&format!("[frontend-error] {message}\n"));
 }
 
 /// 设置窗口原生主题，与前端主题联动
@@ -911,6 +911,12 @@ async fn apply_hotkeys(
 }
 
 /// panic 键设置为 abort 时，panic 日志也要写入日志文件
+/// ??? stderr????? / ???????????? panic?Windows GUI ?????
+fn safe_stderr(line: &str) {
+    use std::io::Write;
+    let _ = std::io::stderr().write_all(line.as_bytes());
+}
+
 fn install_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
         let msg = if let Some(s) = info.payload().downcast_ref::<&str>() {
@@ -938,7 +944,7 @@ fn install_panic_hook() {
             use std::io::Write;
             let _ = writeln!(f, "[{ts}] PANIC: {msg} @ {loc}");
         }
-        eprintln!("PANIC: {msg} @ {loc}");
+        safe_stderr(&format!("PANIC: {msg} @ {loc}\n"));
     }));
 }
 
@@ -976,7 +982,7 @@ pub fn run(cli_args: Vec<String>) {
                         }
                     });
                 }
-                Err(e) => eprintln!("Failed to register global shortcut: {e}"),
+                Err(e) => safe_stderr(&format!("Failed to register global shortcut: {e}\n")),
             }
 
             // Explorer context menu launch: remember the target, show the window.
