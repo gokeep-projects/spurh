@@ -147,6 +147,12 @@
     return () => { if (tsClockTimer) clearInterval(tsClockTimer); };
   });
 
+  /** 日期文本直填草稿：支持 2024-11-15 10:30 / 2024/11/15 等写法，解析成功后同步到日历控件 */
+  let dtTextDraft = $state('');
+  function handleDtText(value: string): void {
+    dtTextDraft = value;
+    parseDateTimeText(value);
+  }
 </script>
 
 <div class="ts-panel">
@@ -186,8 +192,9 @@
             value={session.options.pickDateTime || ''}
             spellcheck="false"
             step="60"
-            oninput={(e) => onChangeOption('pickDateTime', e.currentTarget.value)}
+            oninput={(e) => { dtTextDraft = ''; onChangeOption('pickDateTime', e.currentTarget.value); }}
           />
+          <input class="ts-dt-text" type="text" value={dtTextDraft} placeholder="或直接输入：2024-11-15 10:30" spellcheck="false" oninput={(e) => handleDtText(e.currentTarget.value)} />
           <button class="ts-now-inline" onclick={() => quickPick('now')} title="填入当前时间">现在</button>
         </div>
         {#if session.options.pickDateTime}
@@ -278,6 +285,10 @@
   .ts-live-label { color: var(--muted); font-size: var(--fs-sm); }
 
   .ts-input-wrap { position: relative; display: flex; align-items: center; }
+  .ts-input-wrap .ts-dt-text { min-width: 0; flex: 1 1 168px; padding-left: 10px; padding-right: 64px; border-left: 0; border-radius: 0 10px 10px 0; }
+  .ts-input-wrap input[type="datetime-local"] { min-width: 0; width: auto; flex: 0 1 210px; padding-left: 34px; padding-right: 58px; border-radius: 10px 0 0 10px; border-right: 0; }
+  .ts-input-wrap input[type="datetime-local"]:focus, .ts-input-wrap .ts-dt-text:focus { position: relative; z-index: 1; }
+  .ts-input-wrap .ts-now-inline { right: 4px; }
   .ts-input-wrap input { padding-left: 34px; padding-right: 58px; }
   .ts-input-ico { position: absolute; left: 10px; display: inline-flex; color: var(--muted-2); pointer-events: none; }
   .ts-input-ico :global(svg) { width: 15px; height: 15px; }
