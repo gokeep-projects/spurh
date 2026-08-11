@@ -120,8 +120,8 @@
 </div>
 
 <style>
-  .crypto-panel { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
-  .crypto-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--panel) 96%, var(--accent-soft)); }
+  .crypto-panel { display: flex; flex-direction: column; gap: 6px; width: 100%; min-width: 0; }
+  .crypto-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--panel) 96%, var(--accent-soft)); }
   .crypto-grp { display: inline-flex; align-items: center; gap: 4px; margin-right: 2px; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
   /* svelte-ignore css_unused_selector */
   .crypto-grp :global(svg) { width: 12px; height: 12px; }
