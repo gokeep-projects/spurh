@@ -23,7 +23,6 @@ export default defineConfig({
           if (id.includes('/src/lib/icons.ts')) return 'icons';
           if (id.includes('/src/lib/ai.ts')) return 'ai';
           if (id.includes('/src/lib/secrets.ts')) return 'secrets';
-          if (id.includes('/src/lib/clipHistory.ts')) return 'clip-history';
           if (id.includes('/src/lib/plugins/index.ts')) return 'plugins';
         },
       },

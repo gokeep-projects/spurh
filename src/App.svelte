@@ -33,7 +33,7 @@
   type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts' | 'tools';
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'Segoe UI Variable Text', 'Segoe UI Variable Display', 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif",
+    '系统默认': "'Segoe UI Variable Text', 'Segoe UI Variable Display', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Noto Sans SC', system-ui, sans-serif",
     '微软雅黑': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'HarmonyOS Sans SC', sans-serif",
     '等线': "'DengXian', 'DengXian Light', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'SimHei', '黑体', 'Microsoft YaHei', sans-serif",
@@ -947,12 +947,11 @@
       }
     }
 
-    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey && (activePluginId === 'spurh.json' || activePluginId === 'spurh.sql')) {
-      // 自动换行缩进：JSON/SQL 结构感知，括号后回车自动补闭合行
+        if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey && (activePluginId === 'spurh.json' || activePluginId === 'spurh.sql')) {
+      // 自动换行缩进：按光标前的结构深度计算（含引号剥离），括号后回车自动补闭合行
       const lineStart = value.lastIndexOf('\n', start - 1) + 1;
       const linePrefix = value.slice(lineStart, start);
       const indentMatch = linePrefix.match(/^[\t ]*/);
-      const lineIndent = indentMatch ? indentMatch[0] : '';
       const stripStr = (s: string): string => s.replace(/"(\\.|[^"\\])*"/g, '');
       const depthOf = (s: string): number => {
         let d = 0;
@@ -962,26 +961,28 @@
         }
         return d;
       };
-      const deeper = /[{\[(:]\s*$/.test(stripStr(linePrefix)) && !/[{}[\]]$/.test(stripStr(linePrefix).trim());
+      const before = stripStr(value.slice(0, start));
+      const depth = depthOf(before);
+      const trailingOpener = /[{\[(]\s*$/.test(before);
       const nextNonWs = value.slice(end).match(/^\s*(\S)/)?.[1] ?? '';
-      const baseIndent = lineIndent + (deeper ? '  ' : '');
-      if (deeper && '}])'.includes(nextNonWs)) {
+      const nextIndent = '  '.repeat(depth);
+      if (trailingOpener && '}])'.includes(nextNonWs)) {
         event.preventDefault();
-        const insert = '\n' + baseIndent + '\n' + lineIndent;
+        const insert = '\n' + nextIndent + '\n' + '  '.repeat(Math.max(0, depth - 1));
         changeInput(value.slice(0, start) + insert + value.slice(end));
         flushSync();
-        target.selectionStart = target.selectionEnd = start + 1 + baseIndent.length;
+        target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
         return;
       }
       event.preventDefault();
-      const insert = '\n' + baseIndent;
+      const insert = '\n' + nextIndent;
       changeInput(value.slice(0, start) + insert + value.slice(end));
       flushSync();
-      target.selectionStart = target.selectionEnd = start + 1 + baseIndent.length;
+      target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
       return;
     }
 
-    if (event.key === 'Tab') {
+if (event.key === 'Tab') {
       event.preventDefault();
       if (start === end) {
         // 单点：行首按结构深度对齐，行中插入两个空格

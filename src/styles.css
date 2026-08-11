@@ -2754,6 +2754,11 @@ kbd {
   white-space: pre-wrap;
   word-break: break-word;
 }
+.result-raw:not(.plain) {
+  white-space: pre;
+  overflow-x: auto;
+  word-break: normal;
+}
 .file-notice {
   display: flex;
   align-items: center;
@@ -3752,12 +3757,12 @@ kbd {
 
 /* ── 全局字号档位：让“设置→字号”对组件真正生效（替换硬编码 13/13.5px 等） ── */
 .app {
-  --fs: var(--app-font-size, 15px);
-  --fs-xxs: calc(var(--fs) - 1.5px);
-  --fs-xs: calc(var(--fs) - 0.5px);
+  --fs: var(--app-font-size, 14px);
+  --fs-xxs: calc(var(--fs) - 1px);
+  --fs-xs: var(--fs);
   --fs-sm: var(--fs);
-  --fs-lg: calc(var(--fs) + 1px);
-  --fs-tiny: max(12px, calc(var(--fs) - 2px));
+  --fs-lg: calc(var(--fs) + 1.5px);
+  --fs-tiny: max(13px, calc(var(--fs) - 1px));
 }
 /* ═══════════════════════════════════════════════════════════════
    表面层级修复（最终覆盖，置于文件末尾）

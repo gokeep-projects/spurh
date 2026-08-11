@@ -399,7 +399,7 @@
   .jwt-sections header { display: flex; align-items: center; justify-content: space-between; padding: 10.5px 11px; border-bottom: 1px solid var(--line); }
   .jwt-sections header span { color: var(--accent); font: 650 var(--fs-xs) 'Cascadia Code', monospace; }
   .jwt-sections header small { font-size: var(--fs-sm); }
-  .jwt-sections pre { max-height: 310px; margin: 0; padding: 13px; overflow: auto; color: var(--text); font: 450 13px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .jwt-sections pre { max-height: 310px; margin: 0; padding: 13px; overflow: auto; color: var(--text); font: 450 14px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
   .raw-details { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
   .raw-details summary { cursor: pointer; color: var(--muted); font-size: var(--fs-xs); }
   .raw-details code { display: block; margin-top: 10.5px; overflow-wrap: anywhere; font-size: var(--fs-xs); line-height: 1.6; }
@@ -411,7 +411,7 @@
   .http-overview aside { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }.http-overview aside b { color: var(--accent); font: 600 13px 'Cascadia Code', monospace; }.http-overview aside small { font-size: var(--fs-sm); }
   .http-response { overflow: hidden; border: 1px solid var(--line); border-radius: 10.5px; background: var(--panel); }
   .http-response > header { display: flex; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line); }.http-response header span { font-size: var(--fs-xs); font-weight: 700; }.http-response header small { font-size: var(--fs-sm); }
-  .http-response > pre { max-height: 430px; margin: 0; padding: 15px; overflow: auto; color: var(--text); font: 450 13px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; word-break: break-word; }
+  .http-response > pre { max-height: 430px; margin: 0; padding: 15px; overflow: auto; color: var(--text); font: 450 14px/1.65 'Cascadia Code', monospace; white-space: pre-wrap; word-break: break-word; }
   .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   .stats-grid article { min-height: 94px; display: flex; flex-direction: column; justify-content: center; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
   .stats-grid strong { color: var(--accent); font: 650 20px 'Cascadia Code', monospace; }
