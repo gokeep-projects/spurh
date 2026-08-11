@@ -82,6 +82,13 @@
 
   let data = $derived(record(result.data));
 
+  /** 超大输出折叠预览：仅渲染前 120K 字符，避免海量 DOM 拖慢输入与滚动 */
+  const PREVIEW_MAX = 120_000;
+  const truncated = $derived(result.output.length > PREVIEW_MAX);
+  function formatLen(n: number): string {
+    return n >= 1_000_000 ? (n / 1_000_000).toFixed(1) + 'M' : n >= 1_000 ? Math.round(n / 1_000) + 'K' : String(n);
+  }
+
     function timeHeroExtra(localText: string): { weekday: string; relative: string } {
     const m = localText.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
     if (!m) return { weekday: '', relative: '' };
@@ -334,6 +341,14 @@
   {:else}
     {#if useTreeView}
       <JsonView jsonString={result.output} />
+    {:else if truncated}
+      <div class="result-truncated">
+        <pre class:plain={result.language === 'text'} class:highlighted={result.language === 'json'}>{@html highlightCode(result.output.slice(0, PREVIEW_MAX), result.language)}</pre>
+        <div class="result-truncate-bar">
+          <span>内容过长（{formatLen(result.output.length)} 字符），仅预览前 {formatLen(PREVIEW_MAX)} 字符</span>
+          <button onclick={exportResult}>导出完整内容</button>
+        </div>
+      </div>
     {:else}
       <pre class:plain={result.language === 'text'} class:highlighted={result.language === 'json'}>{@html highlightCode(result.output, result.language)}</pre>
     {/if}
@@ -348,6 +363,11 @@
   .tree-mode .result-actions { padding-right: 14px; }
   .result-view.tree-mode { padding: 0; display: flex; flex-direction: column; }
   .result-view.tree-mode :global(.json-tree) { flex: 1; min-height: 100%; }
+  .result-truncated { display: flex; flex-direction: column; gap: 10px; min-height: 100%; }
+  .result-truncated pre { flex: 1; min-height: 0; }
+  .result-truncate-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 13px; color: var(--muted); font-size: var(--fs-xs); border: 1px dashed var(--line-strong); border-radius: 10px; background: color-mix(in srgb, var(--warn) 6%, var(--panel)); }
+  .result-truncate-bar button { height: 27px; flex: 0 0 auto; padding: 0 13px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 600; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
+  .result-truncate-bar button:hover { border-color: var(--accent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 16%, transparent); }
   .ai-answer { position: relative; display: flex; flex-direction: column; width: min(92%, 720px); margin: 22px auto; max-height: min(34vh, 320px); overflow: hidden; border-radius: 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--c-violet) 9%, var(--panel)), var(--panel) 55%, color-mix(in srgb, var(--c-cyan) 6%, var(--panel))); box-shadow: 0 18px 54px color-mix(in srgb, var(--c-violet) 16%, transparent), 0 0 0 1px color-mix(in srgb, var(--c-violet) 12%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 9%, transparent); animation: aiAnswerIn .45s cubic-bezier(.2,.9,.3,1.15); --ai-angle: 0deg; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
   .ai-answer::after { content: ""; position: absolute; inset: -38% -18% auto; height: 70%; pointer-events: none; background: radial-gradient(46% 60% at 50% 0%, color-mix(in srgb, var(--c-violet) 13%, transparent), transparent 70%); animation: aiGlowBreath 4s ease-in-out infinite; }
   .ai-answer::before { content: ""; position: absolute; inset: 0; border-radius: 16px; padding: 1px; pointer-events: none; background: conic-gradient(from var(--ai-angle), transparent 0%, color-mix(in srgb, var(--c-violet) 80%, transparent) 18%, var(--c-cyan) 32%, transparent 50%, color-mix(in srgb, var(--c-magenta) 80%, transparent) 68%, var(--c-violet) 82%, transparent 100%); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask-composite: exclude; animation: aiBorderSpin 5s linear infinite; }

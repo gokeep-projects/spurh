@@ -830,6 +830,8 @@
       else if (inputLen > 50_000) delay = 550;
       else if (inputLen > 12_000) delay = 350;
     }
+    // 防抖等待期间即标记处理中，让结果区可切换轻量占位，避免大结果 DOM 反复重排
+    patchSession(pluginId, { processing: true });
     timers.set(pluginId, setTimeout(() => processPlugin(pluginId), delay));
   }
 
@@ -1926,7 +1928,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
           <header><div><span>输入</span><small>{activeSession.input.length} 字符</small></div><button onclick={pasteToTool}>粘贴</button></header>
           <div class="editor-input" class:hli={inputLanguage === 'json'}>
             {#if inputLanguage === 'json' && activeSession.input.length <= INPUT_HIGHLIGHT_MAX}<pre class="input-hl" bind:this={inputHighlightElement} aria-hidden="true">{@html inputHighlightHtml}</pre>{/if}
-            <textarea bind:this={inputElement} value={activeSession.input} oninput={handleInputChange} onkeydown={handleInputKeys} onscroll={syncInputScroll} spellcheck="false" placeholder="输入或粘贴内容…"></textarea>
+            <textarea bind:this={inputElement} value={activeSession.input} oninput={handleInputChange} onkeydown={handleInputKeys} onscroll={syncInputScroll} spellcheck="false" wrap={activeSession.input.length > 60_000 ? 'off' : 'soft'} placeholder="输入或粘贴内容…"></textarea>
           </div>
         </section>
         {/if}
@@ -1952,6 +1954,8 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
             {:else if currentSessionResult()}
               {#if resultRawMode}
                 <pre class="result-raw" class:plain={currentSessionResult()!.language === 'text'}>{@html highlightCode(currentSessionResult()!.output, currentSessionResult()!.language)}</pre>
+              {:else if activeSession.processing && currentSessionResult()!.output.length > 50_000}
+                <div class="output-processing"><span class="spinner"></span><b>输入已变化，结果重新计算中…</b></div>
               {:else}
                 <ResultView result={currentSessionResult()!} exportName={activePluginId} />
               {/if}

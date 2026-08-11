@@ -2669,14 +2669,17 @@ kbd {
 .editor-input { position: relative; min-height: 0; height: 100%; }
 .editor-input::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: radial-gradient(600px 200px at 20% 0%, rgba(129, 140, 248, .05), transparent 70%); }
 .editor-input pre.input-hl { position: absolute; inset: 0; z-index: 0; pointer-events: none; color: transparent; background: transparent; overflow: hidden; }
-.editor-input textarea { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.editor-input textarea { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; contain: content; }
 .editor-input.hli textarea { color: transparent; caret-color: var(--text); }
 .editor-input.hli pre.input-hl { color: var(--text); }
 
 /* 鈹€鈹€ 缁撴灉澶撮儴 / 绌虹姸鎬?/ 鏂囦欢閫氱煡 鈹€鈹€ */
 .output-scroll { min-height: 0; overflow: auto; }
 .output-scroll > * { position: relative; }
+.output-processing { display: flex; align-items: center; justify-content: center; gap: 9px; height: 100%; min-height: 120px; color: var(--muted); font-size: var(--fs-sm); }
+.output-processing .spinner { width: 15px; height: 15px; border: 2px solid color-mix(in srgb, var(--accent) 22%, transparent); border-top-color: var(--accent); border-radius: 50%; animation: net-spin .8s linear infinite; }
 .result-view { min-height: 0; }
+.result-view > pre, .result-view pre.highlighted, .result-view pre.plain { contain: content; }
 .output-actions {
   display: flex;
   align-items: center;
