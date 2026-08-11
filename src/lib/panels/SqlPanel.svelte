@@ -1401,6 +1401,11 @@
           {#if connections.length === 0}
             <b>还没有数据库连接</b>
             <p>新建连接后即可浏览库表、编辑数据、执行 SQL</p>
+            <div class="sql-steps" aria-hidden="true">
+              <span><i>1</i><b>新建连接</b><small>填写主机、端口、账号密码</small></span>
+              <span><i>2</i><b>测试连接</b><small>确认配置可用再保存</small></span>
+              <span><i>3</i><b>浏览数据</b><small>库表树 · SQL 查询 · 用户权限</small></span>
+            </div>
             <button class="sql-btn primary big" onclick={openNewConn}>＋ 新建连接</button>
           {:else}
             <b>选择要连接的数据库</b>
@@ -1953,6 +1958,11 @@
   .sql-empty b { color: var(--text); font-size: var(--fs-lg); }
   .sql-empty p { margin: 0; font-size: var(--fs-sm); }
   .sql-empty .sql-btn { margin-top: 6px; }
+  .sql-steps { display: flex; align-items: stretch; gap: 10px; margin-top: 6px; }
+  .sql-steps > span { display: flex; flex-direction: column; gap: 3px; min-width: 132px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--w-025); text-align: left; }
+  .sql-steps i { width: 20px; height: 20px; display: grid; place-items: center; color: #fff; font: 700 12px/1 sans-serif; font-style: normal; border-radius: 50%; background: var(--grad-main); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .sql-steps b { color: var(--text); font-size: var(--fs-sm); }
+  .sql-steps small { color: var(--muted-2); font-size: var(--fs-xs); }
   .sql-loading { flex: 1; display: grid; place-content: center; justify-items: center; gap: 10.5px; color: var(--muted); font-size: var(--fs-xs); }
 
   .sql-error { display: flex; align-items: flex-start; gap: 8px; margin: 10.5px 12px 0; padding: 8px 12px; color: var(--danger); font-size: var(--fs-xs); line-height: 1.5; border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 6%, transparent); }

@@ -1081,11 +1081,10 @@ kbd {
     radial-gradient(30vw 24vh at 18% 12%, rgba(34, 211, 238, .05), transparent 65%),
     radial-gradient(30vw 24vh at 86% 78%, rgba(232, 121, 249, .05), transparent 65%);
   animation: aurora-drift 18s ease-in-out infinite alternate;
-  will-change: transform;
 }
 @keyframes aurora-drift {
-  0% { opacity: .5; transform: translate3d(0, 0, 0) scale(1); }
-  100% { opacity: .92; transform: translate3d(0, -1.8%, 0) scale(1.035); }
+  0% { opacity: .35; }
+  100% { opacity: .8; }
 }
 .workspace > * { position: relative; }
 .tool-header {
@@ -3828,12 +3827,12 @@ kbd {
   background:
     radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .16), transparent 60%),
     radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .14), transparent 58%),
-    #dbe3f1;
+    #cfdaf0;
 }
 .app.light .tool-controls {
   background: rgba(255, 255, 255, .82);
-  border-color: rgba(35, 58, 122, .28);
-  box-shadow: 0 10px 26px rgba(35, 58, 122, .1);
+  border-color: rgba(35, 58, 122, .34);
+  box-shadow: 0 10px 26px rgba(35, 58, 122, .14);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -3844,8 +3843,8 @@ kbd {
 }
 .app.light .editor-pane {
   background: #ffffff;
-  border: 1px solid rgba(35, 58, 122, .28);
-  box-shadow: 0 12px 34px rgba(35, 58, 122, .18);
+  border: 1px solid rgba(35, 58, 122, .34);
+  box-shadow: 0 12px 34px rgba(35, 58, 122, .22);
 }
 .app.light .editor-pane + .editor-pane { border-left-color: rgba(35, 58, 122, .22); }
 .app.light .editor-pane > header {
