@@ -975,17 +975,20 @@
         target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
         return;
       }
-      if (!trailingOpener && '}])'.includes(nextNonWs)) {
-        // 光标后紧跟闭合符（同一行）：新行按深度缩进，闭合符行对齐到其所属层级
+      if (!trailingOpener && nextNonWs && '}])'.includes(nextNonWs)) {
+        // 光标后紧跟闭合符：同行则将闭合符移到自己的行并对齐层级；已在行首则仅插入新行
         event.preventDefault();
         const rest = value.slice(end);
         const lineRest = rest.split('\n')[0];
         const closerIndent = '  '.repeat(Math.max(0, depth - 1));
         const leadWs = lineRest.match(/^[ \t]*/)?.[0] ?? '';
-        const insert = (leadWs.length !== closerIndent.length)
-          ? '\n' + nextIndent + '\n' + closerIndent + lineRest.slice(leadWs.length)
-          : '\n' + nextIndent;
-        changeInput(value.slice(0, start) + insert + rest.slice(lineRest.length));
+        const sameLine = start > 0 && value[start - 1] !== '\n' && lineRest.trim() !== '';
+        if (sameLine) {
+          const insert = '\n' + nextIndent + '\n' + closerIndent + lineRest.slice(leadWs.length);
+          changeInput(value.slice(0, start) + insert + rest.slice(lineRest.length));
+        } else {
+          changeInput(value.slice(0, start) + '\n' + nextIndent + rest);
+        }
         flushSync();
         target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
         return;
