@@ -4618,6 +4618,8 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app.light .editor-input .syntax-number { color: #b45309; }
 .app.light .editor-input .syntax-boolean { color: #0e7490; }
 .app.light .editor-input { color: #1c2440; }
+/* 左右高亮配色一致：结果区与输入区使用同一套语法色 */
+.app.light .editor-input .syntax-key { color: #7c3aed; }
 
 /* ===== Final override v5.3: light theme contrast + about page dynamics ===== */
 .app.light {
