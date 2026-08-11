@@ -76,7 +76,7 @@
   }
 </script>
 
-<div class="ai-assist" class:compact>
+<div class="ai-assist" class:compact class:busy={busy}>
   <div class="ai-head">
     <button class="ai-toggle" class:on={open} onclick={() => (open = !open)} title="AI 助手">
       <span class="ai-spark">{@html UI_ICONS.sparkle}</span>
@@ -137,6 +137,10 @@
   .ai-assist::before { content: ""; position: absolute; inset: 0; padding: 1px; border-radius: inherit; background: linear-gradient(120deg, transparent 12%, color-mix(in srgb, var(--c-cyan) 45%, transparent) 38%, color-mix(in srgb, var(--c-magenta) 45%, transparent) 62%, transparent 88%); background-size: 220% 100%; animation: aiBorderFlow 5s linear infinite; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; pointer-events: none; }
   @keyframes aiBorderFlow { to { background-position: -220% 0; } }
   .ai-assist:hover { border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 14%, transparent); }
+  .ai-assist.busy { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); animation: aiBusyGlow 1.8s ease-in-out infinite; }
+  @keyframes aiBusyGlow { 0%, 100% { box-shadow: 0 8px 26px color-mix(in srgb, var(--accent) 12%, transparent); } 50% { box-shadow: 0 8px 34px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); } }
+  .ai-content pre { animation: aiAnswerIn .35s cubic-bezier(.2,.9,.3,1.15); }
+  @keyframes aiAnswerIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   .ai-head { display: flex; align-items: center; justify-content: center; gap: 9px; flex-wrap: wrap; padding: 8px 10px; }
   .ai-head::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 55%, transparent), transparent); }
   .ai-toggle { position: relative; height: 27px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 999px; background: linear-gradient(120deg, color-mix(in srgb, var(--c-cyan) 80%, var(--accent)), var(--accent) 55%, color-mix(in srgb, var(--c-magenta) 80%, var(--accent))); background-size: 180% 100%; box-shadow: 0 3px 12px color-mix(in srgb, var(--accent) 30%, transparent); transition: background-position .35s ease, transform .15s ease, box-shadow .2s ease; }
