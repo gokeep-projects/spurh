@@ -927,12 +927,12 @@
         const nextChar = value[end] ?? '';
         const prevChar = value[start - 1] ?? '';
         if (event.key === '"' || event.key === "'") {
-          if (/[\w\u4e00-\u9fff]/.test(prevChar)) return; // 单词/中文后不自动补引号
-          if (nextChar === closer) { // 已配对：跳过闭合符
+          if (nextChar === closer) { // 已配对：跳过闭合符（优先于单词判断，修复输入 "a" 后多出引号的问题）
             event.preventDefault();
             target.selectionStart = target.selectionEnd = end + 1;
             return;
           }
+          if (/[\w\u4e00-\u9fff]/.test(prevChar)) return; // 单词/中文后不自动补引号
         } else if (nextChar === closer) {
           return; // 已有闭合符（如补全后再次输入）不重复补
         }
@@ -972,7 +972,7 @@
         return;
       }
       if (!trailingOpener && nextNonWs && '}])'.includes(nextNonWs)) {
-        // 光标后紧跟闭合符：同行则将闭合符移到自己的行并对齐层级；已在行首则仅插入新行
+        // 光标后紧跟闭合符：同行则将闭合符移到自己的行并对齐层级；行首则在闭合行上方插入新行；闭合符在后续行则普通换行
         event.preventDefault();
         const rest = value.slice(end);
         const lineRest = rest.split('\n')[0];
@@ -982,10 +982,21 @@
         if (sameLine) {
           const insert = '\n' + nextIndent + '\n' + closerIndent + lineRest.slice(leadWs.length);
           changeInput(value.slice(0, start) + insert + rest.slice(lineRest.length));
-        } else {
-          // 光标位于闭合符行行首：仅在其上方插入新行（按深度缩进），闭合行保持原有缩进不叠加
-          changeInput(value.slice(0, start) + '\n' + nextIndent + '\n' + lineRest + rest.slice(lineRest.length));
+          flushSync();
+          target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
+          return;
         }
+        if (lineRest.trim() !== '') {
+          // 光标位于闭合符行行首：仅在其上方插入新行（按深度缩进），闭合行保持原有缩进不叠加
+          const insert = nextIndent + '\n' + lineRest;
+          changeInput(value.slice(0, start) + insert + rest.slice(lineRest.length));
+          flushSync();
+          target.selectionStart = target.selectionEnd = start + nextIndent.length;
+          return;
+        }
+        // 闭合符在后续行：普通换行并保持缩进，不动后续内容
+        const insert = '\n' + nextIndent;
+        changeInput(value.slice(0, start) + insert + rest);
         flushSync();
         target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
         return;
