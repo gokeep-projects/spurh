@@ -422,7 +422,7 @@
         <button class="remote-add" title="新建会话" onclick={addSession}><span>{@html UI_ICONS.plus}</span></button>
         <div class="remote-rail-list">
           {#each sessions.slice(0, 40) as item}
-            <button class="rs-mini" class:active={activeId === item.id} onclick={() => select(item.id)} title={(item.name || item.host) + ' · ' + item.host + ':' + item.port}>
+            <button class="rs-mini" class:active={activeId === item.id} onclick={() => select(item.id)} title={(item.name || (item.host ? item.host : '新会话')) + (item.host ? ' · ' + item.host + ':' + item.port : '')}>
               <span class="rs-mini-char">{(item.name || item.host || '?').charAt(0).toUpperCase()}</span>
               <i class="rs-dot" class:connected={statusMap[item.id]?.status === 'connected'} class:busy={statusMap[item.id]?.status === 'connecting' || statusMap[item.id]?.status === 'idle'}></i>
             </button>
@@ -442,7 +442,7 @@
       {#each filteredSessions as item}
         <button class="remote-session" class:active={activeId === item.id} onclick={() => select(item.id)}>
           <span class="rs-icon">{@html iconHtml(TOOL_ICONS['spurh.remote'])}</span>
-          <span class="rs-copy"><b>{item.name || (item.user || 'root') + '@' + item.host}</b><small>{item.host}:{item.port}</small></span>
+          <span class="rs-copy"><b>{item.name || (item.host ? (item.user || 'root') + '@' + item.host : '新会话')}</b><small>{item.host ? item.host + ':' + item.port : '未填写主机'}</small></span>
           <i class="rs-dot" class:connected={statusMap[item.id]?.status === 'connected'} class:busy={statusMap[item.id]?.status === 'connecting' || statusMap[item.id]?.status === 'idle'}></i>
         </button>
       {/each}

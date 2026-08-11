@@ -1794,7 +1794,7 @@
           {#if d.kind !== 'sqlite'}
             <label><span>主机</span><input bind:value={d.host} placeholder="127.0.0.1" spellcheck="false" /></label>
 <label class="port"><span>端口</span><input bind:value={d.port} placeholder={d.kind === 'mysql' ? '3306' : '5432'} spellcheck="false" /></label>
-            <label class="ssl-cell"><span>SSL 加密</span><span class="sql-secret ssl-secret"><label class="ssl-inline" title="SSL 加密连接（远程数据库建议开启）"><input type="checkbox" bind:checked={d.ssl} /><span>启用</span></label></span></label>
+            <div class="ssl-cell"><span>SSL 加密</span><span class="sql-secret ssl-secret"><label class="ssl-inline" title="SSL 加密连接（远程数据库建议开启）"><input type="checkbox" bind:checked={d.ssl} /><span>启用</span></label></span></div>
             <label><span>用户名</span><input bind:value={d.user} placeholder="root" spellcheck="false" /></label>
             <label class="pwd"><span>密码</span>
               <span class="sql-secret">
