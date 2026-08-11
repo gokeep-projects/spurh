@@ -479,7 +479,7 @@ const MIME_TYPES: Array<[string, string]> = [
         {#if tcpProtocol === 'tcp' && !tcpConnected && !tcpConnecting}
           <span class="net-tcp-hint"><i></i>请先点击「连接」建立长连接，再发送数据（UDP 无需连接）</span>
         {/if}
-        <label class="net-field grow net-data"><span>数据</span><textarea rows={tcpHexMode ? 5 : 16} value={tcpData} oninput={(e) => (tcpData = e.currentTarget.value)} placeholder="要发送的内容，如 GET / HTTP/1.1" spellcheck="false" onkeydown={(e) => e.ctrlKey && e.key === 'Enter' && sendTcp()}></textarea><small class="net-data-hint">Ctrl+Enter 发送 · 支持多行报文 · 可拖拽调整高度</small></label>
+        <label class="net-field grow net-data"><span>数据</span><textarea rows={tcpHexMode ? 5 : 20} value={tcpData} oninput={(e) => (tcpData = e.currentTarget.value)} placeholder="要发送的内容，如 GET / HTTP/1.1" spellcheck="false" onkeydown={(e) => e.ctrlKey && e.key === 'Enter' && sendTcp()}></textarea><small class="net-data-hint">Ctrl+Enter 发送 · 支持多行报文 · 可拖拽调整高度</small></label>
         <label class="tcp-hex"><input type="checkbox" checked={tcpHexMode} onchange={(e) => (tcpHexMode = e.currentTarget.checked)} />HEX</label>
         <button class="net-run" class:busy={tcpSending} disabled={tcpSending || (tcpProtocol === 'tcp' && !tcpConnected && !tcpConnecting)} onclick={sendTcp} title={tcpProtocol === 'tcp' && !tcpConnected ? '请先点击「连接」建立长连接' : '发送数据并等待响应'}>
           <span class="net-dot"></span>{tcpSending ? '发送中…' : '发送'}
@@ -667,6 +667,9 @@ const MIME_TYPES: Array<[string, string]> = [
               {@const status = hopStatus(hop.ms)}
               {@const pending = tracing && index === traceHops.length - 1}
               <line class="topo-edge" x1={prev.x} y1={prev.y} x2={pos.x} y2={pos.y} />
+              <circle class="topo-flow-dot" r="2.4">
+                <animateMotion dur={(0.9 + index * 0.25) + 's'} repeatCount="indefinite" path={`M ${prev.x} ${prev.y} L ${pos.x} ${pos.y}`} />
+              </circle>
               <g class="topo-node {status}" class:pending={pending} transform={`translate(${pos.x} ${pos.y})`} style={`animation-delay: ${index * 0.22}s`}>
                 <circle class="node-halo" r="22" />
                 <circle r="15" />
@@ -874,6 +877,7 @@ const MIME_TYPES: Array<[string, string]> = [
   .topo-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: radial-gradient(ellipse 70% 45% at 50% 0%, var(--accent-soft), transparent 65%), var(--bg); }
   .trace-topo { display: block; min-width: 100%; }
   .topo-edge { stroke: var(--line-2); stroke-width: 1.6; stroke-dasharray: 5 5; animation: topo-dash 1.6s linear infinite; opacity: .8; }
+  .topo-flow-dot { fill: var(--c-cyan); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c-cyan) 80%, transparent)); }
   @keyframes topo-dash { to { stroke-dashoffset: -20; } }
   .topo-local .local-ring { fill: color-mix(in srgb, var(--c-green) 12%, transparent); stroke: var(--c-green); stroke-width: 1.5; animation: local-ring 2.4s ease-out infinite; transform-origin: center; }
   @keyframes local-ring { 0% { transform: scale(.75); opacity: .9; } 100% { transform: scale(1.35); opacity: 0; } }

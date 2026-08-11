@@ -120,32 +120,32 @@
 </div>
 
 <style>
-  .crypto-panel { display: flex; flex-direction: column; gap: 6px; width: 100%; min-width: 0; }
-  .crypto-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--panel) 96%, var(--accent-soft)); }
+  .crypto-panel { display: flex; flex-direction: column; gap: 5px; width: 100%; min-width: 0; }
+  .crypto-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--panel) 96%, var(--accent-soft)); }
   .crypto-grp { display: inline-flex; align-items: center; gap: 4px; margin-right: 2px; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
   /* svelte-ignore css_unused_selector */
   .crypto-grp :global(svg) { width: 12px; height: 12px; }
-  .crypto-chips button { position: relative; width: auto; min-width: 0; flex: 0 0 auto; height: 24px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid var(--line); border-radius: 7px; background: var(--w-03); white-space: nowrap; transition: all .15s ease; }
+  .crypto-chips button { position: relative; width: auto; min-width: 0; flex: 0 0 auto; height: 22px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid var(--line); border-radius: 6px; background: var(--w-03); white-space: nowrap; transition: all .15s ease; }
   .crypto-chips button:hover:not(.active) { color: var(--text); border-color: var(--line-strong); background: var(--hover); transform: translateY(-1px); }
   .crypto-chips button.active { color: #fff; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); background-size: 180% 100%; border-color: transparent; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent); animation: cryptoGlow 2.4s ease infinite; }
   @keyframes cryptoGlow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
   @media (min-width: 1281px) { .crypto-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
-  .crypto-key-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .crypto-key-row { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
   .crypto-key-row label { display: flex; align-items: center; gap: 6px; }
   .crypto-key-row label > span { color: var(--muted); font-size: var(--fs-xs); }
   .secret-wrap { position: relative; display: flex; align-items: center; min-width: 0; }
-  .secret-wrap input { height: 32px; width: min(20vw, 220px); max-width: 100%; padding: 0 34px 0 11px; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 9px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .2s ease; }
+  .secret-wrap input { height: 30px; width: min(20vw, 200px); max-width: 100%; padding: 0 32px 0 10px; color: var(--text); font: 500 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--bg); transition: border-color .15s ease, box-shadow .2s ease; }
   .secret-wrap input:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .secret-toggle { position: absolute; right: 4px; width: 26px; height: 26px; display: grid; place-items: center; cursor: pointer; font-size: var(--fs-xs); border: 0; border-radius: 7px; background: transparent; }
   /* svelte-ignore css_unused_selector */
   .secret-toggle :global(svg) { width: 14px; height: 14px; }
   .secret-toggle:hover { background: var(--hover); }
-  .crypto-clear { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid transparent; border-radius: 8px; background: transparent; }
+  .crypto-clear { height: 28px; padding: 0 9px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid transparent; border-radius: 7px; background: transparent; }
   .crypto-clear:hover { color: var(--text); border-color: var(--line); }
-  .crypto-randkey { height: 30px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 700; border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line)); border-radius: 8px; background: var(--accent-soft); transition: all .15s ease; }
+  .crypto-randkey { height: 28px; padding: 0 11px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 700; border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line)); border-radius: 7px; background: var(--accent-soft); transition: all .15s ease; }
   .crypto-randkey:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 18%, transparent); }
   :global(.crypto-randkey svg) { width: 12px; height: 12px; }
-  .crypto-hint { margin: 0; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.6; }
+  .crypto-hint { margin: 0; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.5; }
   .crypto-hint.warn { color: var(--warn); }
   .crypto-hint.warn b { font-weight: 700; }
   .crypto-copy-tip { margin-left: 6px; color: var(--muted-2); }
