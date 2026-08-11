@@ -38,3 +38,11 @@ preview_light.jpg
 
 # 诊断截图目录
 .shots-*/
+
+# CDP/audit scratch files
+audit-*.json
+smoke-test.json
+_check-*.cjs
+dev-out.log
+dev-err.log
+stderr.log
