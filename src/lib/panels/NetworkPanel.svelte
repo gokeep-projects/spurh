@@ -747,10 +747,10 @@ const MIME_TYPES: Array<[string, string]> = [
   .net-modes button:hover:not(.active) { color: var(--text); background: var(--hover); }
   .net-modes button.active { color: #fff; background: var(--btn-gradient); box-shadow: 0 3px 12px color-mix(in srgb, var(--accent) 30%, transparent); }
   .net-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-  .net-field { display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); transition: border-color var(--transition), box-shadow var(--transition); }
+  .net-field { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; height: 34px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); transition: border-color var(--transition), box-shadow var(--transition); }
   .net-field:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); box-shadow: 0 0 0 3px var(--accent-soft); }
   .net-field span { color: var(--muted-2); font-size: var(--fs-xs); white-space: nowrap; }
-  .net-field input { min-width: 0; flex: 1; width: 100%; height: 100%; padding: 0; color: var(--text); font-size: var(--fs-xs); border: 0; outline: 0; background: transparent; }
+  .net-field input { min-width: 0; flex: 1; width: 100%; height: 100%; padding: 0; color: var(--text); font-size: var(--fs-sm); border: 0; outline: 0; background: transparent; }
   .net-field.grow { flex: 1 1 260px; min-width: 220px; }
   .net-field.net-data { height: auto; min-height: 30px; align-items: flex-start; padding: 7px 9px; flex-direction: column; gap: 4px; }
   .net-field.net-data textarea { width: 100%; min-height: 52px; padding: 0; color: var(--text); font: 500 13px/1.55 'Cascadia Code', Consolas, monospace; resize: vertical; border: 0; outline: 0; background: transparent; }

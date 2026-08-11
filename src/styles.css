@@ -1214,12 +1214,12 @@ kbd {
 }
 .options label > span { white-space: nowrap; }
 .options input, .options select {
-  height: 30px;
-  padding: 0 10px;
+  height: 34px;
+  padding: 0 11px;
   border-radius: 9px;
   border: 1px solid var(--line);
   background: var(--w-05);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text);
   outline: 0;
   transition: border-color var(--transition), box-shadow var(--transition);
