@@ -4581,3 +4581,37 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app.light .json-tree,
 .app.light .editor-input { background: #f4f8fe; }
 .app.light .result-view { border-top-color: rgba(35, 58, 122, .2); }
+
+/* ═══════════ 最终覆盖 v5.2：浅色主题层次再分明（告别白蒙蒙） ═══════════ */
+.app.light .workspace {
+  background:
+    radial-gradient(46vw 34vh at 88% -6%, rgba(124, 74, 228, .22), transparent 62%),
+    radial-gradient(40vw 30vh at -6% 108%, rgba(8, 145, 178, .18), transparent 60%),
+    #bccbe8;
+}
+/* 白卡片之间的输入/结果区用明显浅蓝灰，与白色卡片区分出层次 */
+.app.light .editor-input,
+.app.light .result-view,
+.app.light .json-tree,
+.app.light .result-raw {
+  background: #e9eef8;
+}
+.app.light .editor-pane {
+  background: #ffffff;
+  border-color: rgba(35, 58, 122, .55);
+  box-shadow: 0 16px 44px rgba(35, 58, 122, .28);
+}
+.app.light .editor-pane > header {
+  background: rgba(35, 58, 122, .08);
+  border-bottom-color: rgba(35, 58, 122, .22);
+}
+.app.light .tool-controls {
+  background: rgba(255, 255, 255, .72);
+  border-color: rgba(35, 58, 122, .5);
+}
+/* 输入/结果区文字与语法高亮在浅蓝灰底上保持清晰 */
+.app.light .editor-input .syntax-key { color: #6d28d9; }
+.app.light .editor-input .syntax-string { color: #047857; }
+.app.light .editor-input .syntax-number { color: #b45309; }
+.app.light .editor-input .syntax-boolean { color: #0e7490; }
+.app.light .editor-input { color: #1c2440; }

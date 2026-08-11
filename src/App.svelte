@@ -70,7 +70,7 @@
     const fallback: AppSettings = {
       theme: 'dark', trayEnabled: true, contextMenuEnabled: true, dispatchHotkey: 'ctrl+shift+space',
       toolHotkeys: { '0': 'alt+1', '1': 'alt+2', '2': 'alt+3', '3': 'alt+4', '4': 'alt+5', '5': 'alt+6', '6': 'alt+7', '7': 'alt+8' },
-      fontSize: 14, fontFamily: '系统默认',
+      fontSize: 15, fontFamily: '系统默认',
       sidebarShortcuts: false,
       sidebarOpen: true,
       hiddenTools: [],
@@ -80,18 +80,18 @@
     try {
       const stored = localStorage.getItem(SETTINGS_KEY);
       const parsed = stored ? JSON.parse(stored) : {};
-      // 迁移：15px 自动提升回退到 14px 默认（fontSizeMigrated2 一次性生效，之后用户可自由调节）
+      // 迁移：历史 14px 用户一次性提升到 15px 默认（用户可自由调节），移除旧的回退逻辑
       let migratedFontSize = typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : fallback.fontSize;
-      if (parsed.fontSizeMigrated && !parsed.fontSizeMigrated2 && migratedFontSize === 15) {
-        migratedFontSize = 14;
-        parsed.fontSizeMigrated2 = true;
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...parsed, fontSize: 14, fontSizeMigrated2: true }));
+      if (!parsed.fontSizeMigrated3 && migratedFontSize === 14) {
+        migratedFontSize = 15;
+        parsed.fontSizeMigrated3 = true;
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...parsed, fontSize: 15, fontSizeMigrated3: true }));
       }
       return {
         ...fallback,
         ...parsed,
         hiddenTools: Array.isArray(parsed.hiddenTools) ? parsed.hiddenTools : fallback.hiddenTools,
-        // 字号：用户手动档位直接采用（默认 14）
+        // 字号：用户手动档位直接采用（默认 15）
         fontSize: migratedFontSize,
         fontFamily: FONT_STACKS[parsed.fontFamily] ? parsed.fontFamily : '系统默认',
       };
