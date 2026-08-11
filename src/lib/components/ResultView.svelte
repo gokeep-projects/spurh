@@ -42,8 +42,24 @@
 
   async function exportResult(): Promise<void> {
     if (!isTauri) {
-      exportState = '仅桌面端可用';
-      setTimeout(() => { if (exportState === '仅桌面端可用') exportState = ''; }, 1600);
+      try {
+        const ext = result.language === 'json' ? 'json' : result.language ? result.language.replace(/[^\w-]/g, '') : 'txt';
+        const base = exportName.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'spurh-export';
+        const blob = new Blob([result.output], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `${base}.${ext}`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        exportState = '已下载 ✓';
+        setTimeout(() => { if (exportState === '已下载 ✓') exportState = ''; }, 2000);
+      } catch {
+        exportState = '导出失败';
+        setTimeout(() => { if (exportState === '导出失败') exportState = ''; }, 1600);
+      }
       return;
     }
     try {
