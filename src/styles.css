@@ -1637,6 +1637,10 @@ kbd {
 .clip-overlay-results button i { color: var(--c-cyan); font-size: var(--fs-xs); font-style: normal; }
 
 /* ─── 模态框 ─── */
+/* 设置弹窗打开时顶栏（含聚焦框下拉）提升到弹窗之上，避免下拉列表被弹窗遮挡 */
+.app:has(.modal-backdrop) .app-bar {
+  z-index: 260;
+}
 .modal-backdrop {
   position: fixed;
   z-index: 250;
