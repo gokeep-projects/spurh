@@ -947,7 +947,7 @@
       }
     }
 
-        if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey && (activePluginId === 'spurh.json' || activePluginId === 'spurh.sql')) {
+    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.altKey && (activePluginId === 'spurh.json' || activePluginId === 'spurh.sql')) {
       // 自动换行缩进：按光标前的结构深度计算（含引号剥离），括号后回车自动补闭合行
       const lineStart = value.lastIndexOf('\n', start - 1) + 1;
       const linePrefix = value.slice(lineStart, start);
@@ -982,7 +982,7 @@
       return;
     }
 
-if (event.key === 'Tab') {
+    if (event.key === 'Tab') {
       event.preventDefault();
       if (start === end) {
         // 单点：行首按结构深度对齐，行中插入两个空格
