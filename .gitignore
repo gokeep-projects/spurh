@@ -18,6 +18,8 @@ src-tauri/target/
 .playwright-mcp/
 ui-home.png
 check_out.txt
+shots/
+.tools/
 merge_sql.mjs
 sql_additions.rs
 sql_p1.svelte
@@ -26,7 +28,7 @@ sql_p3.svelte
 screen.png
 ui.png
 
-# Ô¤ÀÀ½ØÍ¼£¨±¾µØ²é¿´ÓÃ£¬²»Èë¿â£©
+# Ô¤ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½ï¿½Ø²é¿´ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½â£©
 final-*.png
 .tools/
 
