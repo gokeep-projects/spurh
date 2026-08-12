@@ -784,7 +784,7 @@
       const trailingOpener = /[{\[(][ \t]*$/.test(currentLineBefore);
       const nextNonWs = value.slice(end).match(/^\s*(\S)/)?.[1] ?? '';
       const nextIndent = '  '.repeat(depth);
-      if (trailingOpener && '}])'.includes(nextNonWs)) {
+      if (trailingOpener && nextNonWs && '}])'.includes(nextNonWs)) {
         event.preventDefault();
         const insert = '\n' + nextIndent + '\n' + '  '.repeat(Math.max(0, depth - 1));
         changeInput(value.slice(0, start) + insert + value.slice(end));
