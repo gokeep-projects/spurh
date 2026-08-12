@@ -396,7 +396,7 @@
   .time-hero-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
   .time-hero-top small { display: block; font-size: var(--fs-xs); letter-spacing: 1.2px; text-transform: uppercase; }
   .time-hero-tz { display: inline-flex; padding: 2px 8px; color: var(--accent); font-size: var(--fs-xs); border-radius: 999px; background: var(--accent-soft); }
-  .time-hero strong { position: relative; z-index: 1; display: block; font: 700 21px/1.3 'Cascadia Code', Consolas, monospace; letter-spacing: -.5px; }
+  .time-hero strong { position: relative; z-index: 1; display: block; min-width: 0; font: 700 21px/1.3 'Cascadia Code', Consolas, monospace; letter-spacing: -.5px; overflow-wrap: anywhere; }
   .time-hero-meta { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; margin-top: 13px; }
   .time-hero-week { display: inline-flex; padding: 3px 9px; color: var(--c-cyan); font-size: var(--fs-xs); font-weight: 700; border-radius: 8px; background: color-mix(in srgb, var(--c-cyan) 12%, transparent); }
   .time-hero-rel { display: inline-flex; padding: 3px 9px; color: var(--muted); font-size: var(--fs-xs); border-radius: 8px; background: color-mix(in srgb, var(--muted) 10%, transparent); }

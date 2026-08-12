@@ -317,6 +317,9 @@
   function traceNodeX(index: number): number { return index % 2 === 0 ? TRACE_NODE_L : TRACE_NODE_R; }
   function traceY(index: number): number { return TRACE_START_Y + index * TRACE_HOP_GAP; }
   /** 本机节点坐标 */
+  function localLabel(): string {
+    return localInfo ? `${localInfo.hostname} · ${localInfo.ips[0] || ''}` : '本机';
+  }
   const LOCAL_POS = { x: TRACE_SPINE, y: 62 };
   /** 节点坐标：-1 表示本机节点 */
   function nodePos(index: number): { x: number; y: number } {
@@ -716,7 +719,7 @@ const MIME_TYPES: Array<[string, string]> = [
               <circle class="local-core" r="17" />
               <text class="topo-num" y="4.5" text-anchor="middle">本机</text>
             </g>
-            <text class="topo-ip local-ip" x={TRACE_SPINE} y="100" text-anchor="middle">{localInfo ? `${localInfo.hostname} · ${localInfo.ips[0] || ''}` : '本机'}</text>
+            <text class="topo-ip local-ip" x={TRACE_SPINE} y="100" text-anchor="middle">{localLabel()}</text>
             <!-- 虚线链路（脉冲流动） -->
             <line class="topo-edge idle-edge" x1={TRACE_SPINE} y1="120" x2={TRACE_SPINE} y2="208" />
             <circle class="idle-pulse-dot" r="4" cy="120">
