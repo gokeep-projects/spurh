@@ -1823,7 +1823,8 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
           <div class="output-scroll" bind:this={streamScrollElement}>
             {#if activeSession.aiProcessing}
               <div class="ai-loading">
-                <div class="ai-loading-title"><span class="spinner"></span><div><b>AI 处理中</b><small>{aiConfig?.model}</small></div><i>{@html UI_ICONS.sparkle}</i></div>
+                <div class="ai-orbit" aria-hidden="true"><i></i><i></i></div>
+                <div class="ai-loading-title"><div><b>AI 处理中</b><small>{aiConfig?.model || '正在思考'}</small></div><i>{@html UI_ICONS.sparkle}</i></div>
                 <div class="stream-preview"><header><span>推理</span><i>实时</i></header><p>{activeSession.aiReasoning || activeSession.aiStreamContent || '等待响应…'}</p></div>
                 {#if activeSession.aiStreamContent}<div class="answer-preview">{activeSession.aiStreamContent}</div>{/if}
               </div>
