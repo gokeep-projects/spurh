@@ -177,6 +177,7 @@
   ];
   const QUICK_PRIMARY = QUICK_COMMANDS.slice(0, 4);
   const QUICK_SECONDARY = QUICK_COMMANDS.slice(4);
+  let termCollapsed = $state(false);
   let sideCollapsed = $state(loadSideCollapsed());
   let quickMore = $state(false);
   let quickMenuStyle = $state('');
@@ -529,6 +530,8 @@
           <span class="rt-sep"></span>
           <button class="rt-quiet" onclick={editSession}>编辑</button>
           <button class="rt-quiet danger" onclick={() => deleteSession(active.id)}>删除</button>
+          <span class="rt-sep"></span>
+          <button class="rt-quiet" onclick={() => (termCollapsed = !termCollapsed)} title="收起 / 展开终端区域">{termCollapsed ? '终端展开' : '终端收起'}</button>
         </div>
       </div>
       {#if quickHint}
@@ -621,7 +624,7 @@
           {/each}
         </div>
       {/if}
-      <div class="remote-terminal">
+      <div class="remote-terminal" class:collapsed={termCollapsed}>
         {#each openTabs as tabId}
           {#key tabId + ':' + (nonceMap[tabId] ?? 0)}
             {@const tab = sessionById(tabId)}

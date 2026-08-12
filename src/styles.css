@@ -6378,3 +6378,13 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   transition: all .18s ease;
 }
 .rt-ai input:focus { outline: none; border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--w-05); }
+
+/* ============ v63: 字体/控件统一、AI卡片紧凑、拉取按钮克制 ============ */
+.app :where(input, select, textarea, button) { font-size: var(--fs); }
+.ai-card { width: min(520px, 100%); transition: transform .25s ease, box-shadow .25s ease; }
+.ai-card-wrap:hover .ai-card { transform: translateY(-2px); box-shadow: 0 22px 56px color-mix(in srgb, var(--accent) 22%, transparent); }
+.ai-card::before { animation-duration: 3.2s; }
+.model-field .model-fetch-link { opacity: .55; }
+.model-field .model-input-wrap:hover .model-fetch-link,
+.model-field .model-input-wrap:focus-within .model-fetch-link { opacity: 1; }
+.remote-terminal.collapsed { display: none; }
