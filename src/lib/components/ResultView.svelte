@@ -372,10 +372,10 @@
 
 <style>
   .result-view { height: 100%; min-height: 0; padding: 18px; overflow: auto; background: var(--panel-2); }
-  .result-actions { position: sticky; top: 0; z-index: 6; display: flex; justify-content: flex-end; pointer-events: none; height: 0; }
-  .result-actions .export-btn { pointer-events: auto; margin-top: -2px; margin-right: 2px; height: 28px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 2px 10px color-mix(in srgb, #000 18%, transparent); backdrop-filter: blur(6px); }
+  .result-actions { position: sticky; top: 0; z-index: 6; display: flex; justify-content: flex-end; align-items: center; pointer-events: none; height: 30px; margin: -18px -18px 8px; padding: 0 18px; background: linear-gradient(180deg, var(--panel-2) 82%, transparent); }
+  .result-actions .export-btn { pointer-events: auto; margin-right: 2px; height: 28px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 2px 10px color-mix(in srgb, #000 18%, transparent); backdrop-filter: blur(6px); }
   .result-actions .export-btn:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
-  .tree-mode .result-actions { padding-right: 14px; }
+  .result-view.tree-mode .result-actions { margin: 0 0 8px; padding-right: 14px; }
   .result-view.tree-mode { padding: 0; display: flex; flex-direction: column; }
   .result-view.tree-mode :global(.json-tree) { flex: 1; min-height: 100%; }
   .result-truncated { display: flex; flex-direction: column; gap: 10px; min-height: 100%; }
