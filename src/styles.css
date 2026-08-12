@@ -6253,3 +6253,80 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 @media (max-width: 880px) {
   .settings-layout { grid-template-columns: 168px minmax(0, 1fr); }
 }
+
+/* ============ v60: timestamp panel polish ============ */
+.ts-pick-date {
+  height: 38px !important;
+  padding: 0 12px !important;
+  border-radius: 10px !important;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 12%, transparent), color-mix(in srgb, var(--c-cyan) 8%, transparent)) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line)) !important;
+  font-weight: 650 !important;
+  transition: all .18s ease !important;
+}
+.ts-pick-date:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)) !important; box-shadow: 0 0 0 3px var(--accent-soft) !important; }
+.ts-time-input {
+  border-radius: 10px !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)) !important;
+  background: var(--w-04) !important;
+  transition: all .18s ease !important;
+}
+.ts-time-input:focus { border-color: color-mix(in srgb, var(--accent) 65%, var(--line)) !important; box-shadow: 0 0 0 3px var(--accent-soft) !important; background: var(--w-05) !important; }
+.ts-pick-box .ts-time-presets button {
+  border-radius: 8px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--w-03) !important;
+  transition: all .15s ease !important;
+}
+.ts-pick-box .ts-time-presets button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); transform: translateY(-1px); }
+
+/* ============ v60: trace topology dynamics ============ */
+.topo-node circle.node-core { transition: r .25s ease, filter .25s ease; }
+.topo-node:hover circle.node-core { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c-cyan) 65%, transparent)); }
+.topo-node .node-halo { animation: topo-halo-breathe 2.4s ease-in-out infinite; transform-origin: center; }
+@keyframes topo-halo-breathe { 0%, 100% { opacity: .35; r: 16; } 50% { opacity: .75; r: 21; } }
+.topo-edge { stroke-dasharray: 7 9; }
+.topo-local .local-ring { animation-duration: 2.2s !important; }
+
+/* ============ v60: crypto panel compact + polish ============ */
+.crypto-panel { gap: 8px !important; }
+.crypto-panel .crypto-groups button { border-radius: 9px !important; transition: all .15s ease !important; }
+.crypto-panel .crypto-groups button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 14%, transparent); }
+
+/* ============ v60: remote quick-command chips ============ */
+.rt-cmd-chip {
+  border-radius: 999px !important;
+  background: linear-gradient(120deg, var(--w-05), var(--w-03)) !important;
+  border: 1px solid var(--line) !important;
+  padding: 0 14px !important;
+  transition: all .16s ease !important;
+}
+.rt-cmd-chip:hover { color: var(--accent) !important; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)) !important; background: var(--accent-soft) !important; transform: translateY(-1px); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 16%, transparent); }
+
+/* ============ v60: AI card glow title + hover lift ============ */
+.ai-card-title b {
+  background: linear-gradient(92deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ai-card { transition: transform .25s ease, box-shadow .25s ease; }
+.ai-card:hover { transform: translateY(-2px); box-shadow: 0 22px 60px color-mix(in srgb, var(--accent) 22%, transparent); }
+
+/* ============ v60: settings AI fetch button unified ============ */
+.model-field .model-fetch-link {
+  width: 28px !important;
+  min-width: 28px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--w-04) !important;
+  color: var(--muted) !important;
+}
+.model-field .model-fetch-link:hover:not(:disabled) { color: var(--accent) !important; border-color: color-mix(in srgb, var(--accent) 55%, var(--line)) !important; background: var(--accent-soft) !important; box-shadow: 0 0 0 3px var(--accent-soft) !important; }
+
+/* v60 fix: halo uses transform scale for broader compat */
+.topo-node .node-halo { transform-box: fill-box; transform-origin: center; animation: topo-halo-breathe 2.4s ease-in-out infinite; }
+@keyframes topo-halo-breathe { 0%, 100% { opacity: .35; transform: scale(1); } 50% { opacity: .8; transform: scale(1.35); } }
