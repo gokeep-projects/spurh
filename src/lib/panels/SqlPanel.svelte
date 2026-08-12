@@ -1255,9 +1255,15 @@
     if (!side) return;
     const sr = side.getBoundingClientRect();
     const tipHeight = 30;
+    // 宽度按完整表名估算，最多 430px，确保完整展示不再被截断
+    const width = Math.min(430, Math.max(140, Math.round(name.length * 7.4 + 28)));
+    // 优先浮在侧栏右侧（编辑区一侧），空间不足再放左侧，绝不覆盖当前行
+    let left = sr.right + 10;
+    if (left + width > window.innerWidth - 12) left = sr.left - width - 10;
     let top = row.top - tipHeight - 6;
     if (top < sr.top + 4) top = row.bottom + 6;
-    treeTip = { name, left: sr.left + 8, top, width: Math.max(120, Math.round(sr.width) - 16) };
+    if (top + tipHeight > window.innerHeight - 8) top = row.bottom + 6;
+    treeTip = { name, left, top, width };
   }
 
 </script>
