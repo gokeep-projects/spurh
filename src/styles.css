@@ -5972,6 +5972,9 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .settings-header .modal-icon {
   margin: 0;
   flex: 0 0 auto;
+  display: grid;
+  align-items: center;
+  justify-content: center;
   width: 36px;
   height: 36px;
   border-radius: 11px;
