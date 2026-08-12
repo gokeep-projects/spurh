@@ -6330,3 +6330,51 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 /* v60 fix: halo uses transform scale for broader compat */
 .topo-node .node-halo { transform-box: fill-box; transform-origin: center; animation: topo-halo-breathe 2.4s ease-in-out infinite; }
 @keyframes topo-halo-breathe { 0%, 100% { opacity: .35; transform: scale(1); } 50% { opacity: .8; transform: scale(1.35); } }
+
+/* ============ v61: remote AI command row integration ============ */
+.rt-ai-row { display: flex; align-items: center; gap: 8px; }
+.rt-ai-row input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--w-04);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  transition: all .18s ease;
+}
+.rt-ai-row input:focus { outline: none; border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--w-05); }
+.rt-ai-btn { border-radius: 9px !important; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 60%, var(--c-magenta)) !important; border: none !important; color: #fff !important; font-weight: 650 !important; box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent) !important; }
+.rt-ai-btn:hover { filter: brightness(1.1) !important; transform: translateY(-1px); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent) !important; }
+
+/* ============ v61: sql panel tab buttons polish ============ */
+.sql-head .sql-tabs button, .sql-tabs button {
+  border-radius: 9px !important;
+  font-weight: 650 !important;
+  transition: all .16s ease !important;
+}
+.sql-tabs button.active { background: var(--grad-soft) !important; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)) !important; }
+.sql-table-row { transition: background .14s ease, border-color .14s ease; }
+.sql-table-row:hover { border-color: color-mix(in srgb, var(--accent) 38%, var(--line)) !important; }
+
+/* ============ v61: sidebar tool hover lift ============ */
+.tool-list button { transition: all .16s ease !important; }
+.tool-list button:hover { transform: translateX(2px); box-shadow: -2px 0 0 color-mix(in srgb, var(--accent) 55%, transparent) inset !important; }
+.tool-list button.active { box-shadow: -2px 0 0 var(--accent) inset !important; }
+
+/* v61 fix: remote AI input matches actual .rt-ai structure */
+.rt-ai input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--w-04);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  transition: all .18s ease;
+}
+.rt-ai input:focus { outline: none; border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--w-05); }
