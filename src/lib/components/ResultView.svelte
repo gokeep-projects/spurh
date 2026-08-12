@@ -343,7 +343,7 @@
     </div>
     {:else if isAiAnswer}
     <div class="ai-answer">
-      <header><span class="ai-answer-badge">✦</span><div><b>AI 处理结果</b><small>{display(result.meta?.['模型'])} · {display(result.meta?.['来源'])}</small></div></header>
+      <header><span class="ai-answer-badge">✦</span><div><b>AI 处理结果</b><small>{display(result.meta?.['模型'])} · {display(result.meta?.['来源'])}</small></div><button class="ai-copy" onclick={() => copyText(result.output, 'ai')}>{copiedKey === 'ai' ? '已复制 ✓' : '复制全文'}</button></header>
       <div class="ai-answer-body">{@html aiHtml}</div>
     </div>
   {:else}
@@ -383,7 +383,9 @@
   .result-truncate-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 13px; color: var(--muted); font-size: var(--fs-xs); border: 1px dashed var(--line-strong); border-radius: 10px; background: color-mix(in srgb, var(--warn) 6%, var(--panel)); }
   .result-truncate-bar button { height: 27px; flex: 0 0 auto; padding: 0 13px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 600; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
   .result-truncate-bar button:hover { border-color: var(--accent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 16%, transparent); }
-  .ai-answer { position: relative; display: flex; flex-direction: column; width: min(92%, 640px); margin: 22px auto; max-height: min(34vh, 320px); overflow: hidden; border-radius: 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--c-violet) 9%, var(--panel)), var(--panel) 55%, color-mix(in srgb, var(--c-cyan) 6%, var(--panel))); box-shadow: 0 18px 54px color-mix(in srgb, var(--c-violet) 16%, transparent), 0 0 0 1px color-mix(in srgb, var(--c-violet) 12%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 9%, transparent); animation: aiAnswerIn .45s cubic-bezier(.2,.9,.3,1.15); --ai-angle: 0deg; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  .ai-answer { position: relative; display: flex; flex-direction: column; width: min(94%, 700px); margin: 22px auto; max-height: min(46vh, 440px); overflow: hidden; border-radius: 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--c-violet) 9%, var(--panel)), var(--panel) 55%, color-mix(in srgb, var(--c-cyan) 6%, var(--panel))); box-shadow: 0 18px 54px color-mix(in srgb, var(--c-violet) 16%, transparent), 0 0 0 1px color-mix(in srgb, var(--c-violet) 12%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 9%, transparent); animation: aiAnswerIn .45s cubic-bezier(.2,.9,.3,1.15); --ai-angle: 0deg; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  .ai-answer > header .ai-copy { margin-left: auto; flex: 0 0 auto; height: 26px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid color-mix(in srgb, var(--c-violet) 30%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--c-violet) 7%, transparent); transition: all .15s ease; }
+  .ai-answer > header .ai-copy:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); background: var(--accent-soft); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 14%, transparent); }
   .ai-answer::after { content: ""; position: absolute; inset: -38% -18% auto; height: 70%; pointer-events: none; background: radial-gradient(46% 60% at 50% 0%, color-mix(in srgb, var(--c-violet) 13%, transparent), transparent 70%); animation: aiGlowBreath 4s ease-in-out infinite; }
   .ai-answer::before { content: ""; position: absolute; inset: 0; border-radius: 16px; padding: 1px; pointer-events: none; background: conic-gradient(from var(--ai-angle), transparent 0%, color-mix(in srgb, var(--c-violet) 80%, transparent) 18%, var(--c-cyan) 32%, transparent 50%, color-mix(in srgb, var(--c-magenta) 80%, transparent) 68%, var(--c-violet) 82%, transparent 100%); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask-composite: exclude; animation: aiBorderSpin 5s linear infinite; }
   @keyframes aiBorderSpin { to { --ai-angle: 360deg; } }
@@ -394,7 +396,7 @@
   .ai-answer-badge { display: grid; place-items: center; width: 30px; height: 30px; color: #fff; font-size: 15px; border-radius: 9px; background: var(--grad-main); box-shadow: 0 6px 18px color-mix(in srgb, var(--c-violet) 45%, transparent); }
   .ai-answer > header b { display: block; font-size: var(--fs-sm); }
   .ai-answer > header small { color: var(--muted-2); font-size: var(--fs-xs); }
-  .ai-answer-body { min-height: 0; flex: 1; overflow: auto; padding: 15px 18px 18px; color: var(--text); font-size: var(--fs-sm); line-height: 1.75; }
+  .ai-answer-body { min-height: 0; flex: 1; overflow: auto; padding: 16px 20px 20px; color: var(--text); font-size: var(--fs-sm); line-height: 1.8; }
   :global(.ai-answer-body .ai-p) { margin: 0 0 11px; }
   :global(.ai-answer-body .ai-p:last-child) { margin-bottom: 0; }
   :global(.ai-answer-body .ai-h) { margin: 15px 0 8px; font-size: var(--fs-lg); font-weight: 750; }

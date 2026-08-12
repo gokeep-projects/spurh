@@ -43,7 +43,7 @@
   };
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "-apple-system, BlinkMacSystemFont, 'Segoe UI Variable', 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', ui-sans-serif, system-ui, sans-serif",
+    '系统默认': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', ui-sans-serif, system-ui, sans-serif",
     '微软雅黑': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'HarmonyOS Sans SC', sans-serif",
     '等线': "'DengXian', 'DengXian Light', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'SimHei', '黑体', 'Microsoft YaHei', sans-serif",
@@ -1967,13 +1967,14 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <label class="model-field"><span>模型</span><div>
                   {#if modelList.length > 0}
                     <select bind:value={aiDraft.model}><option value="">-- 选择 --</option>{#each modelList as model}<option value={model.id}>{model.id}</option>{/each}</select>
+                    <button class:loading={modelListLoading} class="model-fetch-link" disabled={modelListLoading} onclick={loadRemoteModels} title="重新从当前地址拉取模型列表">{@html UI_ICONS.refresh}重新拉取</button>
                   {:else}
                     <span class="model-input-wrap">
-                      <input list="rm" bind:value={aiDraft.model} placeholder="输入或拉取" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
-                      {#if aiDraft.endpoint.trim()}
-                        <button class:loading={modelListLoading} class="model-fetch" disabled={modelListLoading} onclick={loadRemoteModels} title="从当前地址拉取模型列表">{@html UI_ICONS.refresh}</button>
-                      {/if}
+                      <input list="rm" bind:value={aiDraft.model} placeholder="输入模型名，或拉取列表" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
                     </span>
+                    {#if aiDraft.endpoint.trim()}
+                      <button class:loading={modelListLoading} class="model-fetch-link" disabled={modelListLoading || !aiDraft.endpoint.trim()} onclick={loadRemoteModels} title="从当前地址拉取模型列表">{@html UI_ICONS.refresh}{modelListLoading ? '拉取中…' : '拉取模型列表'}</button>
+                    {/if}
                   {/if}
                 </div></label>
                 <label><span>密钥</span><span class="ai-secret">

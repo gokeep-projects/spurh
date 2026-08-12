@@ -112,7 +112,7 @@ button { cursor: pointer; border: 0; background: none; }
   flex-direction: column;
   color: var(--text);
   font-size: var(--app-font-size, 14px);
-  font-family: var(--app-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", "PingFang SC", "HarmonyOS Sans SC", "MiSans", system-ui, sans-serif);
+  font-family: var(--app-font-family, "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", "Segoe UI Variable", "Segoe UI", "PingFang SC", "HarmonyOS Sans SC", "MiSans", ui-sans-serif, system-ui, sans-serif);
   background:
     radial-gradient(58vw 44vh at 82% -8%, rgba(139, 92, 246, .13), transparent 62%),
     radial-gradient(52vw 40vh at 6% 108%, rgba(34, 211, 238, .1), transparent 60%),
@@ -1964,7 +1964,7 @@ kbd {
 }
 .model-field input:focus, .model-field select:focus { border-color: rgba(129, 140, 248, .6); box-shadow: 0 0 0 3px rgba(129, 140, 248, .14); }
 .model-field input[type="password"] { font-family: ui-monospace, Consolas, monospace; letter-spacing: 1px; }
-.model-field > div { position: relative; display: flex; align-items: center; gap: 7px; }
+.model-field > div { position: relative; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .model-field > div input, .model-field > div select { flex: 1; min-width: 0; }
 .model-field button {
   position: static;
@@ -1991,26 +1991,27 @@ kbd {
 .model-field button span { display: inline-flex; }
 .model-field button svg { width: 12px; height: 12px; }
 .model-input-wrap { position: relative; flex: 1; min-width: 0; display: block; }
-.model-input-wrap > input { width: 100%; box-sizing: border-box; padding-right: 36px; }
-.model-field .model-fetch {
-  position: absolute;
-  top: 50%;
-  right: 5px;
-  transform: translateY(-50%);
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  box-shadow: none;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .18s ease, border-color var(--transition), color var(--transition);
+.model-input-wrap > input { width: 100%; box-sizing: border-box; padding-right: 12px; }
+.model-field .model-fetch-link {
+  align-self: flex-start;
+  height: 28px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+  border-radius: 8px;
+  background: var(--accent-soft);
+  transition: all var(--transition);
 }
-.model-field .model-input-wrap:hover .model-fetch,
-.model-field .model-input-wrap:focus-within .model-fetch { opacity: 1; pointer-events: auto; }
-.model-field .model-fetch svg { width: 13px; height: 13px; }
-.model-fetch.loading svg { animation: ai-spin 1s linear infinite; }
+.model-field .model-fetch-link:hover:not(:disabled) { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 14%, transparent); }
+.model-field .model-fetch-link:disabled { cursor: not-allowed; opacity: .5; }
+.model-field .model-fetch-link svg { width: 13px; height: 13px; }
+.model-fetch-link.loading svg { animation: ai-spin 1s linear infinite; }
 @keyframes ai-spin { to { transform: rotate(360deg); } }
 .config-fields { padding: 12px; border-radius: 12px; background: var(--w-04); border: 1px solid var(--line); }
 .ai-secret { display: flex; align-items: center; gap: 6px; }
