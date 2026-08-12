@@ -5961,3 +5961,69 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   font-size: calc(var(--fs) - 1px) !important;
 }
 .settings-modal.about-mode .about-type { font-size: var(--fs-xs); }
+
+
+/* ============================================================
+   v17 ????????
+   1) ???????modal-icon ?? margin:0 auto ???????????+????????????
+   2) AI ?????config-fields ????????/??/??/?? ?????URL ????????
+   3) ?? label ????/??/???? model-field ??
+   ============================================================ */
+.settings-header .modal-icon {
+  margin: 0;
+  flex: 0 0 auto;
+}
+.config-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.config-fields > label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.config-fields > label > span:first-child {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-weight: 600;
+}
+.config-fields > label:not(.model-field) input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+
+/* v17b) ??? reduce-motion ???????logo ?/?/??????????????????????? */
+@media (prefers-reduced-motion: reduce) {
+  .settings-modal.about-mode .about-frame { animation: about-stage-frame-spin 14s linear infinite !important; }
+  .settings-modal.about-mode .about-logo-wrap { animation: about-logo-float 5s ease-in-out infinite !important; }
+  .settings-modal.about-mode .about-logo { animation: about-logo-breathe 4s ease-in-out infinite !important; }
+  .settings-modal.about-mode .about-caret { animation: about-caret-blink 1.1s step-end infinite !important; }
+  .settings-modal.about-mode .term-dot { animation: about-dot-blink 1.2s ease-in-out infinite !important; }
+  .settings-modal.about-mode .term-dot.term-yellow { animation-delay: .2s !important; }
+  .settings-modal.about-mode .term-dot.term-green { animation-delay: .4s !important; }
+}
+
+
+/* v17c) ?????????????????????/??????????? */
+.app.light .sidebar-foot button {
+  color: rgba(255, 255, 255, .92);
+}
+.app.light .sidebar-foot button svg {
+  color: rgba(255, 255, 255, .92);
+}
+.app.light .sidebar-foot button:hover {
+  background: rgba(255, 255, 255, .1);
+  color: #fff;
+}
+
+
+/* v17d) ????????????? tab ?????? tab ?? */
+.settings-modal,
+.settings-modal.about-mode {
+  width: min(960px, calc(100vw - 24px));
+  height: min(720px, calc(100vh - 48px));
+}

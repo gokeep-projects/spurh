@@ -1332,7 +1332,7 @@
                     <div class="sql-tree-loading">加载表…</div>
                   {:else if db.tables && db.tables.length > 0}
                     {#each db.tables as table}
-                      <button class="sql-table-row" class:active={selectedTable === table.name && selectedDb === db.name} onclick={() => selectTable(db.name, table)} oncontextmenu={(event) => openTableMenu(event, db.name, table.name)}>
+                      <button class="sql-table-row" class:active={selectedTable === table.name && selectedDb === db.name} onclick={() => selectTable(db.name, table)} oncontextmenu={(event) => openTableMenu(event, db.name, table.name)} title={table.name}>
                         <span class="tbl-ico">{@html table.kind === 'VIEW' ? VIEW_ICON : TABLE_ICON}</span>
                         <b>{table.name}</b>
                         {#if table.kind === 'VIEW'}<em>视图</em>{/if}
@@ -1859,7 +1859,7 @@
   .sql-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
 
   /* ── 主体布局 ── */
-  .sql-body { min-width: 0; min-height: 0; flex: 1; display: grid; grid-template-columns: 252px minmax(0, 1fr); }
+  .sql-body { min-width: 0; min-height: 0; flex: 1; display: grid; grid-template-columns: 300px minmax(0, 1fr); }
   .sql-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); }
   .sql-side-head { height: 36px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 13px; color: var(--muted-2); font-size: var(--fs-tiny); font-weight: 700; letter-spacing: 1px; border-bottom: 1px solid var(--line); }
   .sql-side-add { width: 22px; height: 22px; display: grid; place-items: center; cursor: pointer; color: var(--muted); border: 0; border-radius: 8px; background: transparent; }

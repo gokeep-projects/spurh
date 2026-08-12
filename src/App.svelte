@@ -211,15 +211,7 @@
   let aboutCanvas = $state<HTMLCanvasElement | undefined>(undefined);
   let aboutTagline = $state('');
   let aboutPanelsShown = $state(0);
-  let aboutHeap = $state('-- MB');
-  let aboutCpu = $state('--');
-  let aboutLive = $state({ mem: 0, cpu: 0 });
-  let aboutSpark = $state<HTMLCanvasElement | undefined>(undefined);
   let aboutStageEl = $state<HTMLDivElement | undefined>(undefined);
-  let aboutFlashTick = $state(0);
-  let sparkHistory: Array<[number, number]> = [];
-  let sparkStatsAvailable = false;
-  let sparkTick = 0;
   let termLines = $state<Array<{ cls: string; text: string }>>([]);
   let termTyping = $state<{ cls: string; text: string } | null>(null);
   const aboutCapsTarget = { ai: 94, local: 96, cover: 92, priv: 98 };
@@ -353,64 +345,6 @@
     return () => clearInterval(timer);
   }
 
-  function drawAboutSpark(isLight: boolean): void {
-    const canvas = aboutSpark;
-    if (!canvas) return;
-    const g = canvas.getContext('2d');
-    if (!g) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    if (w < 10 || h < 10) return;
-    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
-    }
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.clearRect(0, 0, w, h);
-    const pad = 4, top = pad, bot = h - pad - 6;
-    g.strokeStyle = isLight ? 'rgba(48,63,138,.16)' : 'rgba(129,140,248,.12)';
-    g.lineWidth = 1;
-    g.beginPath();
-    g.moveTo(pad, (top + bot) / 2);
-    g.lineTo(w - pad, (top + bot) / 2);
-    g.stroke();
-    const data = sparkHistory.slice(-44);
-    const draw = (idx: 0 | 1, color: string) => {
-      if (data.length < 2) return;
-      const max = 100, min = 0;
-      const step = (w - pad * 2) / 43;
-      g.beginPath();
-      for (let i = 0; i < data.length; i++) {
-        const v = Math.max(min, Math.min(max, data[i][idx]));
-        const x = pad + i * step;
-        const y = bot - (v / max) * (bot - top);
-        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
-      }
-      g.strokeStyle = color;
-      g.lineWidth = 1.6;
-      g.lineJoin = 'round';
-      g.lineCap = 'round';
-      g.stroke();
-      const last = data[data.length - 1];
-      const lx = pad + (data.length - 1) * step;
-      const ly = bot - (Math.max(min, Math.min(max, last[idx])) / max) * (bot - top);
-      g.beginPath();
-      g.arc(lx, ly, 2.4, 0, Math.PI * 2);
-      g.fillStyle = color;
-      g.shadowColor = color;
-      g.shadowBlur = 6;
-      g.fill();
-      g.shadowBlur = 0;
-    };
-    draw(0, isLight ? '#0e7490' : '#22d3ee');
-    draw(1, isLight ? '#6d28d9' : '#8b5cf6');
-    g.fillStyle = isLight ? 'rgba(54,65,107,.55)' : 'rgba(148,163,184,.45)';
-    g.font = '9px ui-monospace, Consolas, monospace';
-    g.fillText('MEM', pad, top + 8);
-    g.fillStyle = isLight ? 'rgba(109,40,217,.7)' : 'rgba(139,92,246,.65)';
-    g.fillText('CPU', pad + 30, top + 8);
-  }
-
   function startAboutTilt(stage: HTMLElement): () => void {
     const target = stage.querySelector<HTMLElement>('.about-logo-wrap');
     if (!target) return () => {};
@@ -465,54 +399,7 @@
         aboutUptime += 1;
         aboutClock = formatClock(new Date());
       }, 1000);
-      sparkStatsAvailable = false;
-      sparkHistory = [];
-      sparkTick = 0;
-      /* 折线 + 系统统计合并为单个低频心跳，减少定时器唤醒次数 */
-      let statsMisses = 3; // 首轮立即拉取系统统计，避免“加载中”空窗
-      const sparkTicker = setInterval(async () => {
-        sparkTick += 1;
-        statsMisses += 1;
-        if (statsMisses >= 4) {
-          statsMisses = 0;
-          try {
-            const stats = await safeInvoke<{ systemTotalMB?: number; systemFreeMB?: number; cpuPercent?: number; rssMB?: number }>('get_process_stats');
-            if (stats) {
-              sparkStatsAvailable = true;
-              if (typeof stats.systemTotalMB === 'number' && typeof stats.systemFreeMB === 'number') {
-                const used = stats.systemTotalMB - stats.systemFreeMB;
-                aboutHeap = (used / 1024).toFixed(1) + ' / ' + (stats.systemTotalMB / 1024).toFixed(1) + ' GB';
-                aboutLive = { ...aboutLive, mem: Math.max(0, Math.min(100, Math.round((used / stats.systemTotalMB) * 100))) };
-              } else if (typeof stats.rssMB === 'number') {
-                aboutHeap = stats.rssMB + ' MB';
-              }
-              if (typeof stats.cpuPercent === 'number') {
-                aboutCpu = (Math.round(stats.cpuPercent * 10) / 10).toFixed(1);
-                aboutLive = { ...aboutLive, cpu: Math.max(0, Math.min(100, Math.round(stats.cpuPercent))) };
-              }
-              aboutFlashTick += 1;
-              sparkHistory = [...sparkHistory, [aboutLive.mem, aboutLive.cpu] as [number, number]].slice(-44);
-            }
-          } catch {
-            /* 统计命令不可用时静默降级 */
-          }
-        }
-        if (!sparkStatsAvailable) {
-          // 统计不可用时降级展示（浏览器预览）：内存取 JS 堆提示，避免误导性“—”
-          let heapText = '—';
-          try {
-            const pm = (performance as unknown as { memory?: { usedJSHeapSize?: number } }).memory;
-            if (pm && typeof pm.usedJSHeapSize === 'number' && pm.usedJSHeapSize > 0) {
-              heapText = (pm.usedJSHeapSize / 1048576).toFixed(0) + ' MB';
-            }
-          } catch { /* 忽略 */ }
-          aboutLive = { mem: 0, cpu: 0 };
-          aboutHeap = heapText;
-          aboutCpu = '--';
-          sparkHistory = [...sparkHistory, [0, 0] as [number, number]].slice(-44);
-        }
-        drawAboutSpark(isLightTheme);
-      }, 600);
+
       /* 打字机标语 */
       let phrase = 0, char = 0, deleting = false;
       const typeTimer = setInterval(() => {
@@ -550,10 +437,8 @@
       }
       const disposeTerminal = startAboutTerminal();
       const disposeTilt = aboutStageEl ? startAboutTilt(aboutStageEl) : () => {};
-      drawAboutSpark(isLightTheme);
       return () => {
         if (aboutTimer) clearInterval(aboutTimer);
-        clearInterval(sparkTicker);
         clearInterval(typeTimer);
         clearInterval(growTicker);
         if (disposeCanvas) disposeCanvas();
@@ -2211,7 +2096,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                       <span class="about-logo-wrap"><i class="about-logo-cone" aria-hidden="true"></i><i class="about-logo-ring" aria-hidden="true"></i><span class="brand-mark large about-logo">{@html BRAND_MARK}</span></span>
                       <div><h3 class="about-title">Spurh</h3><p class="about-type">{aboutTagline}<span class="about-caret" aria-hidden="true"></span></p></div><span class="about-live" title="会话运行时长"><i aria-hidden="true"></i><b>LIVE</b><em>{formatUptime(aboutUptime)}</em></span>
                     </div>
-                    <div class="about-chips"><span style="--i:0">Svelte 5</span><span style="--i:1">Tauri 2</span><span style="--i:2">Rust</span><span style="--i:3">TypeScript</span><span style="--i:4">AI Native</span><span style="--i:5">本地优先</span></div>
                     <div class="about-note"><b>本地优先 · AI 增强</b><p>所有工具在本地运行，数据不出设备；AI 能力按需接入，帮助生成、解释、修复与提炼，让重复工作一步完成。</p></div>
                     <div class="about-grid">
                       <article><small>作者</small><b>xuning</b></article>
@@ -2220,7 +2104,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                       <article><small>许可</small><b>MIT</b></article>
                     </div>
                     <div class="about-actions">
-                      <button onclick={() => { copyText(`Spurh v0.1.0 · 构建 ${BUILD_STAMP} · Svelte 5 · Tauri 2 · Rust · MIT`); settingsNotice = "版本信息已复制到剪贴板"; }}>{@html UI_ICONS.copy}<span>复制版本信息</span></button>
+                      <button onclick={() => { copyText(`Spurh v0.1.0 · 构建 ${BUILD_STAMP} · MIT`); settingsNotice = "版本信息已复制到剪贴板"; }}>{@html UI_ICONS.copy}<span>复制版本信息</span></button>
                       <button onclick={() => (settingsNotice = `已是最新版本 v0.1.0（构建 ${BUILD_STAMP}）`)}>{@html UI_ICONS.refresh}<span>检查更新</span></button>
                     </div>
                     <footer class="about-foot">© 2026 Spurh · Made with ❤ by xuning</footer>
@@ -2241,28 +2125,11 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                     <div class="about-version">
                       <div class="about-ver-head"><b>v0.1.0</b><small>构建 {BUILD_STAMP}</small></div>
                       <div class="about-metrics">
-                        <span><em>系统内存</em>{#key aboutFlashTick}<b>{aboutHeap}</b>{/key}</span>
-                        <span><em>系统 CPU</em>{#key aboutFlashTick}<b>{aboutCpu}%</b>{/key}</span>
-                        <span><em>已运行</em>{#key aboutFlashTick}<b>{formatUptime(aboutUptime)}</b>{/key}</span>
+                        <span><em>已运行</em><b>{formatUptime(aboutUptime)}</b></span>
                       </div>
-                      <canvas bind:this={aboutSpark} class="about-spark" aria-hidden="true"></canvas>
                       <i class="about-clock">{aboutClock}</i>
                     </div>
                     <div class="about-rings">
-                      <div class="about-ring live" title="实时系统内存占用">
-                        <svg viewBox="0 0 44 44" style="color: #22d3ee" aria-hidden="true">
-                          <circle class="ring-track" cx="22" cy="22" r="17.5"></circle>
-                          <circle class="ring-fill" cx="22" cy="22" r="17.5" stroke="#22d3ee" stroke-dasharray="110" stroke-dashoffset={110 - (110 * aboutLive.mem) / 100}></circle>
-                        </svg>
-                        <b>{aboutLive.mem}%</b><small>内存占用</small>
-                      </div>
-                      <div class="about-ring live" title="实时 CPU 占用">
-                        <svg viewBox="0 0 44 44" style="color: #8b5cf6" aria-hidden="true">
-                          <circle class="ring-track" cx="22" cy="22" r="17.5"></circle>
-                          <circle class="ring-fill" cx="22" cy="22" r="17.5" stroke="#8b5cf6" stroke-dasharray="110" stroke-dashoffset={110 - (110 * aboutLive.cpu) / 100}></circle>
-                        </svg>
-                        <b>{aboutLive.cpu}%</b><small>CPU 占用</small>
-                      </div>
                       {#each aboutRingList as ring}
                         <div class="about-ring" title={ring.l}>
                           <svg viewBox="0 0 44 44" style={`color: ${ring.c}`} aria-hidden="true">
