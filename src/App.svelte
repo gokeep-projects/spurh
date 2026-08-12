@@ -1834,6 +1834,21 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               <div class="error-box ai-error"><span>{@html UI_ICONS.sparkle}</span><div><b>AI 失败</b><p>{activeSession.aiError}</p><button onclick={() => openSettings('ai')}>检查配置</button></div></div>
             {:else if activeSession.error}
               <div class="error-box"><span>{@html UI_ICONS.info}</span><div><b>处理失败</b><p>{activeSession.error}</p><button onclick={runAiProcessing}><span class="btn-ai">{@html UI_ICONS.sparkle}</span>AI 处理</button></div></div>
+            {:else if activeSession.aiResult}
+              <div class="ai-card-wrap">
+                <div class="ai-card">
+                  <header class="ai-card-head">
+                    <span class="ai-card-ico">{@html UI_ICONS.sparkle}</span>
+                    <div class="ai-card-title"><b>AI 分析结果</b><small>{aiConfig?.model || ''}{activeSession.aiResult.meta?.来源 ? ' · ' + activeSession.aiResult.meta['来源'] : ''}</small></div>
+                    <div class="ai-card-actions">
+                      <button class="quiet-button" onclick={copyResult}>{copied ? '已复制 ✓' : '复制'}</button>
+                      <button class="quiet-button" onclick={applyAiResult} title="将 AI 结果写回输入区">应用</button>
+                    </div>
+                  </header>
+                  <pre class="ai-card-body">{activeSession.aiResult.output}</pre>
+                  {#if activeSession.aiResult.summary}<footer class="ai-card-foot"><i></i>{activeSession.aiResult.summary}</footer>{/if}
+                </div>
+              </div>
             {:else if currentSessionResult()}
               {#if resultRawMode}
                 <pre class="result-raw" class:plain={currentSessionResult()!.language === 'text'}>{@html highlightCode(currentSessionResult()!.output, currentSessionResult()!.language)}</pre>

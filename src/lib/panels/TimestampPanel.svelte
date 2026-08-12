@@ -561,4 +561,24 @@
   .ts-cal-foot button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: var(--accent-soft); }
   .ts-inline-card-pop { animation: ts-card-pop .28s cubic-bezier(.2, .9, .3, 1.2); }
   @keyframes ts-card-pop { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+
+  /* v56: 输入与交互升级 */
+  .ts-modes button { height: 34px; padding: 0 16px; font-size: var(--fs-sm); border-radius: 10px; gap: 8px; background: linear-gradient(160deg, var(--w-05), var(--w-02)); border-color: var(--line-2); }
+  .ts-modes button:hover { transform: translateY(-1px); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 12%, transparent); }
+  .ts-modes button.active { background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); box-shadow: 0 5px 18px color-mix(in srgb, var(--accent) 38%, transparent); transform: translateY(-1px); }
+  .ts-modes b { font-size: var(--fs-sm); }
+  .ts-field > span { font-weight: 650; letter-spacing: .3px; }
+  .ts-field input, .ts-field select { height: 44px; border-radius: 12px; border-color: var(--line-2); background: linear-gradient(160deg, var(--w-05), var(--bg)); font-size: var(--fs); }
+  .ts-field input:focus, .ts-field select:focus { border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); box-shadow: 0 0 0 4px var(--accent-soft), 0 6px 20px color-mix(in srgb, var(--accent) 14%, transparent); }
+  .ts-field select { appearance: none; -webkit-appearance: none; padding-right: 34px; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 18px) 20px, calc(100% - 13px) 20px; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; cursor: pointer; }
+  .ts-field select:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .ts-input-wrap { position: relative; display: flex; align-items: center; }
+  .ts-input-wrap input { width: 100%; min-width: 0; }
+  .ts-now-inline { top: auto; transform: none; position: static; height: 44px; flex: 0 0 auto; border-radius: 12px; background: linear-gradient(120deg, color-mix(in srgb, var(--c-cyan) 16%, var(--bg)), var(--accent-soft)); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .ts-now-inline:hover { transform: translateY(-1px); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .ts-clear { height: 44px; border-radius: 12px; }
+  .ts-quick button { height: 30px; padding: 0 13px; font-size: var(--fs-sm); }
+  .ts-time-input { height: 36px !important; border-radius: 10px !important; }
+  .ts-pick-box { border-radius: 14px; }
+  .ts-pick-date { height: 36px; border-radius: 10px; }
 </style>
