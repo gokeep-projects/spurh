@@ -5969,16 +5969,21 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   display: grid;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 88%, #fff 12%), color-mix(in srgb, var(--accent) 62%, #0b0e14));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 30%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22);
   transition: all var(--transition);
 }
-.settings-header .settings-head-icon svg { width: 17px; height: 17px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
-.settings-header .settings-head-icon:hover svg { transform: rotate(120deg); }
+.settings-header .settings-head-icon svg { width: 18px; height: 18px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .25)); transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+.settings-header .settings-head-icon:hover svg { transform: rotate(120deg) scale(1.06); }
+.app.light .settings-header .settings-head-icon {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 90%, #fff 10%), color-mix(in srgb, var(--accent) 68%, #1e2a52));
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 34%, transparent), inset 0 1px 0 rgba(255, 255, 255, .35);
+}
 .config-fields {
   display: flex;
   flex-direction: column;
