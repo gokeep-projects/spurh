@@ -94,6 +94,32 @@
     onChangeInput(String(Math.floor(Date.now() / 1000)));
   }
 
+  /** 时间戳 → 日期模式的即时解析反馈：本地时间 / UTC / ISO / 相对时间 / 秒与毫秒 */
+  const toDateParsed = $derived((() => {
+    const raw = session.input.trim();
+    if (!/^\d{1,14}$/.test(raw)) return null;
+    const unit = session.options.unit || 'auto';
+    let ms: number;
+    if (unit === 'seconds') ms = Number(raw) * 1000;
+    else if (unit === 'milliseconds') ms = Number(raw);
+    else ms = raw.length >= 13 ? Number(raw) : Number(raw) * 1000;
+    if (!Number.isFinite(ms) || ms <= 0) return null;
+    const d = new Date(ms);
+    if (Number.isNaN(d.getTime())) return null;
+    const diff = Math.round((d.getTime() - Date.now()) / 1000);
+    const abs = Math.abs(diff);
+    const rel = diff === 0 ? '就是现在'
+      : abs < 60 ? (diff > 0 ? '即将到来' : '刚刚')
+      : abs < 3600 ? (diff > 0 ? Math.floor(abs / 60) + ' 分钟后' : Math.floor(abs / 60) + ' 分钟前')
+      : abs < 86400 ? (diff > 0 ? Math.floor(abs / 3600) + ' 小时后' : Math.floor(abs / 3600) + ' 小时前')
+      : (diff > 0 ? Math.floor(abs / 86400) + ' 天后' : Math.floor(abs / 86400) + ' 天前');
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '本地';
+    const local = d.toLocaleString('zh-CN', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const utc = d.toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
+    const week = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()] || '';
+    return { ms, sec: String(Math.floor(ms / 1000)), msStr: String(ms), local, utc, iso: d.toISOString(), rel, week, tz };
+  })());
+
   /** 手动切换模式：进入 to-unix 时清空共享输入残留的非日期文本（如旧时间戳），避免被插件误解析 */
   function switchMode(id: string): void {
     const residual = session.input.trim();
@@ -271,6 +297,28 @@
       <button class="ts-clear" onclick={onClear} title="清空输入">清空</button>
     </div>
     <p class="ts-tip">支持 10 位（秒）与 13 位（毫秒）时间戳，可直接从日志、数据库或 API 响应中复制粘贴。</p>
+    {#if toDateParsed}
+      {#key toDateParsed.msStr}
+      <div class="ts-inline-card ts-to-date-card">
+        <div class="ts-inline-local">
+          <span>本地时间 · {toDateParsed.tz}</span>
+          <b>{toDateParsed.local}</b>
+          <em>{toDateParsed.week}</em>
+          {#if toDateParsed.rel}<i>{toDateParsed.rel}</i>{/if}
+        </div>
+        <div class="ts-inline-cols">
+          <button class="ts-chip" onclick={() => copyTs(toDateParsed.sec, 'sec')} title="点击复制">
+            <small>Unix 秒</small><b>{toDateParsed.sec}</b>{copiedTs === 'sec' ? '✓ 已复制' : '复制'}
+          </button>
+          <button class="ts-chip" onclick={() => copyTs(toDateParsed.msStr, 'ms')} title="点击复制">
+            <small>Unix 毫秒</small><b>{toDateParsed.msStr}</b>{copiedTs === 'ms' ? '✓ 已复制' : '复制'}
+          </button>
+        </div>
+        <div class="ts-inline-utc"><small>UTC</small><b>{toDateParsed.utc}</b></div>
+        <div class="ts-inline-utc"><small>ISO 8601</small><b>{toDateParsed.iso}</b></div>
+      </div>
+      {/key}
+    {/if}
     {:else if session.actionId === 'to-unix'}
     <div class="ts-row">
       <label class="ts-field ts-dtfield">
@@ -419,6 +467,11 @@
   .ts-input-wrap:focus-within input[type="datetime-local"] { border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); }
   .ts-input-wrap:focus-within .ts-dt-text { border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); }
   .ts-inline-card { position: relative; margin-top: 2px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 13px; background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 8%, var(--panel)), var(--panel-2) 60%); box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent); }
+  .ts-to-date-card { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 9px; animation: tsCardIn .22s cubic-bezier(.2,.9,.3,1.1); }
+  @keyframes tsCardIn { from { opacity: 0; transform: translateY(4px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .ts-inline-utc { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 5px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--w-03); }
+  .ts-inline-utc small { flex: 0 0 52px; color: var(--muted-2); font: 600 var(--fs-tiny) 'Cascadia Code', monospace; }
+  .ts-inline-utc b { min-width: 0; overflow: hidden; color: var(--text); font: 500 var(--fs-xs) 'Cascadia Code', Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
   .ts-inline-card::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120px 60px at 12% 0%, color-mix(in srgb, var(--c-cyan) 12%, transparent), transparent 70%); }
   .ts-inline-local { position: relative; display: flex; align-items: baseline; gap: 9px; padding: 11px 13px 5px; }
   .ts-inline-local span { color: var(--muted); font-size: var(--fs-tiny); letter-spacing: .4px; }
