@@ -5942,3 +5942,22 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .about-live::before {
   animation-duration: 1.8s;
 }
+
+
+
+/* ============================================================
+   v16 ??????
+   1) ??/??????? 12px ?? ? ??????(?? 15px ?? 14px)
+   2) ??? tagline 13px ? ??????
+   ============================================================ */
+.settings-section-title small,
+.setting-row small,
+.about-grid small,
+.about-note p,
+.about-hero p,
+.about-type,
+.about-version small,
+.about-ver-head small {
+  font-size: calc(var(--fs) - 1px) !important;
+}
+.settings-modal.about-mode .about-type { font-size: var(--fs-xs); }
