@@ -5393,3 +5393,400 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .topo-target.idle-target {
   filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 45%, transparent));
 }
+
+
+/* ---------- 10) 关于页 v10 炫酷动态层 ---------- */
+/* 标题渐变流光 */
+.about-hero h3.about-title {
+  background: linear-gradient(92deg, #22d3ee 0%, #8b5cf6 28%, #f472b6 52%, #fbbf24 72%, #22d3ee 100%);
+  background-size: 260% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: about-title-flow 6s linear infinite;
+}
+.app.light .about-hero h3.about-title {
+  background: linear-gradient(92deg, #0e7490 0%, #6d28d9 28%, #be185d 52%, #b45309 72%, #0e7490 100%);
+  background-size: 260% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: about-title-flow 6s linear infinite;
+}
+@keyframes about-title-flow { to { background-position: 260% center; } }
+
+/* 标题下渐变能量线 */
+.about-hero h3.about-title::after {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 2px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #22d3ee, #8b5cf6, #f472b6, transparent);
+  background-size: 220% auto;
+  animation: about-title-flow 3.2s linear infinite;
+  opacity: .75;
+}
+
+/* 徽标旋转光环（conic 渐变 + mask 圆环） */
+.about-logo-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.about-logo-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0%, rgba(34, 211, 238, .85) 10%, transparent 24%, transparent 46%, rgba(139, 92, 246, .85) 58%, transparent 72%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  animation: about-ring-spin 3.6s linear infinite;
+  pointer-events: none;
+}
+.about-logo-wrap::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  background: conic-gradient(from 180deg, transparent 0%, rgba(34, 211, 238, .4) 8%, transparent 20%, transparent 55%, rgba(232, 121, 249, .45) 64%, transparent 78%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  animation: about-ring-spin 7s linear infinite reverse;
+  pointer-events: none;
+}
+@keyframes about-ring-spin { to { transform: rotate(360deg); } }
+
+/* 徽标呼吸辉光 */
+.about-logo-wrap .about-logo {
+  animation: about-logo-breathe 3.2s ease-in-out infinite;
+}
+@keyframes about-logo-breathe {
+  0%, 100% { box-shadow: 0 0 18px rgba(34, 211, 238, .35), 0 0 0 1px rgba(129, 140, 248, .35); }
+  50% { box-shadow: 0 0 34px rgba(139, 92, 246, .55), 0 0 0 1px rgba(129, 140, 248, .6); }
+}
+
+/* LIVE 徽标：波纹扩散 */
+.about-live {
+  position: relative;
+}
+.about-live::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, .55);
+  animation: about-live-ripple 2.2s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes about-live-ripple {
+  0% { transform: scale(.92); opacity: .9; }
+  70% { transform: scale(1.28); opacity: 0; }
+  100% { transform: scale(1.28); opacity: 0; }
+}
+
+/* 能力环：数值发光 + 扫光 */
+.about-ring b {
+  font-variant-numeric: tabular-nums;
+  transition: text-shadow .5s ease;
+}
+.about-ring .ring-fill {
+  transition: stroke-dashoffset .7s cubic-bezier(.25, .9, .3, 1.2);
+  filter: drop-shadow(0 0 3px currentColor);
+}
+.about-ring:hover b { text-shadow: 0 0 12px rgba(34, 211, 238, .65); }
+
+/* 极光球缓慢漂移 */
+.about-orb-a { animation: about-orb-drift-a 9s ease-in-out infinite alternate; }
+.about-orb-b { animation: about-orb-drift-b 11s ease-in-out infinite alternate; }
+@keyframes about-orb-drift-a {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-14px, 10px) scale(1.12); }
+}
+@keyframes about-orb-drift-b {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(12px, -8px) scale(1.1); }
+}
+
+/* 版本徽章流光描边 */
+.about-ver-head b {
+  position: relative;
+  background: linear-gradient(120deg, #22d3ee, #8b5cf6, #f472b6, #22d3ee);
+  background-size: 260% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: about-title-flow 5s linear infinite;
+}
+
+/* 页脚呼吸版权行 */
+.about-foot { opacity: .75; transition: opacity .3s ease, transform .3s ease; }
+.about-stage:hover .about-foot { opacity: 1; transform: translateY(-1px); }
+
+/* 终端光标脉冲加速 */
+.term-caret, .about-caret { animation-duration: .8s; }
+
+/* ---------- 浅色主题：工作区加深一层，告别白蒙蒙 ---------- */
+.app.light .workspace {
+  background:
+    radial-gradient(52vw 36vh at 86% -8%, rgba(109, 40, 217, .20), transparent 62%),
+    radial-gradient(46vw 34vh at -4% 106%, rgba(14, 116, 144, .18), transparent 60%),
+    linear-gradient(180deg, #a9b9dd 0%, #8ea1cf 100%);
+}
+.app.light .editor-pane {
+  border-color: rgba(35, 58, 122, .55);
+  box-shadow: 0 18px 44px rgba(35, 58, 122, .3), 0 2px 8px rgba(35, 58, 122, .12);
+}
+
+/* ---------- 11) 字号修正：关于页说明小字与设置说明最小 12px ---------- */
+.about-status small,
+.settings-section-title small,
+.setting-row small,
+.about-grid small,
+.about-note p,
+.about-hero p,
+.about-type,
+.about-version small,
+.about-ver-head small {
+  font-size: 12px !important;
+}
+/* ============================================================
+   v12) 瀵规瘮搴?路 涓嬫媺鍙鎬?路 hover 淇 路 鎬ц兘淇灞?   1) 娴呰壊涓婚鍛婂埆鐧借挋钂欙細闈㈡澘鐫€鑹?鎻忚竟+闃村奖寮哄寲锛屽伐浣滃尯鍔犳繁
+   2) 娣辫壊涓婚闈㈡澘鍒嗗眰锛氳〃闈㈡彁浜€佹弿杈瑰姞鍥恒€侀《閮ㄩ珮鍏?   3) 鑱氱劍涓嬫媺妗嗗弻涓婚瀹炲簳 + 鍙娓愬彉鎻忚竟锛堜笉渚濊禆 backdrop-filter锛?   4) hover 鍙樼櫧淇锛氭殫鑹蹭笅鐢ㄩ潧钃濈潃鑹叉浛浠ｇ櫧鑹查€忔槑灞?   5) 鎬ц兘锛氱Щ闄ゅ父椹诲厓绱?backdrop blur
+   ============================================================ */
+
+/* ---------- 1) 娴呰壊涓婚 ---------- */
+.app.light .workspace {
+  background:
+    radial-gradient(52vw 36vh at 86% -8%, rgba(109, 40, 217, .22), transparent 62%),
+    radial-gradient(46vw 34vh at -4% 106%, rgba(14, 116, 144, .2), transparent 60%),
+    linear-gradient(180deg, #9fb1dd 0%, #7f93cc 100%);
+}
+
+.app.light .tool-controls {
+  background: linear-gradient(180deg, rgba(249, 251, 255, .98), rgba(242, 246, 255, .97));
+  border-color: rgba(58, 76, 150, .5);
+  border-bottom: 0;
+  box-shadow: 0 14px 34px rgba(37, 48, 100, .16);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.app.light .editor-grid {
+  background: linear-gradient(180deg, rgba(251, 253, 255, .98), rgba(245, 248, 255, .97));
+  border-color: rgba(58, 76, 150, .5);
+  box-shadow:
+    0 24px 56px rgba(37, 48, 100, .24),
+    0 2px 8px rgba(37, 48, 100, .1),
+    inset 0 1px 0 rgba(255, 255, 255, .85);
+}
+
+.app.light .editor-pane > header {
+  background: linear-gradient(180deg, rgba(231, 237, 253, .96), rgba(223, 231, 251, .92));
+  border-bottom-color: rgba(58, 76, 150, .4);
+}
+.app.light .editor-pane + .editor-pane { border-left-color: rgba(58, 76, 150, .48); }
+.app.light .editor-pane header > div { color: #303c6c; }
+.app.light .editor-pane header span,
+.app.light .editor-pane header small { color: #54618e; }
+.app.light .editor-pane header button {
+  color: #3d4671;
+  border-color: rgba(58, 76, 150, .3);
+  background: rgba(255, 255, 255, .85);
+}
+
+/* 鎺у埗鍖哄唴宓屾帶浠?*/
+.app.light .actions {
+  background: rgba(58, 76, 150, .08);
+  border-color: rgba(58, 76, 150, .3);
+}
+.app.light .options input,
+.app.light .options select {
+  background: #fff;
+  border-color: rgba(58, 76, 150, .38);
+}
+.app.light .options label > span { color: #3d4671; }
+
+/* 缁撴灉杈撳嚭鍖虹潃鑹?*/
+.app.light .output-pane { background: rgba(246, 249, 255, .55); }
+
+/* ---------- 2) 娣辫壊涓婚闈㈡澘鍒嗗眰 ---------- */
+.app .editor-grid {
+  background: linear-gradient(180deg, rgba(18, 23, 46, .92), rgba(13, 17, 34, .92));
+  border-color: rgba(148, 163, 255, .3);
+  box-shadow:
+    0 22px 60px rgba(0, 0, 0, .45),
+    inset 0 1px 0 rgba(255, 255, 255, .045);
+}
+.app .tool-controls {
+  background: linear-gradient(180deg, rgba(16, 21, 42, .94), rgba(12, 16, 33, .94));
+  border-color: rgba(148, 163, 255, .26);
+  border-bottom: 0;
+}
+.app .editor-pane > header {
+  background: linear-gradient(180deg, rgba(30, 37, 70, .6), rgba(24, 30, 58, .55));
+  border-bottom-color: rgba(148, 163, 255, .22);
+}
+.app .editor-pane + .editor-pane { border-left-color: rgba(148, 163, 255, .26); }
+
+/* ---------- 3) 鑱氱劍涓嬫媺妗嗭細鍙屼富棰樺疄搴?+ 鍙娓愬彉鎻忚竟 ---------- */
+.dispatch-matches {
+  background:
+    linear-gradient(rgba(17, 22, 44, .985), rgba(13, 17, 34, .985)) padding-box,
+    linear-gradient(160deg, rgba(34, 211, 238, .7), rgba(129, 140, 248, .6) 45%, rgba(232, 121, 249, .7)) border-box;
+  border: 1px solid transparent;
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, .58),
+    0 0 0 1px rgba(129, 140, 248, .2),
+    0 0 46px rgba(99, 102, 241, .18);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.app.light .dispatch-matches {
+  background:
+    linear-gradient(rgba(255, 255, 255, .995), rgba(246, 249, 255, .995)) padding-box,
+    linear-gradient(160deg, rgba(14, 116, 144, .75), rgba(109, 40, 217, .65) 45%, rgba(190, 24, 93, .75)) border-box;
+  box-shadow:
+    0 26px 70px rgba(37, 48, 100, .42),
+    0 0 0 1px rgba(79, 70, 229, .22),
+    0 0 46px rgba(99, 102, 241, .18);
+}
+.dispatch-matches button:hover,
+.dispatch-matches button.active { background: rgba(129, 140, 248, .18); }
+.app.light .dispatch-matches button:hover,
+.app.light .dispatch-matches button.active { background: rgba(79, 70, 229, .1); }
+.app.light .dispatch-idle { color: #33406e; }
+.app.light .dispatch-idle b { color: #1e2a56; }
+.app.light .dispatch-idle small { color: #55618c; }
+
+/* ---------- 4) hover 鍙樼櫧淇锛氱敤涓婚鑹茬潃鑹蹭唬鏇跨櫧鑹查€忔槑灞?---------- */
+.app .sidebar-toggle:hover,
+.app .brand:hover,
+.app .settings-nav button:hover,
+.app .palette-group button:hover,
+.app .clip-overlay-results button:hover,
+.app .profile-list > button:hover,
+.app .setting-row:hover,
+.app .tool-list button:hover {
+  background: rgba(129, 140, 248, .1);
+}
+.app.light .sidebar-toggle:hover,
+.app.light .brand:hover,
+.app.light .settings-nav button:hover,
+.app.light .palette-group button:hover,
+.app.light .clip-overlay-results button:hover,
+.app.light .profile-list > button:hover,
+.app.light .setting-row:hover,
+.app.light .tool-list button:hover {
+  background: rgba(58, 76, 150, .09);
+}
+
+/* ---------- 5) 鎬ц兘锛氬父椹诲厓绱犵Щ闄?backdrop blur ---------- */
+.dispatcher {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ---------- 6) 鍏充簬椤碉細鏁翠綋鑳介噺鍛煎惛 + 绉戞妧鑺墖娴佸厜 ---------- */
+.settings-modal.about-mode .about-stage {
+  box-shadow:
+    0 0 0 1px rgba(129, 140, 248, .18),
+    0 34px 90px rgba(0, 0, 0, .5),
+    0 0 60px rgba(99, 102, 241, .12);
+}
+.app.light .settings-modal.about-mode .about-stage {
+  box-shadow:
+    0 0 0 1px rgba(109, 40, 217, .16),
+    0 30px 80px rgba(37, 48, 100, .3),
+    0 0 50px rgba(99, 102, 241, .14);
+}
+.about-chips span {
+  position: relative;
+  overflow: hidden;
+}
+.about-chips span::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 42%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .14), transparent);
+  transform: skewX(-16deg);
+  animation: about-chip-shine 4.5s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * .35s);
+  pointer-events: none;
+}
+@keyframes about-chip-shine {
+  0%, 55% { left: -60%; }
+  85%, 100% { left: 130%; }
+}
+.app.light .about-chips span::after {
+  background: linear-gradient(105deg, transparent, rgba(109, 40, 217, .16), transparent);
+}
+
+/* ============================================================
+   v12b) 娴呰壊涓婚闈㈡澘鐫€鑹茶皟浼橈細浠庣函鐧芥敼涓哄喎璋冭摑鐧?   ============================================================ */
+.app.light .workspace {
+  background:
+    radial-gradient(52vw 36vh at 86% -8%, rgba(109, 40, 217, .24), transparent 62%),
+    radial-gradient(46vw 34vh at -4% 106%, rgba(14, 116, 144, .22), transparent 60%),
+    linear-gradient(180deg, #93a8d9 0%, #6f86c4 100%);
+}
+
+.app.light .tool-controls {
+  background: linear-gradient(180deg, #f1f5fd 0%, #e8eef9 100%);
+  border-color: rgba(58, 76, 150, .52);
+  border-bottom: 0;
+  box-shadow: 0 14px 34px rgba(37, 48, 100, .16);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.app.light .editor-grid {
+  background: linear-gradient(180deg, #f2f5fc 0%, #e7edf9 100%);
+  border-color: rgba(58, 76, 150, .52);
+  box-shadow:
+    0 24px 56px rgba(37, 48, 100, .26),
+    0 2px 8px rgba(37, 48, 100, .12),
+    inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+
+/* 杈撳叆/杈撳嚭缂栬緫鍖虹函鐧藉簳锛屼笌闈㈡澘鍐疯皟褰㈡垚鍗＄墖鎰?*/
+.app.light .editor-pane textarea,
+.app.light .editor-pane pre {
+  background: rgba(255, 255, 255, .88);
+}
+.app.light .editor-input { background: rgba(255, 255, 255, .88); }
+
+.app.light .editor-pane > header {
+  background: linear-gradient(180deg, #dfe8f9 0%, #d5e0f5 100%);
+  border-bottom-color: rgba(58, 76, 150, .42);
+}
+.app.light .editor-pane + .editor-pane { border-left-color: rgba(58, 76, 150, .5); }
+.app.light .editor-pane header > div { color: #2c3766; }
+.app.light .editor-pane header span,
+.app.light .editor-pane header small { color: #4e5a88; }
+.app.light .editor-pane header button {
+  color: #3d4671;
+  border-color: rgba(58, 76, 150, .32);
+  background: rgba(255, 255, 255, .9);
+}
+
+/* 鎺у埗鍖哄唴宓屾帶浠?*/
+.app.light .actions {
+  background: rgba(58, 76, 150, .09);
+  border-color: rgba(58, 76, 150, .32);
+}
+.app.light .options input,
+.app.light .options select {
+  background: #fff;
+  border-color: rgba(58, 76, 150, .4);
+}
+.app.light .options label > span { color: #3d4671; }
+
+/* 缁撴灉杈撳嚭鍖虹潃鑹?*/
+.app.light .output-pane { background: rgba(239, 244, 253, .6); }
+
