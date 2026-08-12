@@ -1332,7 +1332,7 @@
                     <div class="sql-tree-loading">加载表…</div>
                   {:else if db.tables && db.tables.length > 0}
                     {#each db.tables as table}
-                      <button class="sql-table-row" class:active={selectedTable === table.name && selectedDb === db.name} onclick={() => selectTable(db.name, table)} oncontextmenu={(event) => openTableMenu(event, db.name, table.name)} title={table.name}>
+                      <button class="sql-table-row" class:active={selectedTable === table.name && selectedDb === db.name} onclick={() => selectTable(db.name, table)} oncontextmenu={(event) => openTableMenu(event, db.name, table.name)} data-tip={table.name.length > 24 ? table.name : ''}>
                         <span class="tbl-ico">{@html table.kind === 'VIEW' ? VIEW_ICON : TABLE_ICON}</span>
                         <b>{table.name}</b>
                         {#if table.kind === 'VIEW'}<em>视图</em>{/if}
@@ -1929,6 +1929,30 @@
   .sql-tables { display: flex; flex-direction: column; gap: 1px; padding: 1px 0 4px 18px; }
   .sql-table-row { width: 100%; height: 25px; display: flex; align-items: center; gap: 7px; padding: 0 8px; cursor: pointer; text-align: left; color: var(--muted); border: 1px solid transparent; border-radius: 8px; background: transparent; transition: all .13s ease; }
   .sql-table-row:hover { color: var(--text); background: var(--hover); }
+  .sql-table-row { position: relative; }
+  .sql-table-row[data-tip]:not([data-tip=""])::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    top: calc(100% + 4px);
+    z-index: 30;
+    padding: 6px 9px;
+    overflow: hidden;
+    color: var(--text);
+    font-size: var(--fs-xs);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    background: var(--panel-2);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, .42);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition: opacity .12s ease, transform .12s ease;
+  }
+  .sql-table-row[data-tip]:not([data-tip=""]):hover::after { opacity: 1; transform: translateY(0); }
   .sql-table-row.active { color: var(--text); border-color: color-mix(in srgb, var(--accent) 26%, var(--line)); background: var(--accent-soft); }
   .tbl-ico { display: inline-flex; flex: 0 0 auto; color: var(--blue); }
   :global(.tbl-ico svg) { width: 12px; height: 12px; }
