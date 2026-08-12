@@ -527,8 +527,8 @@
     // 同步在快速连续切换时的崩溃风险，同时降低高频写入开销
     const result = currentSessionResult();
     const next = result
-        ? `Spurh ${__BUILD_DATE__} | result ${(result.summary || 'ok').slice(0, 24)} | ${result.output?.length ?? 0}c`
-        : `Spurh ${__BUILD_DATE__} | ready`;
+        ? `Spurh v0.1.1 ${__BUILD_DATE__} | result ${(result.summary || 'ok').slice(0, 24)} | ${result.output?.length ?? 0}c`
+        : `Spurh v0.1.1 ${__BUILD_DATE__} | ready`;
     clearTimeout(titleTimer);
     titleTimer = setTimeout(() => {
       if (document.title !== next) document.title = next;
@@ -604,7 +604,7 @@
       safeInvoke('set_tray_enabled', { enabled: appSettings.trayEnabled }).catch(() => undefined);
     }, 800);
     // 可见版本标识：窗口标题带构建日期，用于确认当前运行的是最新代码
-    document.title = `Spurh · ${__BUILD_DATE__}`;
+    document.title = `Spurh v0.1.1 · ${__BUILD_DATE__}`;
     const onFrontendError = (event: ErrorEvent | PromiseRejectionEvent): void => {
       const message = event instanceof PromiseRejectionEvent
         ? `unhandledrejection: ${event.reason instanceof Error ? event.reason.message : String(event.reason)}`
