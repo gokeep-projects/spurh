@@ -89,6 +89,7 @@
 </script>
 
 <div class="crypto-panel">
+  <div class="crypto-head"><span class="crypto-head-ico">{@html UI_ICONS.shield}</span><b>加密与摘要</b><small>本地运算 · 密钥不离开本机 · 点击上方分组切换算法</small></div>
   <div class="crypto-chips">
     {#each GROUPS as group}
       <span class="crypto-grp">{@html group.icon}<b>{group.label}</b></span>
@@ -120,8 +121,13 @@
 </div>
 
 <style>
-  .crypto-panel { display: flex; flex-direction: column; gap: 5px; width: 100%; min-width: 0; }
-  .crypto-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--panel) 96%, var(--accent-soft)); }
+  .crypto-panel { display: flex; flex-direction: column; gap: 7px; width: 100%; min-width: 0; }
+  .crypto-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .crypto-head-ico { display: inline-flex; color: var(--accent); }
+  .crypto-head-ico svg { width: 14px; height: 14px; }
+  .crypto-head b { font-size: var(--fs-sm); font-weight: 700; }
+  .crypto-head small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-2); font-size: var(--fs-xs); }
+  .crypto-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 11px; background: color-mix(in srgb, var(--panel) 96%, var(--accent-soft)); }
   .crypto-grp { display: inline-flex; align-items: center; gap: 4px; margin-right: 2px; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
   /* svelte-ignore css_unused_selector */
   .crypto-grp :global(svg) { width: 12px; height: 12px; }

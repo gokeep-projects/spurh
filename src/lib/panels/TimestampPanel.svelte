@@ -72,6 +72,14 @@
     { id: 'thisMonth', label: '本月 1 日' },
     { id: 'thisYear', label: '今年 1 月 1 日' },
   ];
+  /** 常用时刻快捷预设：点击即回填 HH:mm */
+  const TIME_PRESETS = [
+    { label: '00:00', value: '00:00:00', title: '零点' },
+    { label: '09:30', value: '09:30:00', title: '上午九点半' },
+    { label: '12:00', value: '12:00:00', title: '正午' },
+    { label: '18:00', value: '18:00:00', title: '傍晚六点' },
+    { label: '23:59', value: '23:59:59', title: '一天结束' },
+  ];
 
   function refreshNow(): void {
     onChangeOption('unit', session.options.unit || 'auto');
@@ -330,8 +338,16 @@
             <em class="ts-cal-caret">▾</em>
           </button>
           <span class="ts-pick-sep">·</span>
-          <input class="ts-time-input" value={timeText} placeholder="00:00" spellcheck="false" oninput={(e) => handleTimeText(e.currentTarget.value)} />
+          <span class="ts-time-wrap">
+            <i class="ts-clock-ico">{@html UI_ICONS.clock}</i>
+            <input class="ts-time-input" value={timeText} placeholder="00:00" spellcheck="false" oninput={(e) => handleTimeText(e.currentTarget.value)} />
+          </span>
           <button class="ts-now-inline" onclick={() => quickPick('now')} title="填入当前时间">现在</button>
+          <div class="ts-time-presets">
+            {#each TIME_PRESETS as item}
+              <button class:active={timeText === item.value} onclick={() => handleTimeText(item.value)} title={item.title}>{item.label}</button>
+            {/each}
+          </div>
           {#if calOpen}
             <div class="ts-cal" role="dialog" aria-label="选择日期">
               <header class="ts-cal-head">
@@ -506,6 +522,14 @@
   .ts-pick-box.open .ts-cal-caret { transform: rotate(180deg); }
   .ts-pick-sep { color: var(--muted-2); }
   .ts-time-input { width: 96px; height: 32px; padding: 0 8px; color: var(--text); font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; text-align: center; border: 1px solid var(--line-2); border-radius: 8px; outline: 0; background: var(--w-04); transition: border-color .15s ease, box-shadow .2s ease; }
+  .ts-time-wrap { position: relative; display: inline-flex; align-items: center; }
+  .ts-time-wrap .ts-clock-ico { position: absolute; left: 8px; display: inline-flex; color: var(--muted-2); pointer-events: none; }
+  .ts-time-wrap .ts-clock-ico svg { width: 13px; height: 13px; }
+  .ts-time-wrap .ts-time-input { width: 118px; padding: 0 8px 0 27px; text-align: left; }
+  .ts-time-presets { display: inline-flex; gap: 4px; }
+  .ts-time-presets button { height: 26px; padding: 0 8px; cursor: pointer; color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line-2); border-radius: 7px; background: var(--w-03); transition: all .15s ease; }
+  .ts-time-presets button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: var(--accent-soft); }
+  .ts-time-presets button.active { color: #fff; background: var(--btn-gradient); border-color: transparent; box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 35%, transparent); }
   .ts-time-input:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line-2)); }
   .ts-time-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
   .ts-now-inline { height: 28px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 650; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line-2)); border-radius: 8px; background: var(--accent-soft); transition: all .15s ease; }
