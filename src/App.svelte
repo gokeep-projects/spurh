@@ -43,7 +43,7 @@
   };
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'HarmonyOS Sans SC', 'MiSans', 'Segoe UI Variable Text', 'Segoe UI', ui-sans-serif, system-ui, sans-serif",
+    '系统默认': "'Segoe UI Variable Text', 'Segoe UI Variable Display', 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', ui-sans-serif, system-ui, sans-serif",
     '微软雅黑': "'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', sans-serif",
     '等线': "'DengXian', 'DengXian Light', 'HarmonyOS Sans SC', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'SimHei', '黑体', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif",
@@ -1989,17 +1989,16 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                 <label><span>名称</span><input bind:value={aiDraft.name} placeholder="例如：日常" /></label>
                 <label><span>地址</span><input bind:value={aiDraft.endpoint} placeholder="https://api.example.com/v1" /></label>
                 <label class="model-field"><span>模型</span><div>
-                  {#if modelList.length > 0}
-                    <select bind:value={aiDraft.model}><option value="">-- 选择 --</option>{#each modelList as model}<option value={model.id}>{model.id}</option>{/each}</select>
-                    <button class:loading={modelListLoading} class="model-fetch-link" disabled={modelListLoading} onclick={loadRemoteModels} title="重新从当前地址拉取模型列表">{@html UI_ICONS.refresh}重新拉取</button>
-                  {:else}
-                    <span class="model-input-wrap">
+                  <span class="model-input-wrap">
+                    {#if modelList.length > 0}
+                      <select bind:value={aiDraft.model}><option value="">-- 选择 --</option>{#each modelList as model}<option value={model.id}>{model.id}</option>{/each}</select>
+                    {:else}
                       <input list="rm" bind:value={aiDraft.model} placeholder="输入模型名，或拉取列表" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
-                    </span>
-                    {#if aiDraft.endpoint.trim()}
-                      <button class:loading={modelListLoading} class="model-fetch-link" disabled={modelListLoading || !aiDraft.endpoint.trim()} onclick={loadRemoteModels} title="从当前地址拉取模型列表">{@html UI_ICONS.refresh}{modelListLoading ? '拉取中…' : '拉取模型列表'}</button>
                     {/if}
-                  {/if}
+                    {#if modelList.length > 0 || aiDraft.endpoint.trim()}
+                      <button class:loading={modelListLoading} class="model-fetch-link" disabled={modelListLoading} onclick={loadRemoteModels} title="从当前地址拉取模型列表">{@html UI_ICONS.refresh}{modelList.length > 0 ? (modelListLoading ? '拉取中…' : '重新拉取') : (modelListLoading ? '拉取中…' : '拉取')}</button>
+                    {/if}
+                  </span>
                 </div></label>
                 <label><span>密钥</span><span class="ai-secret">
                   <input type={aiKeyVisible ? 'text' : 'password'} bind:value={aiDraft.apiKey} placeholder={aiDraft.provider === 'ollama' ? '可留空' : 'sk-…'} autocomplete="off" />
