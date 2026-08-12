@@ -5807,7 +5807,9 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app .tool-list .tool-icon { width: 26px; height: 26px; border-radius: 8px; }
 .app .tool-list .tool-icon svg { width: 14px; height: 14px; }
 .app .sidebar-foot { padding: 0 10px 10px; }
-.app .sidebar-foot button { height: 36px; padding: 0 12px; border-radius: 10px; }
+.app .sidebar-foot button { height: 36px; width: 100%; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 10px; }
+.app .sidebar-foot button svg { width: 16px; height: 16px; }
+.app .sidebar-foot button b { font-size: var(--fs-sm); font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
   .settings-modal.about-mode .about-logo-ring { animation: about-logo-ring-spin 6s linear infinite !important; }

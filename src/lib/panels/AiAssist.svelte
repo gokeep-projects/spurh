@@ -130,7 +130,7 @@
 </div>
 
 <style>
-  .ai-assist { position: relative; width: 100%; max-width: min(740px, 100%); margin: 10px auto 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: var(--radius); background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 8%, transparent); transition: border-color .2s ease, box-shadow .2s ease; }
+  .ai-assist { position: relative; width: 100%; max-width: min(620px, 100%); margin: 10px auto 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: var(--radius); background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 8%, transparent); transition: border-color .2s ease, box-shadow .2s ease; }
   .ai-assist::before { content: ""; position: absolute; inset: -40% -20% auto; height: 60%; background: radial-gradient(40% 60% at 30% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%); pointer-events: none; }
   .ai-assist:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); box-shadow: 0 8px 30px color-mix(in srgb, var(--accent) 14%, transparent); }
     .ai-assist { position: relative; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-radius: var(--radius); background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 8%, transparent); transition: border-color .2s ease, box-shadow .2s ease; }
@@ -147,6 +147,8 @@
   .ai-toggle:hover { background-position: 100% 0; transform: translateY(-1px); box-shadow: 0 5px 18px color-mix(in srgb, var(--accent) 40%, transparent); }
   .ai-toggle.on { background: linear-gradient(120deg, color-mix(in srgb, var(--c-magenta) 80%, var(--accent)), var(--accent) 55%, color-mix(in srgb, var(--c-cyan) 80%, var(--accent))); }
   .ai-spark { display: inline-flex; }
+  .ai-toggle.on .ai-spark { animation: aiSparkSpin 3.6s linear infinite; }
+  @keyframes aiSparkSpin { to { transform: rotate(360deg); } }
   :global(.ai-spark svg) { width: 12px; height: 12px; }
   .ai-toggle i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .85); }
   .ai-toggle i.busy { background: #fff; box-shadow: 0 0 8px #fff; animation: aiPulse 1s ease infinite; }
