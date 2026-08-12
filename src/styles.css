@@ -6233,3 +6233,23 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app.light .dispatcher:focus-within textarea::placeholder,
 .app.light .dispatcher:focus-within input::placeholder { color: #7a86a6; }
 .app.light .dispatcher:focus-within > kbd { color: #4a577e; background: rgba(28, 38, 84, .06); border-color: rgba(28, 38, 84, .18); }
+
+/* ============ v59: light-theme depth, settings header polish, narrow-window responsive ============ */
+.app.light {
+  --bg0: #e2e8f6;
+  background:
+    radial-gradient(60vw 46vh at 84% -10%, rgba(124, 74, 228, .17), transparent 62%),
+    radial-gradient(54vw 42vh at 4% 108%, rgba(8, 145, 178, .14), transparent 60%),
+    radial-gradient(42vw 36vh at 50% 112%, rgba(190, 24, 93, .08), transparent 62%),
+    linear-gradient(180deg, #eef2fc 0%, #e1e8f6 100%);
+}
+.app.light .sidebar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .74), rgba(240, 244, 253, .52));
+  border-right: 1px solid rgba(35, 58, 122, .14);
+}
+.settings-header .settings-head-icon { width: 30px; height: 30px; border-radius: 9px; }
+.settings-header .settings-head-icon svg { width: 15px; height: 15px; }
+.settings-header h2 { font-size: 17px; letter-spacing: .3px; }
+@media (max-width: 880px) {
+  .settings-layout { grid-template-columns: 168px minmax(0, 1fr); }
+}
