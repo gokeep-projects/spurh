@@ -450,6 +450,7 @@
   .app.light .ts-input-wrap input[type="datetime-local"] { color-scheme: light; }
   .ts-input-wrap input[type="datetime-local"]::-webkit-calendar-picker-indicator { width: 20px; height: 20px; margin-right: 52px; cursor: pointer; opacity: .7; }
   .ts-now-inline { top: 50%; transform: translateY(-50%); }
+  .ts-dtfield { flex: 1 1 560px !important; max-width: none !important; min-width: 0; }
   .ts-dtfield .ts-live-unix { display: none; }
   .ts-dtfield:has(.ts-inline-card) { min-width: 100%; max-width: none; width: 100%; }
   .ts-live-unix { display: flex; align-items: baseline; gap: 7px; padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--c-green) 30%, var(--line)); border-radius: 9px; background: color-mix(in srgb, var(--c-green) 6%, var(--panel)); }
@@ -458,7 +459,7 @@
   .ts-live-unix small { color: var(--muted-2); font-size: var(--fs-xs); }
   .ts-field.ts-narrow select { width: 112px; }
   .ts-row .ts-field:first-child { flex: 1 1 auto; min-width: 240px; max-width: 340px; }
-  .ts-row .ts-field:first-child input { width: 100%; }
+  .ts-row .ts-field:first-child input:not(.ts-time-input) { width: 100%; }
   .ts-now, .ts-clear { height: 30px; padding: 0 14px; cursor: pointer; color: var(--muted); font-size: var(--fs-sm); border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); transition: all var(--transition); }
   .ts-now { display: inline-flex; align-items: center; gap: 6px; }
   .ts-now span { display: inline-flex; }
@@ -510,10 +511,11 @@
   .ts-live-clock small { color: var(--muted-2); font-size: var(--fs-xs); }
 
 /* 自定义日期选择器 */
-  .ts-pick-box { position: relative; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 12px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(160deg, var(--w-04), var(--w-02)); transition: border-color .15s ease, box-shadow .2s ease, transform .15s ease; }
+  .ts-pick-box { position: relative; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 12px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(160deg, var(--w-04), var(--w-02)); transition: border-color .15s ease, box-shadow .2s ease, transform .15s ease; flex-wrap: wrap; row-gap: 4px; height: auto; min-height: 44px; padding-bottom: 6px; }
+  .ts-pick-box:not(:has(.ts-time-presets)) { height: 44px; padding-bottom: 6px; }
   .ts-pick-box:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 14%, transparent); }
   .ts-pick-box.open { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 6px 22px color-mix(in srgb, var(--accent) 16%, transparent); }
-  .ts-pick-date { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px 0 6px; cursor: pointer; color: var(--text); font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 0; border-radius: 8px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 15%, var(--w-06)), var(--w-06)); transition: background .15s ease, transform .15s ease; }
+  .ts-pick-date { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px 0 6px; cursor: pointer; color: var(--text); font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 0; border-radius: 8px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 15%, var(--w-06)), var(--w-06)); transition: background .15s ease, transform .15s ease; flex: 0 0 auto; }
   .ts-pick-date:hover { background: color-mix(in srgb, var(--accent) 22%, var(--w-06)); transform: translateY(-1px); }
   .ts-pick-date b { font-weight: 650; letter-spacing: .4px; }
   .ts-cal-ico { display: inline-flex; color: var(--accent); }
@@ -522,11 +524,11 @@
   .ts-pick-box.open .ts-cal-caret { transform: rotate(180deg); }
   .ts-pick-sep { color: var(--muted-2); }
   .ts-time-input { width: 96px; height: 32px; padding: 0 8px; color: var(--text); font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; text-align: center; border: 1px solid var(--line-2); border-radius: 8px; outline: 0; background: var(--w-04); transition: border-color .15s ease, box-shadow .2s ease; }
-  .ts-time-wrap { position: relative; display: inline-flex; align-items: center; }
+  .ts-time-wrap { position: relative; display: inline-flex; align-items: center; flex: 0 0 auto; }
   .ts-time-wrap .ts-clock-ico { position: absolute; left: 8px; display: inline-flex; color: var(--muted-2); pointer-events: none; }
   .ts-time-wrap .ts-clock-ico svg { width: 13px; height: 13px; }
   .ts-time-wrap .ts-time-input { width: 118px; padding: 0 8px 0 27px; text-align: left; }
-  .ts-time-presets { display: inline-flex; gap: 4px; }
+  .ts-time-presets { display: inline-flex; gap: 4px; flex: 1 1 auto; flex-wrap: wrap; }
   .ts-time-presets button { height: 26px; padding: 0 8px; cursor: pointer; color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line-2); border-radius: 7px; background: var(--w-03); transition: all .15s ease; }
   .ts-time-presets button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: var(--accent-soft); }
   .ts-time-presets button.active { color: #fff; background: var(--btn-gradient); border-color: transparent; box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 35%, transparent); }

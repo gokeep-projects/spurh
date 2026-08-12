@@ -38,6 +38,9 @@
   const SETTINGS_TAB_TITLES: Record<SettingsTab, string> = {
     general: '通用设置', ai: 'AI 模型', shortcuts: '快捷键', tools: '工具管理', about: '关于 Spurh',
   };
+  const SETTINGS_TAB_HINTS: Record<SettingsTab, string> = {
+    general: '主题 · 启动 · 托盘 · 顶栏显示', ai: '服务商配置 · 模型管理', shortcuts: '全局绑定 · 点击后直接按下新组合', tools: '侧栏与聚焦框中的工具显示', about: '版本信息 · 本地优先 · AI 增强',
+  };
 
   const FONT_STACKS: Record<string, string> = {
     '系统默认': "-apple-system, BlinkMacSystemFont, 'Segoe UI Variable', 'Segoe UI Variable Text', 'Segoe UI', 'Noto Sans SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', ui-sans-serif, system-ui, sans-serif",
@@ -1874,7 +1877,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   {#if settingsOpen}
     <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) { event.stopPropagation(); } }}>
       <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
-        <header class="settings-header"><span class="settings-head-icon" title="设置">{@html UI_ICONS.settings}</span><div class="settings-head-copy"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2></div><button onclick={() => (settingsOpen = false)} aria-label="关闭">{@html UI_ICONS.close}</button></header>
+        <header class="settings-header"><span class="settings-head-icon" title={SETTINGS_TAB_TITLES[settingsTab]}>{@html SETTINGS_TAB_ICONS[settingsTab]}</span><div class="settings-head-copy"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><p>{SETTINGS_TAB_HINTS[settingsTab]}</p></div><button onclick={() => (settingsOpen = false)} aria-label="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">
           <nav class="settings-nav">
             <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b></div></button>

@@ -250,7 +250,7 @@
         {#each EXAMPLES_FAVORITES as ex}
           <button class:active={type === 'custom' && (session.options.customExpr || '').trim() === ex.expr} title={ex.expr} onclick={() => applyExample(ex.expr)}>{ex.label}</button>
         {/each}
-        <button class="cron-examples-more" onclick={() => (examplesOpen = !examplesOpen)} title={examplesOpen ? '收起全部表达式' : '展开全部常用表达式'}>{examplesOpen ? '收起 ▲' : `更多 ${EXAMPLES.length} 个 ▼`}</button>
+        <button class="cron-examples-more" onclick={() => (examplesOpen = !examplesOpen)} title={examplesOpen ? '收起全部表达式' : '展开全部常用表达式'}>{examplesOpen ? '收起 ▲' : `更多常用表达式 ${EXAMPLES.length} 个 ▼`}</button>
         {#if examplesOpen}
           <div class="cron-examples-panel">
             {#each EXAMPLE_GROUPS as group}
