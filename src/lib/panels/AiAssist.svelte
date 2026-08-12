@@ -134,7 +134,7 @@
   .ai-assist::after { content: ""; position: absolute; inset: -60% -40% auto; height: 120%; background: radial-gradient(42% 55% at 22% 0%, color-mix(in srgb, var(--c-cyan) 13%, transparent), transparent 70%), radial-gradient(40% 55% at 78% 0%, color-mix(in srgb, var(--c-magenta) 13%, transparent), transparent 70%); opacity: .7; pointer-events: none; animation: aiAurora 7s ease-in-out infinite alternate; }
   @keyframes aiAurora { from { transform: translateX(-3%); } to { transform: translateX(3%); } }
   .ai-assist.compact { max-width: min(360px, 100%); margin: 8px auto 0; }
-  .ai-assist:has(.ai-toggle.on) .ai-head { justify-content: flex-start; }
+  .ai-assist:has(.ai-toggle.on) .ai-head { justify-content: center; }
   .ai-assist::before { content: ""; position: absolute; inset: 0; padding: 1px; border-radius: inherit; background: linear-gradient(120deg, transparent 12%, color-mix(in srgb, var(--c-cyan) 45%, transparent) 38%, color-mix(in srgb, var(--c-magenta) 45%, transparent) 62%, transparent 88%); background-size: 220% 100%; animation: aiBorderFlow 5s linear infinite; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; pointer-events: none; }
   @keyframes aiBorderFlow { to { background-position: -220% 0; } }
   .ai-assist:hover { border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 14%, transparent); }
