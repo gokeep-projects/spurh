@@ -1798,6 +1798,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     <button class="sidebar-toggle" onclick={toggleSidebar} aria-label="切换侧栏" title="显示或隐藏侧栏">{@html UI_ICONS.menu}</button>
     <button class="brand" onclick={toggleSidebar} aria-label="Spurh" title="Spurh 工具箱">
       <span class="brand-mark">{@html BRAND_MARK}</span>
+      <b class="brand-name">Spurh</b>
     </button>
     <div class="dispatcher">
         <span class="dispatcher-spark" class:active={dispatcherOpen}>{@html UI_ICONS.sparkle}</span>
