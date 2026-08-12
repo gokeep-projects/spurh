@@ -199,40 +199,22 @@
   let paletteElement = $state<HTMLInputElement | undefined>(undefined);
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
-  /* ── 关于页实时动态：会话运行时长 + 实时时钟 ── */
-  let aboutUptime = $state(0);
-  let aboutClock = $state('');
-  let aboutTimer: ReturnType<typeof setInterval> | undefined;
-  function formatUptime(seconds: number): string {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return h > 0 ? `${h} 时 ${m} 分` : m > 0 ? `${m} 分 ${s} 秒` : `${s} 秒`;
-  }
-  function formatClock(date: Date): string {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const week = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())} 星期${week}`;
-  }
+  /* ── 关于页实时动态：打字标语 + 能力标签 ── */
   let aboutCanvas = $state<HTMLCanvasElement | undefined>(undefined);
   let aboutTagline = $state('');
   let aboutPanelsShown = $state(0);
   let aboutStageEl = $state<HTMLDivElement | undefined>(undefined);
-  let termLines = $state<Array<{ cls: string; text: string }>>([]);
-  let termTyping = $state<{ cls: string; text: string } | null>(null);
-  const aboutCapsTarget = { ai: 94, local: 96, cover: 92, priv: 98 };
-  const aboutRingList = [
-    { k: 'ai', l: 'AI 增强', c: '#22d3ee' },
-    { k: 'local', l: '本地性能', c: '#34d399' },
-    { k: 'cover', l: '工具覆盖', c: '#8b5cf6' },
-    { k: 'priv', l: '隐私安全', c: '#f472b6' },
-  ] as const;
-  let aboutCaps = $state({ ai: 0, local: 0, cover: 0, priv: 0 });
+  const aboutChipWords = [
+    { t: 'JSON 格式化', i: 0 }, { t: '时间戳转换', i: 1 }, { t: '文本处理', i: 2 },
+    { t: '随机生成', i: 3 }, { t: '加解密', i: 4 }, { t: 'Cron 表达式', i: 5 },
+    { t: '编码转换', i: 6 }, { t: '正则表达式', i: 7 }, { t: '数据库工具', i: 8 },
+    { t: '网络工具', i: 9 }, { t: '远程连接', i: 10 }, { t: 'AI 增强', i: 11 },
+    { t: '本地优先', i: 12 }, { t: '隐私安全', i: 13 },
+  ];
   const aboutPhrases = ['AI Native Developer Toolbox', '本地优先 · 数据不出设备', '粘贴即用 · 一步完成', '11 个工具 · 一个入口'];
   const aboutToolNames = ['JSON 格式化', '时间戳转换', '文本处理', '随机生成', '加解密', 'Cron 表达式', '编码转换', '正则表达式', '数据库工具', '网络工具', '远程连接'];
   const BUILD_STAMP = __BUILD_DATE__; // 构建标记来自 vite define
-  const APP_LAUNCH_TIME = Date.now(); // 应用启动时刻，用于关于页展示真实运行时长
-
+  
   function startAboutCanvas(canvas: HTMLCanvasElement, stage: HTMLElement, isLight: boolean): () => void {
     const ctx = canvas.getContext('2d');
     if (!ctx) return () => {};
@@ -314,44 +296,7 @@
     };
   }
 
-  function startAboutTerminal(): () => void {
-    const lines: Array<{ cls: string; text: string }> = [
-      { cls: 'cmd', text: '$ spurh --version' },
-      { cls: 'out', text: 'Spurh v0.1.0 · 11 tools · 本地优先' },
-      { cls: 'cmd', text: '$ spurh status' },
-      { cls: 'out', text: 'engine online · ai ready' },
-      { cls: 'cmd', text: '$ spurh run json:format --input demo' },
-      { cls: 'out', text: '✓ 格式化完成 · 结果已复制' },
-      { cls: 'cmd', text: '$ spurh doctor' },
-      { cls: 'out', text: '✓ 全部系统正常，祝编码愉快' },
-    ];
-    let li = 0, ci = 0, typing = true, hold = 0;
-    termLines = [];
-    termTyping = null;
-    const timer = setInterval(() => {
-      if (typing) {
-        ci += 2;
-        const line = lines[li];
-        termTyping = { cls: line.cls, text: line.text.slice(0, ci) };
-        if (ci >= line.text.length) {
-          termLines = [...termLines, { cls: line.cls, text: line.text }].slice(-3);
-          termTyping = null;
-          typing = false;
-          hold = 0;
-        }
-      } else {
-        hold += 1;
-        if (hold > 16) {
-          li = (li + 1) % lines.length;
-          ci = 0;
-          typing = true;
-        }
-      }
-    }, 70);
-    return () => clearInterval(timer);
-  }
-
-  function startAboutTilt(stage: HTMLElement): () => void {
+    function startAboutTilt(stage: HTMLElement): () => void {
     const target = stage.querySelector<HTMLElement>('.about-logo-wrap');
     if (!target) return () => {};
     const aurora = stage.querySelector<HTMLElement>('.about-aurora');
@@ -399,12 +344,6 @@
   $effect(() => {
     if (settingsOpen && settingsTab === 'about') {
       const isLightTheme = appSettings.theme === 'light' || (appSettings.theme === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
-      aboutUptime = Math.max(0, Math.floor((Date.now() - APP_LAUNCH_TIME) / 1000));
-      aboutClock = formatClock(new Date());
-      aboutTimer = setInterval(() => {
-        aboutUptime += 1;
-        aboutClock = formatClock(new Date());
-      }, 1000);
 
       /* 打字机标语 */
       let phrase = 0, char = 0, deleting = false;
@@ -420,35 +359,21 @@
           if (char <= 0) { deleting = false; phrase = (phrase + 1) % aboutPhrases.length; }
         }
       }, 90);
-      /* 统计数字 + 能力条滚动合并为单个 ticker */
+      /* 内置工具数量滚动增长 */
       aboutPanelsShown = 0;
-      aboutCaps.ai = 0; aboutCaps.local = 0; aboutCaps.cover = 0; aboutCaps.priv = 0;
-      const growTicker = setInterval(() => {
-        if (aboutPanelsShown < 11) aboutPanelsShown += 1;
-        let done = 0;
-        for (const k of ['ai', 'local', 'cover', 'priv'] as const) {
-          const target = aboutCapsTarget[k];
-          if (aboutCaps[k] < target) {
-            aboutCaps[k] = Math.min(target, aboutCaps[k] + Math.max(1, Math.round(target / 20)));
-          } else {
-            done += 1;
-          }
-        }
-        if (aboutPanelsShown >= 11 && done === 4) clearInterval(growTicker);
+      const growCounter = setInterval(() => {
+        if (aboutPanelsShown < 11) aboutPanelsShown += 1; else clearInterval(growCounter);
       }, 70);
       /* 粒子网络画布 */
       let disposeCanvas: (() => void) | undefined;
       if (aboutCanvas && aboutCanvas.parentElement) {
         disposeCanvas = startAboutCanvas(aboutCanvas, aboutCanvas.parentElement, isLightTheme);
       }
-      const disposeTerminal = startAboutTerminal();
       const disposeTilt = aboutStageEl ? startAboutTilt(aboutStageEl) : () => {};
       return () => {
-        if (aboutTimer) clearInterval(aboutTimer);
         clearInterval(typeTimer);
-        clearInterval(growTicker);
+        clearInterval(growCounter);
         if (disposeCanvas) disposeCanvas();
-        disposeTerminal();
         disposeTilt();
       };
     }
@@ -2102,7 +2027,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                   <div class="about-col-left">
                     <div class="about-hero">
                       <span class="about-logo-wrap"><i class="about-logo-cone" aria-hidden="true"></i><i class="about-logo-ring" aria-hidden="true"></i><span class="brand-mark large about-logo">{@html BRAND_MARK}</span></span>
-                      <div><h3 class="about-title">Spurh</h3><p class="about-type">{aboutTagline}<span class="about-caret" aria-hidden="true"></span></p></div><span class="about-live" title="会话运行时长"><i aria-hidden="true"></i><b>LIVE</b><em>{formatUptime(aboutUptime)}</em></span>
+                      <div><h3 class="about-title">Spurh</h3><p class="about-type">{aboutTagline}<span class="about-caret" aria-hidden="true"></span></p></div><span class="about-badge"><i aria-hidden="true"></i>本地优先</span>
                     </div>
                     <div class="about-note"><b>本地优先 · AI 增强</b><p>所有工具在本地运行，数据不出设备；AI 能力按需接入，帮助生成、解释、修复与提炼，让重复工作一步完成。</p></div>
                     <div class="about-grid">
@@ -2116,13 +2041,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                       <button onclick={() => (settingsNotice = `已是最新版本 v0.1.0（构建 ${BUILD_STAMP}）`)}>{@html UI_ICONS.refresh}<span>检查更新</span></button>
                     </div>
                     <footer class="about-foot">© 2026 Spurh · Made with ❤ by xuning</footer>
-                    <div class="about-term" aria-hidden="true">
-                      <header><i class="term-dot term-red"></i><i class="term-dot term-yellow"></i><i class="term-dot term-green"></i><b>spurh · 实时终端</b></header>
-                      <div class="about-term-body">
-                        {#each termLines as line}<p class={line.cls}>{line.text}</p>{/each}
-                        {#if termTyping}<p class={termTyping.cls}>{termTyping.text}<b class="term-caret"></b></p>{/if}
-                      </div>
-                    </div>
                   </div>
                   <div class="about-col-right">
                     <div class="about-status">
@@ -2132,21 +2050,10 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                     </div>
                     <div class="about-version">
                       <div class="about-ver-head"><b>v0.1.0</b><small>构建 {BUILD_STAMP}</small></div>
-                      <div class="about-metrics">
-                        <span><em>已运行</em><b>{formatUptime(aboutUptime)}</b></span>
-                      </div>
-                      <i class="about-clock">{aboutClock}</i>
+                      <p class="about-ver-line">本地优先 · 数据不出设备 · 即开即用</p>
                     </div>
-                    <div class="about-rings">
-                      {#each aboutRingList as ring}
-                        <div class="about-ring" title={ring.l}>
-                          <svg viewBox="0 0 44 44" style={`color: ${ring.c}`} aria-hidden="true">
-                            <circle class="ring-track" cx="22" cy="22" r="17.5"></circle>
-                            <circle class="ring-fill" cx="22" cy="22" r="17.5" stroke={ring.c} stroke-dasharray="110" stroke-dashoffset={110 - (110 * aboutCaps[ring.k]) / 100}></circle>
-                          </svg>
-                          <b>{aboutCaps[ring.k]}%</b><small>{ring.l}</small>
-                        </div>
-                      {/each}
+                    <div class="about-chips">
+                      {#each aboutChipWords as w}<span style={`--i:${w.i}`}>{w.t}</span>{/each}
                     </div>
                     <div class="about-ticker" aria-hidden="true">
                       <span class="about-ticker-track">{#each aboutToolNames as n}<i>{n}</i>{/each}{#each aboutToolNames as n}<i>{n}</i>{/each}</span>

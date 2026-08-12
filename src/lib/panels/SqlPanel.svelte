@@ -1246,6 +1246,20 @@
     return ddl || '';
   }
 
+  /* 表名过长时的面板内提示卡：fixed 定位并钳制在侧栏内，绝不越界 */
+  let treeTip = $state<{ name: string; left: number; top: number; width: number } | null>(null);
+  function showTableTip(event: MouseEvent, name: string): void {
+    if (name.length <= 26) { treeTip = null; return; }
+    const row = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const side = document.querySelector<HTMLElement>('.sql-side');
+    if (!side) return;
+    const sr = side.getBoundingClientRect();
+    const tipHeight = 30;
+    let top = row.top - tipHeight - 6;
+    if (top < sr.top + 4) top = row.bottom + 6;
+    treeTip = { name, left: sr.left + 8, top, width: Math.max(120, Math.round(sr.width) - 16) };
+  }
+
 </script>
 
 <svelte:window onkeydown={handlePanelKeys} />
@@ -1332,7 +1346,7 @@
                     <div class="sql-tree-loading">加载表…</div>
                   {:else if db.tables && db.tables.length > 0}
                     {#each db.tables as table}
-                      <button class="sql-table-row" class:active={selectedTable === table.name && selectedDb === db.name} onclick={() => selectTable(db.name, table)} oncontextmenu={(event) => openTableMenu(event, db.name, table.name)} data-tip={table.name.length > 24 ? table.name : ''}>
+                      <button class="sql-table-row" class:active={selectedTable === table.name && selectedDb === db.name} onclick={() => selectTable(db.name, table)} oncontextmenu={(event) => openTableMenu(event, db.name, table.name)} onmouseenter={(event) => showTableTip(event, table.name)} onmouseleave={() => (treeTip = null)}>
                         <span class="tbl-ico">{@html table.kind === 'VIEW' ? VIEW_ICON : TABLE_ICON}</span>
                         <b>{table.name}</b>
                         {#if table.kind === 'VIEW'}<em>视图</em>{/if}
@@ -1825,6 +1839,9 @@
       </div>
     </div>
   {/if}
+  {#if treeTip}
+    <div class="sql-tree-tip" style={`left:${treeTip.left}px;top:${treeTip.top}px;width:${treeTip.width}px`} role="tooltip">{treeTip.name}</div>
+  {/if}
 </div>
 
 <style>
@@ -1929,30 +1946,6 @@
   .sql-tables { display: flex; flex-direction: column; gap: 1px; padding: 1px 0 4px 18px; }
   .sql-table-row { width: 100%; height: 25px; display: flex; align-items: center; gap: 7px; padding: 0 8px; cursor: pointer; text-align: left; color: var(--muted); border: 1px solid transparent; border-radius: 8px; background: transparent; transition: all .13s ease; }
   .sql-table-row:hover { color: var(--text); background: var(--hover); }
-  .sql-table-row { position: relative; }
-  .sql-table-row[data-tip]:not([data-tip=""])::after {
-    content: attr(data-tip);
-    position: absolute;
-    left: 4px;
-    right: 4px;
-    top: calc(100% + 4px);
-    z-index: 30;
-    padding: 6px 9px;
-    overflow: hidden;
-    color: var(--text);
-    font-size: var(--fs-xs);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    border: 1px solid var(--line-2);
-    border-radius: 8px;
-    background: var(--panel-2);
-    box-shadow: 0 10px 26px rgba(0, 0, 0, .42);
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-4px);
-    transition: opacity .12s ease, transform .12s ease;
-  }
-  .sql-table-row[data-tip]:not([data-tip=""]):hover::after { opacity: 1; transform: translateY(0); }
   .sql-table-row.active { color: var(--text); border-color: color-mix(in srgb, var(--accent) 26%, var(--line)); background: var(--accent-soft); }
   .tbl-ico { display: inline-flex; flex: 0 0 auto; color: var(--blue); }
   :global(.tbl-ico svg) { width: 12px; height: 12px; }
@@ -1961,6 +1954,24 @@
   .sql-table-row b { min-width: 0; flex: 1; overflow: hidden; font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
   .sql-table-row em { padding: 1px 5px; color: var(--muted-2); font-size: var(--fs-tiny); font-style: normal; border: 1px solid var(--line); border-radius: 4px; }
   .sql-tree-loading { padding: 14px 10px; color: var(--muted-2); font-size: var(--fs-tiny); text-align: center; }
+  .sql-tree-tip {
+    position: fixed;
+    z-index: 60;
+    box-sizing: border-box;
+    padding: 6px 10px;
+    overflow: hidden;
+    color: var(--text);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    background: var(--panel-2);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, .42);
+    pointer-events: none;
+    animation: fade-in .1s ease-out;
+  }
 
   /* ── 主区 ── */
   .sql-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
