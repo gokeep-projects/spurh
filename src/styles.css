@@ -2004,10 +2004,11 @@ kbd {
   place-items: center;
   box-shadow: none;
   opacity: 0;
+  pointer-events: none;
   transition: opacity .18s ease, border-color var(--transition), color var(--transition);
 }
 .model-field .model-input-wrap:hover .model-fetch,
-.model-field .model-input-wrap:focus-within .model-fetch { opacity: 1; }
+.model-field .model-input-wrap:focus-within .model-fetch { opacity: 1; pointer-events: auto; }
 .model-field .model-fetch svg { width: 13px; height: 13px; }
 .model-fetch.loading svg { animation: ai-spin 1s linear infinite; }
 @keyframes ai-spin { to { transform: rotate(360deg); } }
