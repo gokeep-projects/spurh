@@ -88,7 +88,7 @@
     }
   }
 
-  let data = $derived(record(result.data));
+  let data = $derived(record(result?.data));
 
   /** 超大输出折叠预览：仅渲染前 120K 字符，避免海量 DOM 拖慢输入与滚动 */
   const PREVIEW_MAX = 120_000;
@@ -158,7 +158,7 @@
   const isAiAnswer = $derived(!!result.meta?.['来源'] && result.view === 'text');
   const aiHtml = $derived(isAiAnswer ? renderAiText(result.output) : '');
 
-  let items = $derived(list(result.data));
+  let items = $derived(list(result?.data));
   let canTreeView = $derived(result.view === 'code' && isComplexJson(result.output, result.language));
   let useTreeView = $state(false);
   $effect(() => { if (!canTreeView) useTreeView = false; });

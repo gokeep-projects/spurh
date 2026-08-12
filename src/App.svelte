@@ -2075,13 +2075,13 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                     <div class="about-note"><b>本地优先 · AI 增强</b><p>所有工具在本地运行，数据不出设备；AI 能力按需接入，帮助生成、解释、修复与提炼，让重复工作一步完成。</p></div>
                     <div class="about-grid">
                       <article><small>作者</small><b>xuning</b></article>
-                      <article><small>版本</small><b>0.1.0</b></article>
+                      <article><small>版本</small><b>0.1.1</b></article>
                       <article><small>内置工具</small><b>{aboutPanelsShown} 个</b></article>
                       <article><small>许可</small><b>MIT</b></article>
                     </div>
                     <div class="about-actions">
-                      <button onclick={() => { copyText(`Spurh v0.1.0 · 构建 ${BUILD_STAMP} · MIT`); settingsNotice = "版本信息已复制到剪贴板"; }}>{@html UI_ICONS.copy}<span>复制版本信息</span></button>
-                      <button onclick={() => (settingsNotice = `已是最新版本 v0.1.0（构建 ${BUILD_STAMP}）`)}>{@html UI_ICONS.refresh}<span>检查更新</span></button>
+                      <button onclick={() => { copyText(`Spurh v0.1.1 · 构建 ${BUILD_STAMP} · MIT`); settingsNotice = "版本信息已复制到剪贴板"; }}>{@html UI_ICONS.copy}<span>复制版本信息</span></button>
+                      <button onclick={() => (settingsNotice = `已是最新版本 v0.1.1（构建 ${BUILD_STAMP}）`)}>{@html UI_ICONS.refresh}<span>检查更新</span></button>
                     </div>
                     <footer class="about-foot">© 2026 Spurh · Made with ❤ by xuning</footer>
                   </div>
@@ -2092,7 +2092,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                       <span class="about-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
                     </div>
                     <div class="about-version">
-                      <div class="about-ver-head"><b>v0.1.0</b><small>构建 {BUILD_STAMP}</small></div>
+                      <div class="about-ver-head"><b>v0.1.1</b><small>构建 {BUILD_STAMP}</small></div>
                       <p class="about-ver-line">本地优先 · 数据不出设备 · 即开即用</p>
                     </div>
                   </div>

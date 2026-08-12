@@ -1,6 +1,6 @@
 [package]
 name = "spurh"
-version = "0.1.0"
+version = "0.1.1"
 description = "AI Native Developer Toolbox"
 authors = ["xuning"]
 edition = "2021"
