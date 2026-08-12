@@ -112,7 +112,7 @@ button { cursor: pointer; border: 0; background: none; }
   flex-direction: column;
   color: var(--text);
   font-size: var(--app-font-size, 14px);
-  font-family: var(--app-font-family, "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", "Segoe UI Variable", "Segoe UI", "PingFang SC", "HarmonyOS Sans SC", "MiSans", ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--app-font-family, "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", ui-sans-serif, system-ui, sans-serif);
   background:
     radial-gradient(58vw 44vh at 82% -8%, rgba(139, 92, 246, .13), transparent 62%),
     radial-gradient(52vw 40vh at 6% 108%, rgba(34, 211, 238, .1), transparent 60%),
@@ -5660,7 +5660,6 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app .brand:hover,
 .app .settings-nav button:hover,
 .app .palette-group button:hover,
-.app .clip-overlay-results button:hover,
 .app .profile-list > button:hover,
 .app .setting-row:hover,
 .app .tool-list button:hover {
@@ -6100,3 +6099,24 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 
 /* v41) AI ?????????????????????? */
 .model-field > div { flex-wrap: wrap; }
+
+/* v42) ????????28px ???????????? */
+.settings-header .settings-head-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  color: #fff;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 90%, #fff 10%), color-mix(in srgb, var(--accent) 62%, #0b0e14));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 28%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22);
+  transition: all var(--transition);
+}
+.settings-header .settings-head-icon svg { width: 15px; height: 15px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+.settings-header .settings-head-icon:hover svg { transform: rotate(120deg) scale(1.08); }
+.app.light .settings-header .settings-head-icon {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, #fff 8%), color-mix(in srgb, var(--accent) 70%, #1e2a52));
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 32%, transparent), inset 0 1px 0 rgba(255, 255, 255, .35);
+}
