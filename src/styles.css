@@ -6295,3 +6295,43 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 /* 5) ?????????????????????????? */
 .ts-time-presets { flex: 1 1 100% !important; order: 5 !important; padding-right: 0 !important; margin-top: 2px; }
 .ts-pick-box .ts-now-inline { order: 4; }
+
+
+/* ============ v49) \u8bbe\u7f6e\u5934\u90e8\u56fe\u6807\u6062\u590d\uff1a\u968f tab \u53d8\u5316 + \u6d45\u8272\u805a\u7126\u6846\u4fee\u590d ============ */
+.settings-header .settings-head-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 14%, transparent);
+  transition: all var(--transition);
+}
+.settings-header .settings-head-icon svg { width: 17px; height: 17px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+.settings-header .settings-head-icon:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 4px var(--accent-soft), 0 6px 18px color-mix(in srgb, var(--accent) 22%, transparent); }
+.settings-header .settings-head-icon:hover svg { transform: rotate(14deg) scale(1.08); }
+
+/* \u6d45\u8272\u4e3b\u9898\uff1a\u805a\u7126\u6846\u83b7\u7126\u65f6\u4e0d\u518d\u7528\u6df1\u8272\u80cc\u666f\uff08\u4fee\u590d\u8f93\u5165\u4e0d\u53ef\u89c1\uff09 */
+.app.light .dispatcher:focus-within {
+  border-color: transparent;
+  background:
+    linear-gradient(rgba(255, 255, 255, .99), rgba(255, 255, 255, .99)) padding-box,
+    linear-gradient(120deg, rgba(14, 165, 233, .75), rgba(129, 140, 248, .75), rgba(217, 70, 239, .6)) border-box;
+  border: 1px solid transparent;
+  box-shadow:
+    0 0 0 1px rgba(79, 70, 229, .28),
+    0 0 22px rgba(129, 140, 248, .35),
+    0 0 48px rgba(14, 165, 233, .2),
+    inset 0 0 16px rgba(129, 140, 248, .08);
+  transform: translateY(-1px);
+}
+.app.light .dispatcher:focus-within .dispatcher-spark { color: #4f46e5; filter: drop-shadow(0 0 6px rgba(79, 70, 229, .4)); }
+.app.light .dispatcher:focus-within textarea,
+.app.light .dispatcher:focus-within input { color: #151c38; }
+.app.light .dispatcher:focus-within textarea::placeholder,
+.app.light .dispatcher:focus-within input::placeholder { color: #7a86a6; }
+.app.light .dispatcher:focus-within > kbd { color: #4a577e; background: rgba(28, 38, 84, .06); border-color: rgba(28, 38, 84, .18); }

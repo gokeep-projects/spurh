@@ -38,9 +38,12 @@
   const SETTINGS_TAB_HINTS: Record<SettingsTab, string> = {
     general: '主题 · 启动 · 托盘 · 顶栏显示', ai: '服务商配置 · 模型管理', shortcuts: '全局绑定 · 点击后直接按下新组合', tools: '侧栏与聚焦框中的工具显示', about: '版本信息 · 本地优先 · AI 增强',
   };
+  const SETTINGS_TAB_ICONS: Record<SettingsTab, string> = {
+    general: UI_ICONS.sliders, ai: UI_ICONS.sparkle, shortcuts: UI_ICONS.keyboard, tools: UI_ICONS.grid, about: UI_ICONS.info,
+  };
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'HarmonyOS Sans SC', 'MiSans', ui-sans-serif, system-ui, sans-serif",
+    '系统默认': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'HarmonyOS Sans SC', 'MiSans', 'Segoe UI Variable Text', 'Segoe UI', ui-sans-serif, system-ui, sans-serif",
     '微软雅黑': "'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', sans-serif",
     '等线': "'DengXian', 'DengXian Light', 'HarmonyOS Sans SC', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'SimHei', '黑体', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif",
@@ -456,8 +459,10 @@
         try {
           const { getCurrentWindow } = await import('@tauri-apps/api/window');
           const win = getCurrentWindow();
-          // 以真实窗口状态为准，避免本地状态与系统状态失同步
-          const next = !(await win.isFullscreen());
+          // 以真实窗口状态为准，避免本地状态与系统状态失同步；isFullscreen 失败时回退本地状态
+          let current = isFullscreen;
+          try { current = await win.isFullscreen(); } catch { /* 权限差异时使用本地状态 */ }
+          const next = !current;
           await win.setFullscreen(next);
           isFullscreen = next;
           return;
@@ -791,6 +796,17 @@
       const trailingOpener = /[{\[(][ \t]*$/.test(currentLineBefore);
       const nextNonWs = value.slice(end).match(/^\s*(\S)/)?.[1] ?? '';
       const nextIndent = '  '.repeat(depth);
+      // 开放括号后回车且光标后无内容：自动补闭合行（VS Code 行为：{\n  |\n}  ）
+      if (trailingOpener && !value.slice(end).trim()) {
+        event.preventDefault();
+        const closer = currentLineBefore.trimEnd().endsWith('[') ? ']' : currentLineBefore.trimEnd().endsWith('(') ? ')' : '}';
+        const closerIndent = '  '.repeat(Math.max(0, depth - 1));
+        const insert = '\n' + nextIndent + '\n' + closerIndent + closer;
+        changeInput(value.slice(0, start) + insert);
+        flushSync();
+        target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
+        return;
+      }
       if (trailingOpener && nextNonWs && '}])'.includes(nextNonWs)) {
         event.preventDefault();
         const rest = value.slice(end);
@@ -1884,7 +1900,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   {#if settingsOpen}
     <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) { event.stopPropagation(); } }}>
       <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
-        <header class="settings-header"><div class="settings-head-copy"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><p>{SETTINGS_TAB_HINTS[settingsTab]}</p></div><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
+        <header class="settings-header"><span class="settings-head-icon" aria-hidden="true">{@html SETTINGS_TAB_ICONS[settingsTab]}</span><div class="settings-head-copy"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><p>{SETTINGS_TAB_HINTS[settingsTab]}</p></div><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">
           <nav class="settings-nav">
             <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b></div></button>
