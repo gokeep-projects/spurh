@@ -268,7 +268,14 @@
               <button class="sql-btn ghost" onclick={() => (showCreate = false)}>取消</button>
             </div>
           {/if}
-          {#if usersLoading}
+          {#if !conn}
+            <div class="sql-users-guide">
+              <span class="sql-users-guide-ico">{@html UI_ICONS.users}</span>
+              <b>还未连接数据库</b>
+              <p>用户管理需要连接 MySQL 或 PostgreSQL 后使用：创建 / 删除用户、修改密码、授权与回收权限。</p>
+              <em>在左侧数据库树顶部「＋ 新建连接」中选择 MySQL / PostgreSQL 并连接后即可体验</em>
+            </div>
+          {:else if usersLoading}
             <div class="sql-users-empty">正在读取用户列表…</div>
           {:else if users.length === 0}
             <div class="sql-users-empty">未读取到用户（当前账号可能缺少 mysql.user / pg_roles 读取权限）</div>
