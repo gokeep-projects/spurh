@@ -6233,23 +6233,6 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app.light .sidebar-foot button svg { color: #3d4a75; }
 .app.light .sidebar-foot button:hover { color: #101830; background: rgba(35, 58, 122, .08); }
 
-/* v46) ???????????????????????????????? */
-.settings-header .settings-head-icon {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  color: var(--muted);
-  background: var(--w-05);
-  border: 1px solid var(--line);
-  transition: all var(--transition);
-}
-.settings-header .settings-head-icon svg { width: 16px; height: 16px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
-.settings-header .settings-head-icon:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
-.settings-header .settings-head-icon:hover svg { transform: rotate(120deg) scale(1.06); }
-
 /* ============================================================
    v46) ???????????/???/AI/??/?? ????
    ============================================================ */
