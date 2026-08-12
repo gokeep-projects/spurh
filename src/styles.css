@@ -112,7 +112,7 @@ button { cursor: pointer; border: 0; background: none; }
   flex-direction: column;
   color: var(--text);
   font-size: var(--app-font-size, 14px);
-  font-family: var(--app-font-family, "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--app-font-family, "Noto Sans SC", "MiSans", "HarmonyOS Sans SC", "DengXian", "PingFang SC", "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", ui-sans-serif, system-ui, sans-serif);
   background:
     radial-gradient(58vw 44vh at 82% -8%, rgba(139, 92, 246, .13), transparent 62%),
     radial-gradient(52vw 40vh at 6% 108%, rgba(34, 211, 238, .1), transparent 60%),
@@ -1425,7 +1425,7 @@ kbd {
 .error-box button:hover { background: var(--c-red); color: #fff; }
 .ai-error { margin: 12px 0; }
 .ai-card-wrap { display: flex; justify-content: center; padding: 14px 8px 18px; }
-.ai-card { position: relative; width: min(620px, 100%); display: flex; flex-direction: column; overflow: hidden; border-radius: 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); box-shadow: 0 18px 50px color-mix(in srgb, var(--accent) 16%, transparent); animation: aiCardIn .3s cubic-bezier(.2,.9,.3,1.15); }
+.ai-card { position: relative; width: min(560px, 100%); display: flex; flex-direction: column; overflow: hidden; border-radius: 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); box-shadow: 0 18px 50px color-mix(in srgb, var(--accent) 16%, transparent); animation: aiCardIn .3s cubic-bezier(.2,.9,.3,1.15); }
 .ai-card::before { content: ""; position: absolute; inset: 0; padding: 1.5px; border-radius: inherit; background: linear-gradient(120deg, transparent 10%, color-mix(in srgb, var(--c-cyan) 60%, transparent) 38%, color-mix(in srgb, var(--c-magenta) 60%, transparent) 62%, transparent 90%); background-size: 240% 100%; animation: aiBorderFlow 5s linear infinite; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; pointer-events: none; }
 .ai-card::after { content: ""; position: absolute; inset: -50% -30% auto; height: 130%; background: radial-gradient(46% 60% at 18% 0%, color-mix(in srgb, var(--c-cyan) 14%, transparent), transparent 70%), radial-gradient(44% 60% at 82% 0%, color-mix(in srgb, var(--c-magenta) 14%, transparent), transparent 70%); opacity: .8; pointer-events: none; animation: aiAurora 8s ease-in-out infinite alternate; }
 @keyframes aiCardIn { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -1994,7 +1994,7 @@ kbd {
 .model-field .model-input-wrap > input, .model-field .model-input-wrap > select {
   width: 100%;
   box-sizing: border-box;
-  padding-right: 76px;
+  padding-right: 38px;
 }
 .model-field .model-input-wrap > select { width: 100%; }
 .model-field .model-fetch-link {
@@ -2003,16 +2003,13 @@ kbd {
   top: 50%;
   transform: translateY(-50%);
   z-index: 1;
-  height: 24px;
-  padding: 0 9px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
   cursor: pointer;
   color: var(--accent);
-  font-size: var(--fs-tiny);
-  font-weight: 600;
-  white-space: nowrap;
   border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
   border-radius: 7px;
   background: var(--accent-soft);
@@ -3710,7 +3707,7 @@ kbd {
 /* ── 全局字号档位：让“设置→字号”对组件真正生效（替换硬编码 13/13.5px 等） ── */
 .app {
   --fs: var(--app-font-size, 14px);
-  --fs-xxs: max(12px, calc(var(--fs) - 1px));
+  --fs-xxs: max(13px, calc(var(--fs) - 1px));
   --fs-xs: var(--fs);
   --fs-sm: var(--fs);
   --fs-lg: calc(var(--fs) + 1.5px);

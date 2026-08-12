@@ -41,10 +41,10 @@
 
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Segoe UI Variable Text', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', ui-sans-serif, system-ui, sans-serif",
-    '微软雅黑': "'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', sans-serif",
-    '等线': "'DengXian', 'DengXian Light', 'HarmonyOS Sans SC', 'Microsoft YaHei UI', sans-serif",
-    '黑体': "'SimHei', '黑体', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif",
+    '系统默认': "'Noto Sans SC', 'MiSans', 'HarmonyOS Sans SC', 'DengXian', 'PingFang SC', 'Segoe UI Variable Text', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', ui-sans-serif, system-ui, sans-serif",
+    '微软雅黑': "'Noto Sans SC', 'MiSans', 'HarmonyOS Sans SC', 'DengXian', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', sans-serif",
+    '等线': "'Noto Sans SC', 'DengXian', 'DengXian Light', 'HarmonyOS Sans SC', 'Microsoft YaHei UI', sans-serif",
+    '黑体': "'Noto Sans SC', 'SimHei', '黑体', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif",
     '宋体': "'SimSun', '宋体', 'STSong', serif",
     'Consolas': "'Consolas', 'Cascadia Code', monospace",
     'Cascadia Code': "'Cascadia Code', Consolas, monospace",
@@ -1993,7 +1993,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               </div>
               <div class="config-fields">
                 <label><span>名称</span><input bind:value={aiDraft.name} placeholder="例如：日常" /></label>
-                <label><span>地址</span><input bind:value={aiDraft.endpoint} placeholder="https://api.example.com/v1" /></label>
+                <label><span>地址</span><input bind:value={aiDraft.endpoint} placeholder="https://api.example.com/v1" onchange={loadRemoteModels} title="填写完成后回车或失焦自动拉取模型列表" /></label>
                 <label class="model-field"><span>模型</span><div>
                   <span class="model-input-wrap">
                     {#if modelList.length > 0}
@@ -2002,7 +2002,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                       <input list="rm" bind:value={aiDraft.model} placeholder="输入模型名，或拉取列表" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
                     {/if}
                     {#if modelList.length > 0 || aiDraft.endpoint.trim()}
-                      <button class:loading={modelListLoading} class="model-fetch-link" disabled={modelListLoading} onclick={loadRemoteModels} title="从当前地址拉取模型列表">{@html UI_ICONS.refresh}{modelList.length > 0 ? (modelListLoading ? '拉取中…' : '重新拉取') : (modelListLoading ? '拉取中…' : '拉取')}</button>
+                      <button class:loading={modelListLoading} class="model-fetch-link" disabled={modelListLoading} onclick={loadRemoteModels} title={modelListLoading ? '拉取中…' : '重新拉取模型列表'} aria-label="拉取模型列表">{@html UI_ICONS.refresh}</button>
                     {/if}
                   </span>
                 </div></label>
