@@ -32,6 +32,13 @@
   type ThemeMode = 'light' | 'dark' | 'system' | 'aurora' | 'forest';
   type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts' | 'tools';
 
+  const SETTINGS_TAB_ICONS: Record<SettingsTab, string> = {
+    general: UI_ICONS.sliders, ai: UI_ICONS.sparkle, shortcuts: UI_ICONS.keyboard, tools: UI_ICONS.grid, about: UI_ICONS.info,
+  };
+  const SETTINGS_TAB_TITLES: Record<SettingsTab, string> = {
+    general: '通用设置', ai: 'AI 模型', shortcuts: '快捷键', tools: '工具管理', about: '关于 Spurh',
+  };
+
   const FONT_STACKS: Record<string, string> = {
     '系统默认': "-apple-system, BlinkMacSystemFont, 'Segoe UI Variable', 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif",
     '微软雅黑': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'HarmonyOS Sans SC', sans-serif",
@@ -1867,7 +1874,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   {#if settingsOpen}
     <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) { event.stopPropagation(); } }}>
       <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
-        <header class="settings-header"><div class="modal-icon">{@html UI_ICONS.settings}</div><div><h2>设置</h2></div><button onclick={() => (settingsOpen = false)} aria-label="关闭">{@html UI_ICONS.close}</button></header>
+        <header class="settings-header"><div class="modal-icon" title="设置">{@html SETTINGS_TAB_ICONS[settingsTab]}</div><div><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2></div><button onclick={() => (settingsOpen = false)} aria-label="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">
           <nav class="settings-nav">
             <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b></div></button>
