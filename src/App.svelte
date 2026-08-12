@@ -40,7 +40,7 @@
   };
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Segoe UI Variable Text', 'Segoe UI', ui-sans-serif, system-ui, sans-serif",
+    '系统默认': "'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'HarmonyOS Sans SC', 'MiSans', ui-sans-serif, system-ui, sans-serif",
     '微软雅黑': "'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', sans-serif",
     '等线': "'DengXian', 'DengXian Light', 'HarmonyOS Sans SC', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'SimHei', '黑体', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif",
@@ -1884,7 +1884,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   {#if settingsOpen}
     <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) { event.stopPropagation(); } }}>
       <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
-        <header class="settings-header"><div class="settings-head-copy"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><p>{SETTINGS_TAB_HINTS[settingsTab]}</p></div><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
+        <header class="settings-header"><span class="settings-head-icon" aria-hidden="true">{@html UI_ICONS.settings}</span><div class="settings-head-copy"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><p>{SETTINGS_TAB_HINTS[settingsTab]}</p></div><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">
           <nav class="settings-nav">
             <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b></div></button>

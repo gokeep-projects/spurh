@@ -180,7 +180,7 @@
   ];
 
   let examplesOpen = $state(false);
-  const EXAMPLES_SHOWN = 8;
+  const EXAMPLES_SHOWN = 10;
   // 默认展示的常用表达式（按使用频率排序）
   const EXAMPLES_FAVORITES = [
     { label: '每分钟', expr: '* * * * *' },

@@ -112,7 +112,7 @@ button { cursor: pointer; border: 0; background: none; }
   flex-direction: column;
   color: var(--text);
   font-size: var(--app-font-size, 14px);
-  font-family: var(--app-font-family, "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--app-font-family, "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", "HarmonyOS Sans SC", "MiSans", ui-sans-serif, system-ui, sans-serif);
   background:
     radial-gradient(58vw 44vh at 82% -8%, rgba(139, 92, 246, .13), transparent 62%),
     radial-gradient(52vw 40vh at 6% 108%, rgba(34, 211, 238, .1), transparent 60%),
@@ -6232,3 +6232,52 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app.light .sidebar-foot button { color: #3d4a75; }
 .app.light .sidebar-foot button svg { color: #3d4a75; }
 .app.light .sidebar-foot button:hover { color: #101830; background: rgba(35, 58, 122, .08); }
+
+/* v46) ???????????????????????????????? */
+.settings-header .settings-head-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--w-05);
+  border: 1px solid var(--line);
+  transition: all var(--transition);
+}
+.settings-header .settings-head-icon svg { width: 16px; height: 16px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+.settings-header .settings-head-icon:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
+.settings-header .settings-head-icon:hover svg { transform: rotate(120deg) scale(1.06); }
+
+/* ============================================================
+   v46) ???????????/???/AI/??/?? ????
+   ============================================================ */
+/* 1) ????????????????????????? */
+.ts-field input, .ts-field select { border-radius: 10px; }
+.ts-field input::placeholder, .ts-time-input::placeholder, .ts-ts-wrap input::placeholder { color: var(--muted-2); opacity: .8; }
+.ts-pick-box.picked .ts-pick-date { animation: tsPickBtnPop .5s cubic-bezier(.2, .9, .3, 1.3); }
+@keyframes tsPickBtnPop { 0% { transform: scale(1); } 45% { transform: scale(1.05); } 100% { transform: scale(1); } }
+.ts-inline-card { position: relative; overflow: hidden; }
+.ts-to-date-card { border-color: color-mix(in srgb, var(--accent) 30%, var(--line)) !important; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--panel)), var(--panel) 72%) !important; }
+/* 2) ??????????????? */
+.crypto-head { gap: 7px !important; }
+.crypto-head small { color: var(--muted-2); }
+.crypto-chips { gap: 5px !important; }
+.crypto-chips button { height: 26px !important; padding: 0 9px !important; border-radius: 999px !important; }
+/* 3) AI ?????????? + ???? */
+.ai-stream .ai-content { position: relative; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 12px; background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 6%, var(--panel)), var(--panel) 65%); box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 10%, transparent); }
+.ai-stream .ai-content pre { background: transparent !important; }
+.ai-stream .ai-content > small { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 0; font-weight: 700; letter-spacing: .4px; }
+/* 4) ?????TCP ?????????????? */
+.tcp-response { max-height: 220px; overflow: auto; }
+.tcp-response pre { max-height: none !important; }
+.tcp-payloads button { height: 26px !important; padding: 0 10px !important; font-size: var(--fs-xs) !important; }
+/* 5) ????????????????????? */
+.rt-cmdbar { flex-wrap: wrap; }
+.rt-cmd-chip { height: 28px !important; padding: 0 11px !important; }
+.rt-ai input { min-width: 0; }
+/* 6) ??-AI ?????????????? */
+.model-field .model-fetch-link { height: 26px !important; padding: 0 10px !important; font-size: var(--fs-xs) !important; }
+/* 7) ??/?????????????? */
+.app-actions button:active { transform: translateY(0) scale(.96); }
