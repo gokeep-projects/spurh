@@ -6281,3 +6281,34 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .model-field .model-fetch-link { height: 26px !important; padding: 0 10px !important; font-size: var(--fs-xs) !important; }
 /* 7) ??/?????????????? */
 .app-actions button:active { transform: translateY(0) scale(.96); }
+
+/* ============================================================
+   v47) ??????? + ???? + ???????
+   ============================================================ */
+/* 1) JSON ????????????????????????/??/?????? */
+.app .editor-input.hli textarea,
+.app .editor-input.hli pre.input-hl {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace !important;
+  font-size: var(--fs-sm) !important;
+  line-height: 1.62 !important;
+  tab-size: 2;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+/* 2) ???????????????????????? */
+.result-view pre.highlighted, .result-view .code-with-lines > pre {
+  white-space: pre !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+/* 3) ?????????????? */
+.dispatcher textarea, .dispatcher input { caret-color: var(--accent); }
+.dispatcher textarea::placeholder, .dispatcher input::placeholder { opacity: .7; }
+/* 4) ?????????? */
+.ts-field > span { font-weight: 600; }
+.ts-field-hint { opacity: .95; }
+
+/* 5) ?????????????????????????? */
+.ts-time-presets { flex: 1 1 100% !important; order: 5 !important; padding-right: 0 !important; margin-top: 2px; }
+.ts-pick-box .ts-now-inline { order: 4; }
