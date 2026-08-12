@@ -52,6 +52,7 @@
     const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4] ?? 0), Number(m[5] ?? 0), Number(m[6] ?? 0));
     if (Number.isNaN(d.getTime())) return;
     onChangeOption('pickDateTime', norm);
+    flashPicked();
   }
   /** 把 pickDateTime 转成给人看的文本 */
   function pickText(): string {
@@ -61,7 +62,7 @@
 
   function quickPick(kind: string): void {
     const value = presetValue(kind);
-    if (value) onChangeOption('pickDateTime', value);
+    if (value) { onChangeOption('pickDateTime', value); flashPicked(); }
   }
 
   const QUICK_PRESETS = [
@@ -143,9 +144,9 @@
   /** 选中日期时间的内联反馈：实时显示对应 Unix 秒（右栏同步展示完整结果） */
   const unixPreview = $derived((() => {
     const raw = session.options.pickDateTime || '';
-    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
     if (!m) return '';
-    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] ?? 0));
     if (Number.isNaN(d.getTime())) return '';
     return String(Math.floor(d.getTime() / 1000));
   })());
@@ -153,24 +154,24 @@
   /** 日期时间 → 本地可读文本 */
   const localPreview = $derived((() => {
     const raw = session.options.pickDateTime || '';
-    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
     if (!m) return '';
     const p = (n: number) => String(n).padStart(2, '0');
-    return m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5];
+    return m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5] + (m[6] !== undefined ? ':' + m[6] : ':00');
   })());
   const weekdayPreview = $derived((() => {
     const raw = session.options.pickDateTime || '';
-    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T/);
     if (!m) return '';
-    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
     return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()] || '';
   })());
   const unixMsPreview = $derived(unixPreview ? String(Number(unixPreview) * 1000) : '');
   const relativePreview = $derived((() => {
     const raw = session.options.pickDateTime || '';
-    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
     if (!m) return '';
-    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] ?? 0));
     const diff = Math.round((d.getTime() - Date.now()) / 1000);
     const abs = Math.abs(diff);
     if (diff === 0) return '就是现在';
@@ -241,11 +242,13 @@
   function calPickDay(day: number): void {
     const p = (n: number) => String(n).padStart(2, '0');
     const cur = session.options.pickDateTime;
-    const m = cur ? cur.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/) : null;
+    const m = cur ? cur.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/) : null;
     const hh = m ? m[4] : '00';
     const mm = m ? m[5] : '00';
-    onChangeOption('pickDateTime', `${calYear}-${p(calMonth + 1)}-${p(day)}T${hh}:${mm}`);
+    const ss = m && m[6] !== undefined ? m[6] : '00';
+    onChangeOption('pickDateTime', `${calYear}-${p(calMonth + 1)}-${p(day)}T${hh}:${mm}:${ss}`);
     calOpen = false;
+    flashPicked();
   }
   function isCalToday(day: number): boolean {
     const now = new Date();
@@ -269,9 +272,22 @@
     const dm = cur.match(/^(\d{4})-(\d{2})-(\d{2})T/);
     if (!dm) return;
     onChangeOption('pickDateTime', `${dm[1]}-${dm[2]}-${dm[3]}T${p(hh)}:${p(mm)}:${p(ss)}`);
+    flashPicked();
   }
   const timeText = $derived((session.options.pickDateTime || '').replace('T', ' ').slice(11, 19) || '00:00:00');
   const dateText = $derived((session.options.pickDateTime || '').slice(0, 10) || '');
+  /** 选中日期对应的星期几（供选择按钮实时反馈） */
+  const dateWeekday = $derived((() => {
+    const raw = session.options.pickDateTime || '';
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+    if (!m) return '';
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()] || '';
+  })());
+  /** 选中后是否刚刚发生（用于闪动反馈） */
+  let pickedAt = $state(0);
+  function flashPicked(): void { pickedAt = Date.now(); }
+
 
 </script>
 
@@ -331,16 +347,19 @@
     <div class="ts-row">
       <label class="ts-field ts-dtfield">
         <span>日期时间</span>
-        <div class="ts-pick-box" class:open={calOpen}>
+        <div class="ts-pick-box" class:open={calOpen} class:picked={pickedAt > 0}>
+          {#key pickedAt}
           <button class="ts-pick-date" onclick={openCalendar} title="点击打开日历选择日期">
             <i class="ts-cal-ico">{@html TOOL_ICONS['spurh.timestamp']}</i>
             <b>{dateText || '选择日期'}</b>
+            {#if dateWeekday}<em class="ts-date-week">{dateWeekday}</em>{/if}
             <em class="ts-cal-caret">▾</em>
           </button>
+          {/key}
           <span class="ts-pick-sep">·</span>
           <span class="ts-time-wrap">
             <i class="ts-clock-ico">{@html UI_ICONS.clock}</i>
-            <input class="ts-time-input" value={timeText} placeholder="00:00" spellcheck="false" oninput={(e) => handleTimeText(e.currentTarget.value)} />
+            <input class="ts-time-input" value={timeText} placeholder="00:00:00" spellcheck="false" oninput={(e) => handleTimeText(e.currentTarget.value)} />
           </span>
           <button class="ts-now-inline" onclick={() => quickPick('now')} title="填入当前时间">现在</button>
           <div class="ts-time-presets">
@@ -497,6 +516,9 @@
   .ts-pick-box:not(:has(.ts-time-presets)) { height: 44px; padding-bottom: 6px; }
   .ts-pick-box:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 14%, transparent); }
   .ts-pick-box.open { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 6px 22px color-mix(in srgb, var(--accent) 16%, transparent); }
+  .ts-pick-box.picked { animation: tsPickFlash .55s cubic-bezier(.2, .9, .3, 1.2); }
+  @keyframes tsPickFlash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); transform: translateY(0); } 40% { box-shadow: 0 0 0 6px transparent, 0 8px 26px color-mix(in srgb, var(--accent) 22%, transparent); transform: translateY(-1px); } 100% { box-shadow: 0 0 0 0 transparent; transform: translateY(0); } }
+  .ts-date-week { color: var(--accent); font: 600 var(--fs-tiny) sans-serif; font-style: normal; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); }
   .ts-pick-date { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px 0 6px; cursor: pointer; color: var(--text); font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; border: 0; border-radius: 8px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 15%, var(--w-06)), var(--w-06)); transition: background .15s ease, transform .15s ease; flex: 0 0 auto; }
   .ts-pick-date:hover { background: color-mix(in srgb, var(--accent) 22%, var(--w-06)); transform: translateY(-1px); }
   .ts-pick-date b { font-weight: 650; letter-spacing: .4px; }

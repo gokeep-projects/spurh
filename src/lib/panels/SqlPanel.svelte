@@ -1889,16 +1889,16 @@
 
   /* ── 主体布局 ── */
   .sql-body { min-width: 0; min-height: 0; flex: 1; display: grid; grid-template-columns: 300px minmax(0, 1fr); }
-  .sql-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); }
+  .sql-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow-x: hidden; border-right: 1px solid var(--line); background: var(--panel); }
   .sql-side-head { height: 36px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 13px; color: var(--muted-2); font-size: var(--fs-tiny); font-weight: 700; letter-spacing: 1px; border-bottom: 1px solid var(--line); }
   .sql-side-add { width: 22px; height: 22px; display: grid; place-items: center; cursor: pointer; color: var(--muted); border: 0; border-radius: 8px; background: transparent; }
   :global(.sql-side-add svg) { width: 12px; height: 12px; }
   .sql-side-add:hover { color: var(--accent); background: var(--hover); }
 
   /* ── 连接列表 ── */
-  .sql-conns { flex: 0 1 auto; max-height: 42%; min-height: 60px; display: flex; flex-direction: column; gap: 2px; padding: 7px; overflow-y: auto; border-bottom: 1px solid var(--line); scrollbar-width: none; }
+  .sql-conns { flex: 0 1 auto; max-height: 42%; min-height: 60px; display: flex; flex-direction: column; gap: 2px; padding: 7px; overflow-y: auto; overflow-x: hidden; border-bottom: 1px solid var(--line); scrollbar-width: none; }
   .sql-conns::-webkit-scrollbar { display: none; }
-  .sql-conn { position: relative; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid transparent; border-radius: 8px; transition: all .15s ease; }
+  .sql-conn { position: relative; min-width: 0; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid transparent; border-radius: 8px; transition: all .15s ease; }
   .sql-conn:hover { background: var(--hover); }
   .sql-conn.live { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 5%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
   .sql-conn.active { border-color: color-mix(in srgb, var(--accent) 24%, var(--line)); background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
@@ -1926,7 +1926,7 @@
   .sql-quick-conn i { color: var(--accent); font-size: var(--fs-tiny); font-style: normal; }
 
   /* ── 库表树 ── */
-  .sql-tree { min-height: 0; flex: 1; padding: 6px; overflow-y: auto; scrollbar-width: none; }
+  .sql-tree { min-height: 0; flex: 1; padding: 6px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
   .sql-tree::-webkit-scrollbar { display: none; }
   .sql-tables { overflow-y: auto; scrollbar-width: none; }
   .sql-tables::-webkit-scrollbar { display: none; }
