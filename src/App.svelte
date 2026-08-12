@@ -2175,7 +2175,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                   <div class="about-col-left">
                     <div class="about-hero">
                       <span class="about-logo-wrap"><i class="about-logo-cone" aria-hidden="true"></i><i class="about-logo-ring" aria-hidden="true"></i><span class="brand-mark large about-logo">{@html BRAND_MARK}</span></span>
-                      <div><h3 class="about-title">Spurh</h3><p class="about-type">{aboutTagline}<span class="about-caret" aria-hidden="true"></span></p></div>
+                      <div><h3 class="about-title">Spurh</h3><p class="about-type">{aboutTagline}<span class="about-caret" aria-hidden="true"></span></p></div><span class="about-live" title="会话运行时长"><i aria-hidden="true"></i><b>LIVE</b><em>{formatUptime(aboutUptime)}</em></span>
                     </div>
                     <div class="about-chips"><span style="--i:0">Svelte 5</span><span style="--i:1">Tauri 2</span><span style="--i:2">Rust</span><span style="--i:3">TypeScript</span><span style="--i:4">AI Native</span><span style="--i:5">本地优先</span></div>
                     <div class="about-note"><b>本地优先 · AI 增强</b><p>所有工具在本地运行，数据不出设备；AI 能力按需接入，帮助生成、解释、修复与提炼，让重复工作一步完成。</p></div>

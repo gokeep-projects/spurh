@@ -5107,3 +5107,112 @@ to{opacity:1;transform:translateY(0)scale(1)}}
     transition-duration: .001s !important;
   }
 }
+
+
+/* ============================================================
+   Spurh v8 对比度与动态增强层 (2026-08-12)
+   1) 浅色主题: 工作区更深 + 面板纯白卡片 -> 告别"白蒙蒙"
+   2) 深色主题: 面板描边与层次再加固
+   3) 关于页: LIVE 实时徽标 + 旋转流光边框更醒目
+   ============================================================ */
+
+/* ---------- 1) 浅色主题: 深工作区 + 纯白卡片 ---------- */
+.app.light .workspace {
+  background:
+    radial-gradient(58vw 40vh at 88% -10%, rgba(76, 29, 149, .18), transparent 62%),
+    radial-gradient(50vw 38vh at -6% 110%, rgba(8, 145, 178, .15), transparent 60%),
+    linear-gradient(rgba(30, 41, 82, .05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 41, 82, .05) 1px, transparent 1px),
+    #96a9cf;
+  background-size: auto, auto, 26px 26px, 26px 26px, auto;
+}
+.app.light .editor-input,
+.app.light .result-view,
+.app.light .json-tree,
+.app.light .result-raw {
+  background: #ffffff;
+}
+.app.light .editor-grid {
+  border-color: rgba(35, 58, 122, .5);
+  box-shadow: 0 22px 60px rgba(35, 58, 122, .3);
+}
+.app.light .editor-pane + .editor-pane {
+  border-left-color: rgba(35, 58, 122, .38);
+}
+.app.light .editor-pane > header {
+  background: rgba(35, 58, 122, .055);
+  border-bottom-color: rgba(35, 58, 122, .24);
+}
+.app.light .tool-controls {
+  background: rgba(255, 255, 255, .99);
+}
+
+/* ---------- 2) 深色主题: 层次加固 ---------- */
+.app:not(.light):not(.aurora):not(.forest) .editor-grid {
+  border-color: rgba(140, 158, 255, .3);
+}
+.app:not(.light):not(.aurora):not(.forest) .editor-pane + .editor-pane {
+  border-left-color: rgba(140, 158, 255, .24);
+}
+.app:not(.light):not(.aurora):not(.forest) .tool-controls {
+  border-color: rgba(140, 158, 255, .3);
+}
+
+/* ---------- 3) 关于页: LIVE 徽标 ---------- */
+.about-live {
+  align-self: flex-start;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px 4px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, .35);
+  background: rgba(34, 211, 238, .07);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  color: var(--c-cyan);
+  white-space: nowrap;
+  box-shadow: 0 0 18px rgba(34, 211, 238, .12);
+}
+.about-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c-cyan);
+  box-shadow: 0 0 9px rgba(34, 211, 238, .9);
+  animation: about-live-pulse 1.3s ease-in-out infinite;
+}
+@keyframes about-live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .3; transform: scale(.75); }
+}
+.about-live em {
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: .3px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.app.light .about-live {
+  background: rgba(255, 255, 255, .9);
+  border-color: rgba(14, 116, 144, .4);
+  color: #0e7490;
+}
+
+/* ---------- 4) 关于页: 流光边框更醒目 ---------- */
+@supports (mask-composite: exclude) or (-webkit-mask-composite: xor) {
+  .about-frame {
+    opacity: 1;
+  }
+  .app.light .about-frame {
+    opacity: .8;
+  }
+}
+.app.light .about-ring,
+.app.light .about-status,
+.app.light .about-metrics span {
+  box-shadow: 0 2px 10px rgba(35, 58, 122, .08);
+}
