@@ -539,6 +539,7 @@
   .ts-time-input:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line-2)); }
   .ts-time-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
   .ts-now-inline { height: 28px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 650; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line-2)); border-radius: 8px; background: var(--accent-soft); transition: all .15s ease; }
+  .ts-pick-box .ts-now-inline { position: static; top: auto; transform: none; }
   .ts-now-inline:hover { transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 22%, transparent); }
   /* 日历弹层 */
   .ts-cal { position: absolute; top: calc(100% + 8px); left: 0; z-index: 60; width: 268px; padding: 10px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 14px; background: linear-gradient(170deg, var(--glass-strong), var(--bg2)); box-shadow: 0 18px 46px rgba(3, 5, 10, .4), 0 0 0 1px rgba(129, 140, 248, .12); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); animation: ts-cal-in .18s cubic-bezier(.2, .9, .3, 1.15); }
