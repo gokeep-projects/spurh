@@ -33,7 +33,7 @@
   type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts' | 'tools';
 
   const SETTINGS_TAB_ICONS: Record<SettingsTab, string> = {
-    general: UI_ICONS.sliders, ai: UI_ICONS.sparkle, shortcuts: UI_ICONS.keyboard, tools: UI_ICONS.grid, about: UI_ICONS.info,
+    general: UI_ICONS.settings, ai: UI_ICONS.sparkle, shortcuts: UI_ICONS.keyboard, tools: UI_ICONS.grid, about: UI_ICONS.info,
   };
   const SETTINGS_TAB_TITLES: Record<SettingsTab, string> = {
     general: '通用设置', ai: 'AI 模型', shortcuts: '快捷键', tools: '工具管理', about: '关于 Spurh',

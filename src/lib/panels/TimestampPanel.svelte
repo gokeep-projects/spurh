@@ -446,17 +446,9 @@
   .ts-chip small { color: var(--muted-2); }
   .ts-chip b { font: 600 var(--fs-xs) 'Cascadia Code', Consolas, monospace; color: var(--text); font-variant-numeric: tabular-nums; }
   .ts-chip:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); transform: translateY(-1px); }
-  .ts-input-wrap input[type="datetime-local"] { min-height: 44px; color-scheme: dark; }
-  .app.light .ts-input-wrap input[type="datetime-local"] { color-scheme: light; }
-  .ts-input-wrap input[type="datetime-local"]::-webkit-calendar-picker-indicator { width: 20px; height: 20px; margin-right: 52px; cursor: pointer; opacity: .7; }
   .ts-now-inline { top: 50%; transform: translateY(-50%); }
   .ts-dtfield { flex: 1 1 560px !important; max-width: none !important; min-width: 0; }
-  .ts-dtfield .ts-live-unix { display: none; }
   .ts-dtfield:has(.ts-inline-card) { min-width: 100%; max-width: none; width: 100%; }
-  .ts-live-unix { display: flex; align-items: baseline; gap: 7px; padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--c-green) 30%, var(--line)); border-radius: 9px; background: color-mix(in srgb, var(--c-green) 6%, var(--panel)); }
-  .ts-live-unix span { color: var(--muted); font-size: var(--fs-xs); }
-  .ts-live-unix b { font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; color: var(--c-green); font-variant-numeric: tabular-nums; }
-  .ts-live-unix small { color: var(--muted-2); font-size: var(--fs-xs); }
   .ts-field.ts-narrow select { width: 112px; }
   .ts-row .ts-field:first-child { flex: 1 1 auto; min-width: 240px; max-width: 340px; }
   .ts-row .ts-field:first-child input:not(.ts-time-input) { width: 100%; }
@@ -470,9 +462,6 @@
   .ts-live-label { color: var(--muted); font-size: var(--fs-sm); }
 
   .ts-input-wrap { position: relative; display: flex; align-items: stretch; }
-  .ts-input-wrap .ts-dt-text { min-width: 0; flex: 1 1 200px; height: 44px; padding-left: 12px; padding-right: 64px; border-left: 0; border-radius: 0 12px 12px 0; }
-  .ts-input-wrap input[type="datetime-local"] { min-width: 0; width: auto; flex: 1 1 264px; padding-left: 36px; padding-right: 60px; border-radius: 12px 0 0 12px; border-right: 0; }
-  .ts-input-wrap input[type="datetime-local"]:focus, .ts-input-wrap .ts-dt-text:focus { position: relative; z-index: 1; }
   .ts-input-wrap .ts-now-inline { right: 4px; }
   .ts-input-wrap input { height: 44px; padding-left: 36px; padding-right: 60px; border: 1.5px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 3%, var(--bg)), var(--bg)); color: var(--text); font: 550 var(--fs-sm) 'Cascadia Code', Consolas, monospace; outline: 0; box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent); transition: border-color .15s ease, box-shadow .2s ease, background .15s ease; }
   .ts-input-wrap.ts-ts-wrap { width: 100%; }
@@ -481,8 +470,6 @@
   .ts-input-wrap input::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
   .ts-input-wrap input:hover { border-color: var(--line-strong); }
   .ts-input-wrap input:focus { border-color: color-mix(in srgb, var(--accent) 65%, var(--line)); box-shadow: 0 0 0 3.5px var(--accent-soft), 0 0 16px color-mix(in srgb, var(--accent) 14%, transparent); background: color-mix(in srgb, var(--accent) 3%, var(--bg)); }
-  .ts-input-wrap:focus-within input[type="datetime-local"] { border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); }
-  .ts-input-wrap:focus-within .ts-dt-text { border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); }
   .ts-inline-card { position: relative; margin-top: 2px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 13px; background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 8%, var(--panel)), var(--panel-2) 60%); box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent); }
   .ts-to-date-card { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 9px; animation: tsCardIn .22s cubic-bezier(.2,.9,.3,1.1); }
   @keyframes tsCardIn { from { opacity: 0; transform: translateY(4px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -496,11 +483,6 @@
   .ts-inline-local em { color: var(--accent); font: 600 var(--fs-xs) sans-serif; font-style: normal; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); }
   .ts-inline-local i { color: var(--c-green); font: 600 var(--fs-xs) sans-serif; font-style: normal; }
   .ts-inline-cols { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 6px 13px 12px; }
-  .ts-input-wrap:has(input[value]:not([value=""])) input[type="datetime-local"] { border-color: color-mix(in srgb, var(--c-green) 55%, var(--line)); }
-  .ts-input-wrap input[type="datetime-local"]::-webkit-calendar-picker-indicator { width: 20px; height: 20px; margin-right: 52px; cursor: pointer; opacity: .75; filter: var(--ico-filter, none); transition: opacity .15s ease; }
-  .ts-input-wrap input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
-  .ts-input-ico { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); display: inline-flex; color: var(--muted-2); pointer-events: none; }
-  .ts-input-ico :global(svg) { width: 15px; height: 15px; }
   .ts-now-inline { position: absolute; right: 5px; height: 26px; padding: 0 11px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 8px; background: var(--accent-soft); transition: all .15s ease; }
   .ts-now-inline:hover { background: color-mix(in srgb, var(--accent) 24%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 20%, transparent); }
 
@@ -519,14 +501,14 @@
   .ts-pick-date:hover { background: color-mix(in srgb, var(--accent) 22%, var(--w-06)); transform: translateY(-1px); }
   .ts-pick-date b { font-weight: 650; letter-spacing: .4px; }
   .ts-cal-ico { display: inline-flex; color: var(--accent); }
-  .ts-cal-ico svg { width: 15px; height: 15px; }
+  .ts-cal-ico :global(svg) { width: 15px; height: 15px; }
   .ts-cal-caret { display: inline-flex; color: var(--muted); transition: transform .2s ease; }
   .ts-pick-box.open .ts-cal-caret { transform: rotate(180deg); }
   .ts-pick-sep { color: var(--muted-2); }
   .ts-time-input { width: 96px; height: 32px; padding: 0 8px; color: var(--text); font: 600 var(--fs-sm) 'Cascadia Code', Consolas, monospace; text-align: center; border: 1px solid var(--line-2); border-radius: 8px; outline: 0; background: var(--w-04); transition: border-color .15s ease, box-shadow .2s ease; }
   .ts-time-wrap { position: relative; display: inline-flex; align-items: center; flex: 0 0 auto; }
   .ts-time-wrap .ts-clock-ico { position: absolute; left: 8px; display: inline-flex; color: var(--muted-2); pointer-events: none; }
-  .ts-time-wrap .ts-clock-ico svg { width: 13px; height: 13px; }
+  .ts-time-wrap .ts-clock-ico :global(svg) { width: 13px; height: 13px; }
   .ts-time-wrap .ts-time-input { width: 118px; padding: 0 8px 0 27px; text-align: left; }
   .ts-time-presets { display: inline-flex; gap: 4px; flex: 1 1 auto; flex-wrap: wrap; }
   .ts-time-presets button { height: 26px; padding: 0 8px; cursor: pointer; color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line-2); border-radius: 7px; background: var(--w-03); transition: all .15s ease; }

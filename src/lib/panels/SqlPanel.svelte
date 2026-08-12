@@ -2210,7 +2210,7 @@
   .sql-conn-tab.active { color: var(--text); font-weight: 700; background: var(--panel-2); border-color: var(--line-strong); box-shadow: 0 -3px 12px color-mix(in srgb, var(--accent) 14%, transparent); }
   .sql-conn-tab b { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
   .sql-conn-tab .sql-conn-ico.small { width: 20px; height: 20px; border-radius: 6px; }
-  .sql-conn-tab .sql-conn-ico.small svg { width: 12px; height: 12px; }
+  .sql-conn-tab .sql-conn-ico.small :global(svg) { width: 12px; height: 12px; }
   .sql-conn-tab .sql-conn-dot.on { width: 6px; height: 6px; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 6px color-mix(in srgb, var(--c-green) 80%, transparent); }
   .sql-tab-x { display: grid; place-items: center; width: 17px; height: 17px; border-radius: 5px; color: var(--muted-2); font-size: 14px; line-height: 1; cursor: pointer; transition: all .12s ease; }
   .sql-tab-x:hover { background: var(--danger); color: #fff; }

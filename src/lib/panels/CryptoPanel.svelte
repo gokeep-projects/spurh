@@ -124,7 +124,7 @@
   .crypto-panel { display: flex; flex-direction: column; gap: 7px; width: 100%; min-width: 0; }
   .crypto-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .crypto-head-ico { display: inline-flex; color: var(--accent); }
-  .crypto-head-ico svg { width: 14px; height: 14px; }
+  .crypto-head-ico :global(svg) { width: 14px; height: 14px; }
   .crypto-head b { font-size: var(--fs-sm); font-weight: 700; }
   .crypto-head small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-2); font-size: var(--fs-xs); }
   .crypto-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 11px; background: color-mix(in srgb, var(--panel) 96%, var(--accent-soft)); }
@@ -135,7 +135,6 @@
   .crypto-chips button:hover:not(.active) { color: var(--text); border-color: var(--line-strong); background: var(--hover); transform: translateY(-1px); }
   .crypto-chips button.active { color: #fff; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); background-size: 180% 100%; border-color: transparent; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent); animation: cryptoGlow 2.4s ease infinite; }
   @keyframes cryptoGlow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-  @media (min-width: 1281px) { .crypto-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
   .crypto-key-row { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
   .crypto-key-row label { display: flex; align-items: center; gap: 6px; }
   .crypto-key-row label > span { color: var(--muted); font-size: var(--fs-xs); }
@@ -154,6 +153,5 @@
   .crypto-hint { margin: 0; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.5; }
   .crypto-hint.warn { color: var(--warn); }
   .crypto-hint.warn b { font-weight: 700; }
-  .crypto-copy-tip { margin-left: 6px; color: var(--muted-2); }
   .control-spacer { flex: 1; }
 </style>

@@ -382,7 +382,7 @@
 
   .sql-users-guide { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 42px 24px; text-align: center; border: 1px dashed var(--line-strong); border-radius: 14px; background: var(--w-02); }
   .sql-users-guide-ico { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); }
-  .sql-users-guide-ico svg { width: 24px; height: 24px; }
+  .sql-users-guide-ico :global(svg) { width: 24px; height: 24px; }
   .sql-users-guide b { font-size: var(--fs); }
   .sql-users-guide p { max-width: 520px; margin: 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.7; }
   .sql-users-guide em { font-style: normal; color: var(--muted-2); font-size: var(--fs-xs); }
