@@ -1874,7 +1874,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   {#if settingsOpen}
     <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) { event.stopPropagation(); } }}>
       <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
-        <header class="settings-header"><span class="settings-head-icon" title="设置">{@html SETTINGS_TAB_ICONS[settingsTab]}</span><div class="settings-head-copy"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2></div><button onclick={() => (settingsOpen = false)} aria-label="关闭">{@html UI_ICONS.close}</button></header>
+        <header class="settings-header"><span class="settings-head-icon" title="设置">{@html UI_ICONS.settings}</span><div class="settings-head-copy"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2></div><button onclick={() => (settingsOpen = false)} aria-label="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">
           <nav class="settings-nav">
             <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b></div></button>
@@ -1965,10 +1965,12 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                   {#if modelList.length > 0}
                     <select bind:value={aiDraft.model}><option value="">-- 选择 --</option>{#each modelList as model}<option value={model.id}>{model.id}</option>{/each}</select>
                   {:else}
-                    <input list="rm" bind:value={aiDraft.model} placeholder="输入或拉取" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
-                  {/if}
-                  {#if aiDraft.endpoint.trim()}
-                    <button disabled={modelListLoading} onclick={loadRemoteModels} title="从当前地址拉取模型列表"><span>{@html UI_ICONS.refresh}</span>{modelListLoading ? '拉取中…' : '拉取模型'}</button>
+                    <span class="model-input-wrap">
+                      <input list="rm" bind:value={aiDraft.model} placeholder="输入或拉取" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
+                      {#if aiDraft.endpoint.trim()}
+                        <button class:loading={modelListLoading} class="model-fetch" disabled={modelListLoading} onclick={loadRemoteModels} title="从当前地址拉取模型列表">{@html UI_ICONS.refresh}</button>
+                      {/if}
+                    </span>
                   {/if}
                 </div></label>
                 <label><span>密钥</span><span class="ai-secret">

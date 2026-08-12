@@ -2008,6 +2008,23 @@ kbd {
 .model-field button:disabled { opacity: .45; cursor: default; }
 .model-field button span { display: inline-flex; }
 .model-field button svg { width: 12px; height: 12px; }
+.model-input-wrap { position: relative; flex: 1; min-width: 0; display: block; }
+.model-input-wrap > input { width: 100%; box-sizing: border-box; padding-right: 36px; }
+.model-field .model-fetch {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  box-shadow: none;
+}
+.model-field .model-fetch svg { width: 13px; height: 13px; }
+.model-fetch.loading svg { animation: ai-spin 1s linear infinite; }
+@keyframes ai-spin { to { transform: rotate(360deg); } }
 .config-fields { padding: 12px; border-radius: 12px; background: var(--w-04); border: 1px solid var(--line); }
 .ai-secret { display: flex; align-items: center; gap: 6px; }
 .ai-secret input { flex: 1; min-width: 0; }
