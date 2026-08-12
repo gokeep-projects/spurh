@@ -1438,7 +1438,8 @@ kbd {
 .ai-card-actions { display: flex; gap: 6px; flex: 0 0 auto; }
 .ai-card-actions button { height: 28px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--w-04); transition: all .15s ease; }
 .ai-card-actions button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
-.ai-card-body { position: relative; z-index: 1; margin: 0; padding: 14px 16px; max-height: min(46vh, 420px); overflow: auto; color: var(--text); font: 500 var(--fs-sm)/1.7 'Cascadia Code', Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+.ai-card-body { position: relative; z-index: 1; margin: 0; padding: 16px 18px; max-height: min(46vh, 420px); overflow: auto; color: var(--text); font-size: var(--fs); font-weight: 450; line-height: 1.75; font-family: inherit; white-space: pre-wrap; word-break: break-word; letter-spacing: .1px; }
+.ai-card-body :global(pre.ai-code), .ai-card-body pre { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: var(--fs-xs); line-height: 1.6; }
 .ai-card-foot { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px; padding: 9px 14px; color: var(--muted); font-size: var(--fs-xs); border-top: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line)); background: color-mix(in srgb, var(--accent) 4%, transparent); }
 .ai-card-foot i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 8px color-mix(in srgb, var(--c-green) 70%, transparent); animation: aiLive 2s ease infinite; }
 @keyframes aiLive { 50% { opacity: .35; } }
