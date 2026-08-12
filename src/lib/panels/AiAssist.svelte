@@ -130,8 +130,9 @@
 </div>
 
 <style>
-  .ai-assist { position: relative; width: 100%; max-width: min(520px, 100%); margin: 10px auto 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: var(--radius); background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 8%, transparent); transition: border-color .2s ease, box-shadow .2s ease; }
-  .ai-assist.compact { max-width: min(520px, 100%); margin: 8px auto 0; }
+  .ai-assist { position: relative; width: 100%; max-width: min(440px, 100%); margin: 10px auto 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 16px; background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 8%, transparent); transition: border-color .2s ease, box-shadow .2s ease; }
+  .ai-assist.compact { max-width: min(440px, 100%); margin: 8px auto 0; }
+  .ai-assist:has(.ai-toggle.on) .ai-head { justify-content: flex-start; }
   .ai-assist::before { content: ""; position: absolute; inset: 0; padding: 1px; border-radius: inherit; background: linear-gradient(120deg, transparent 12%, color-mix(in srgb, var(--c-cyan) 45%, transparent) 38%, color-mix(in srgb, var(--c-magenta) 45%, transparent) 62%, transparent 88%); background-size: 220% 100%; animation: aiBorderFlow 5s linear infinite; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; pointer-events: none; }
   @keyframes aiBorderFlow { to { background-position: -220% 0; } }
   .ai-assist:hover { border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 14%, transparent); }
@@ -139,7 +140,7 @@
   @keyframes aiBusyGlow { 0%, 100% { box-shadow: 0 8px 26px color-mix(in srgb, var(--accent) 12%, transparent); } 50% { box-shadow: 0 8px 34px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); } }
   .ai-content pre { animation: aiAnswerIn .35s cubic-bezier(.2,.9,.3,1.15); }
   @keyframes aiAnswerIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-  .ai-head { display: flex; align-items: center; justify-content: flex-start; gap: 9px; padding: 7px 10px; }
+  .ai-head { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 7px 10px; }
   .ai-head::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 55%, transparent), transparent); }
   .ai-toggle { position: relative; height: 27px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; cursor: pointer; color: #fff; font-size: var(--fs-xs); font-weight: 700; border: 0; border-radius: 999px; background: linear-gradient(120deg, color-mix(in srgb, var(--c-cyan) 80%, var(--accent)), var(--accent) 55%, color-mix(in srgb, var(--c-magenta) 80%, var(--accent))); background-size: 180% 100%; box-shadow: 0 3px 12px color-mix(in srgb, var(--accent) 30%, transparent); transition: background-position .35s ease, transform .15s ease, box-shadow .2s ease; }
   .ai-toggle:hover { background-position: 100% 0; transform: translateY(-1px); box-shadow: 0 5px 18px color-mix(in srgb, var(--accent) 40%, transparent); }

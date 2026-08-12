@@ -179,6 +179,13 @@
   const QUICK_SECONDARY = QUICK_COMMANDS.slice(4);
   let sideCollapsed = $state(loadSideCollapsed());
   let quickMore = $state(false);
+  let quickHint = $state('');
+  let quickHintTimer: ReturnType<typeof setTimeout> | undefined;
+  function showQuickHint(message: string): void {
+    quickHint = message;
+    clearTimeout(quickHintTimer);
+    quickHintTimer = setTimeout(() => (quickHint = ''), 2600);
+  }
   let aiCmdInput = $state('');
   let aiCmdBusy = $state(false);
   let aiCmdError = $state('');
@@ -367,7 +374,10 @@
   /** 向已连接会话发送一条命令（模拟输入 + 回车） */
   function runQuick(cmd: string): void {
     quickMore = false;
-    if (!active || activeStatus.status !== 'connected') return;
+    if (!active || activeStatus.status !== 'connected') {
+      showQuickHint('请先点击「连接」建立 SSH 连接，再使用快捷命令');
+      return;
+    }
     const bytes = new TextEncoder().encode(cmd + '\r');
     let binary = '';
     for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -505,6 +515,9 @@
           <button class="rt-quiet danger" onclick={() => deleteSession(active.id)}>删除</button>
         </div>
       </div>
+      {#if quickHint}
+        <div class="rt-quick-hint"><i></i>{quickHint}</div>
+      {/if}
       {#if activeStatus.status === 'connected'}
         <div class="rt-cmdbar">
           <span class="rt-cmdbar-title">快捷命令</span>
@@ -663,7 +676,7 @@
   .rs-dot.busy { background: var(--blue); box-shadow: 0 0 8px var(--blue); animation: rem-pulse 1s ease-in-out infinite; }
   @keyframes rem-pulse { 50% { opacity: .35; } }
   .rs-empty { padding: 26px 10px; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.8; text-align: center; }
-  .remote-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
+  .remote-main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
   .remote-toolbar { min-height: 54px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 8px 13px; border-bottom: 1px solid var(--line); background: var(--panel); }
   .rt-identity { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; }
   .rt-identity > div { min-width: 0; max-width: 100%; display: flex; flex-direction: column; gap: 2px; }
@@ -677,6 +690,9 @@
   .rt-status.connecting i { background: var(--blue); box-shadow: 0 0 8px var(--blue); animation: rem-pulse 1s ease-in-out infinite; }
   .rt-status.error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); background: color-mix(in srgb, var(--danger) 7%, transparent); }
   .rt-status.error i { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  .rt-quick-hint { position: absolute; z-index: 60; top: 56px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 9px 16px; color: var(--text); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-radius: 999px; background: color-mix(in srgb, var(--warn) 12%, var(--panel-2)); box-shadow: 0 10px 30px color-mix(in srgb, var(--warn) 18%, transparent); animation: rtHintIn .22s cubic-bezier(.2,.9,.3,1.15); }
+  .rt-quick-hint i { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+  @keyframes rtHintIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
   .rt-actions { display: flex; gap: 6px; margin-left: auto; }
   .rt-connect { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: var(--fs-sm); font-weight: 700; border: 0; border-radius: 8px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease; }
   .rt-connect:hover { transform: translateY(-1px); box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 30%, transparent); }
