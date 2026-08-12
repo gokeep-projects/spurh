@@ -5971,19 +5971,21 @@ to{opacity:1;transform:translateY(0)scale(1)}}
    2) AI ?????config-fields ????????/??/??/?? ?????URL ????????
    3) ?? label ????/??/???? model-field ??
    ============================================================ */
-.settings-header .modal-icon {
-  margin: 0;
+.settings-header .settings-head-icon {
   flex: 0 0 auto;
   display: grid;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
-  box-shadow: 0 4px 14px rgba(129, 140, 248, .32), inset 0 0 0 1px color-mix(in srgb, #fff 12%, transparent);
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  transition: all var(--transition);
 }
-.settings-header .modal-icon svg { width: 20px; height: 20px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
-.settings-header .modal-icon:hover svg { transform: rotate(120deg); }
+.settings-header .settings-head-icon svg { width: 17px; height: 17px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+.settings-header .settings-head-icon:hover svg { transform: rotate(120deg); }
 .config-fields {
   display: flex;
   flex-direction: column;

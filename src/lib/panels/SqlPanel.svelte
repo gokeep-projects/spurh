@@ -1585,6 +1585,12 @@
             </div>
           {:else if loadingRows}
             <div class="sql-loading"><span class="spinner"></span>加载数据…</div>
+          {:else if selectedTable && rowError}
+            <div class="sql-data-error">
+              <span class="sql-data-error-ico">{@html UI_ICONS.alert}</span>
+              <div class="sql-data-error-copy"><b>表数据加载失败</b><p>{rowError}</p></div>
+              <button class="sql-btn ghost" onclick={loadTableData} title="重新尝试加载当前表">重试</button>
+            </div>
           {:else}
             <div class="sql-empty small">
               <span class="sql-empty-tile">{@html TABLE_ICON}</span>
@@ -2002,6 +2008,12 @@
 
   .sql-error { display: flex; align-items: flex-start; gap: 8px; margin: 10.5px 12px 0; padding: 8px 12px; color: var(--danger); font-size: var(--fs-xs); line-height: 1.5; border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
   .sql-error i { width: 6px; height: 6px; flex: 0 0 auto; margin-top: 4px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  .sql-data-error { flex: 1; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 18px 20px; }
+  .sql-data-error-ico { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto; color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--danger) 8%, transparent); }
+  :global(.sql-data-error-ico svg) { width: 19px; height: 19px; }
+  .sql-data-error-copy { min-width: 0; }
+  .sql-data-error-copy b { display: block; margin-bottom: 4px; color: var(--text); font-size: var(--fs-sm); }
+  .sql-data-error-copy p { margin: 0; color: var(--muted); font-size: var(--fs-xs); line-height: 1.55; word-break: break-word; }
   .sql-ok { display: flex; align-items: center; gap: 8px; margin: 10.5px 12px 0; padding: 7px 12px; color: var(--accent); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
   .sql-ok i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 

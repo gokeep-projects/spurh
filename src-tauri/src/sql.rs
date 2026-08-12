@@ -765,8 +765,8 @@ fn run_columns(profile: &SqlProfile, database: String, table: String) -> Result<
                     .map_err(|error| friendly_db_error_from(&format!("查询字段失败"), &error))?;
                 let pk_rows = client
                     .query(
-                        "SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) WHERE i.indrelid = $1::regclass AND i.indisprimary",
-                        &[&format!("public.\"{}\"", table)],
+                        "SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) WHERE i.indrelid = to_regclass($1) AND i.indisprimary",
+                        &[&format!("public.{}", quote_ident("postgres", &table))],
                     )
                     .map_err(|error| friendly_db_error_from(&format!("查询主键失败"), &error))?;
                 let pk: Vec<String> = pk_rows.iter().map(|row| row.get::<_, String>(0)).collect();
