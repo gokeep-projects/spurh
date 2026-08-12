@@ -749,6 +749,7 @@
   .tab-close { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; cursor: pointer; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1; border: 0; border-radius: 4px; background: transparent; }
   .tab-close:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
   .remote-terminal { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; }
+  .remote-terminal.collapsed { display: none !important; }
   .rt-empty { flex: 1; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--muted); text-align: center; }
   .rt-empty > span { width: 46px; height: 46px; display: grid; place-items: center; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 13px; background: var(--accent-soft); }
   :global(.rt-empty > span svg) { width: 22px; height: 22px; }
