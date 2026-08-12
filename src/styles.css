@@ -1716,13 +1716,12 @@ kbd {
 .settings-header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 0 20px;
+  gap: 12px;
+  padding: 0 18px;
   border-bottom: 1px solid var(--line);
 }
-.settings-header > div { display: flex; flex-direction: column; gap: 2px; }
-.settings-header h2 { margin: 0; font-size: 17px; font-weight: 800; }
-.settings-header p { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
+.settings-header h2 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: .2px; }
+.settings-hint { margin: 0 0 12px; font-size: var(--fs-xs); color: var(--muted); line-height: 1.5; }
 .settings-header > button {
   margin-left: auto;
   width: 32px;

@@ -1900,7 +1900,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   {#if settingsOpen}
     <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) { event.stopPropagation(); } }}>
       <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
-        <header class="settings-header"><span class="settings-head-icon" aria-hidden="true">{@html SETTINGS_TAB_ICONS[settingsTab]}</span><div class="settings-head-copy"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><p>{SETTINGS_TAB_HINTS[settingsTab]}</p></div><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
+        <header class="settings-header"><span class="settings-head-icon" aria-hidden="true">{@html SETTINGS_TAB_ICONS[settingsTab]}</span><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">
           <nav class="settings-nav">
             <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b></div></button>
@@ -1910,6 +1910,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
             <button class:active={settingsTab === 'about'} title="版本信息" onclick={() => (settingsTab = 'about')}><span>{@html UI_ICONS.info}</span><div><b>关于</b></div></button>
           </nav>
           <section class="settings-content">
+            {#if settingsTab !== 'about'}<p class="settings-hint">{SETTINGS_TAB_HINTS[settingsTab]}</p>{/if}
             {#if settingsNotice}<div class="settings-notice"><span>{@html UI_ICONS.info}</span>{settingsNotice}</div>{/if}
             {#if settingsTab === 'general'}
               <div class="settings-section-title"><h3>通用</h3></div>

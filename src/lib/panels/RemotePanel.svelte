@@ -179,6 +179,21 @@
   const QUICK_SECONDARY = QUICK_COMMANDS.slice(4);
   let sideCollapsed = $state(loadSideCollapsed());
   let quickMore = $state(false);
+  let quickMenuStyle = $state('');
+  function toggleQuickMore(event: MouseEvent): void {
+    quickMore = !quickMore;
+    if (quickMore) {
+      const btn = event.currentTarget as HTMLElement;
+      const r = btn.getBoundingClientRect();
+      const width = 250;
+      const height = Math.min(QUICK_SECONDARY.length * 31 + 16, 300);
+      let left = Math.min(r.right - width, window.innerWidth - width - 10);
+      if (left < 10) left = 10;
+      let top = r.bottom + 6;
+      if (top + height > window.innerHeight - 10) top = r.top - height - 6;
+      quickMenuStyle = `left:${left}px;top:${top}px;position:fixed;`;
+    }
+  }
   let quickHint = $state('');
   let quickHintTimer: ReturnType<typeof setTimeout> | undefined;
   function showQuickHint(message: string): void {
@@ -526,9 +541,9 @@
             <button class="rt-cmd-chip" onclick={() => runQuick(item.cmd)} title={item.cmd}>{item.label}</button>
           {/each}
           <div class="rt-quick-wrap">
-            <button class="rt-cmd-chip more" onclick={() => (quickMore = !quickMore)}>{quickMore ? '收起 ▴' : '更多 ▾'}</button>
+            <button class="rt-cmd-chip more" onclick={toggleQuickMore}>{quickMore ? '收起 ▴' : '更多 ▾'}</button>
             {#if quickMore}
-              <div class="rt-quick">
+              <div class="rt-quick" style={quickMenuStyle}>
                 {#each QUICK_SECONDARY as item}
                   <button onclick={() => runQuick(item.cmd)}><code>{item.cmd}</code><small>{item.label}</small></button>
                 {/each}
@@ -789,7 +804,7 @@
   .rt-transfer-status { margin: 0; color: var(--accent); font-size: var(--fs-xs); }
   .rt-file-note { color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.6; }
   .rt-quick-wrap { position: relative; }
-  .rt-quick { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 250px; padding: 5px; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+  .rt-quick { position: absolute; z-index: 30; width: 250px; max-height: 300px; overflow-y: auto; padding: 5px; border: 1px solid var(--line-2); border-radius: 10.5px; background: var(--panel-2); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
   .rt-quick button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10.5px; cursor: pointer; text-align: left; border: 0; border-radius: 8px; background: transparent; }
   .rt-quick button:hover { background: var(--hover); }
   .rt-quick code { color: var(--text); font: 500 13px 'Cascadia Code', monospace; }
