@@ -2220,7 +2220,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                       <article><small>许可</small><b>MIT</b></article>
                     </div>
                     <div class="about-actions">
-                      <a href="https://github.com/gokeep-projects/spurh" target="_blank" rel="noreferrer">{@html UI_ICONS.shield}<span>GitHub 仓库</span></a>
+                      <button onclick={() => { copyText(`Spurh v0.1.0 · 构建 ${BUILD_STAMP} · Svelte 5 · Tauri 2 · Rust · MIT`); settingsNotice = "版本信息已复制到剪贴板"; }}>{@html UI_ICONS.copy}<span>复制版本信息</span></button>
                       <button onclick={() => (settingsNotice = `已是最新版本 v0.1.0（构建 ${BUILD_STAMP}）`)}>{@html UI_ICONS.refresh}<span>检查更新</span></button>
                     </div>
                     <footer class="about-foot">© 2026 Spurh · Made with ❤ by xuning</footer>

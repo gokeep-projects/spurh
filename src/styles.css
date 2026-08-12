@@ -5790,3 +5790,40 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 /* 缁撴灉杈撳嚭鍖虹潃鑹?*/
 .app.light .output-pane { background: rgba(239, 244, 253, .6); }
 
+
+/* ============================================================
+   v13 侧栏自适应 + 关于页动效保底层
+   1) 侧栏压缩间距与图标，任意短视口(125% DPI 等)一屏容纳全部工具
+   2) 分类标签单行不换行
+   3) 系统'减少动画'开启时，关于页保留慢速呼吸/旋转动效（不被压成静态）
+   ============================================================ */
+.app .side-heading { padding: 10px 14px 6px; }
+.app .tool-search { margin: 0 12px 6px; }
+.app .tool-search input { height: 30px; }
+.app .category-tabs { flex-wrap: nowrap; gap: 4px; padding: 0 12px 6px; }
+.app .category-tabs button { height: 24px; padding: 0 8px; font-size: max(12px, calc(var(--fs) - 2px)); }
+.app .tool-list { gap: 2px; padding: 2px 8px 8px; }
+.app .tool-list button { min-height: clamp(34px, 5.6vh, 44px); padding: 4px 9px; gap: 8px; }
+.app .tool-list .tool-icon { width: 26px; height: 26px; border-radius: 8px; }
+.app .tool-list .tool-icon svg { width: 14px; height: 14px; }
+.app .sidebar-foot { padding: 0 10px 10px; }
+.app .sidebar-foot button { height: 36px; padding: 0 12px; border-radius: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-modal.about-mode .about-logo-ring { animation: about-logo-ring-spin 16s linear infinite !important; }
+  .settings-modal.about-mode .about-scanline { animation: about-scan 14s linear infinite !important; }
+  .settings-modal.about-mode .about-eq i { animation: about-eq-bounce 2.8s ease-in-out infinite !important; }
+  .settings-modal.about-mode .about-live i { animation: about-live-pulse 3s ease-in-out infinite !important; }
+  .settings-modal.about-mode .about-live::before { animation: about-live-ripple 5s ease-out infinite !important; }
+  .settings-modal.about-mode .about-ring.live svg { animation: about-ring-breathe 5s ease-in-out infinite !important; }
+  .settings-modal.about-mode .about-ticker-track { animation: about-ticker 46s linear infinite !important; }
+  .settings-modal.about-mode .about-orb-a { animation: about-orb-float 16s ease-in-out infinite !important; }
+  .settings-modal.about-mode .about-orb-b { animation: about-orb-float 19s ease-in-out infinite reverse !important; }
+  .settings-modal.about-mode .about-particles i { animation: about-rise 14s linear infinite !important; }
+}
+.app.light .editor-input,
+.app.light .result-view,
+.app.light .json-tree,
+.app.light .result-raw { background: #f4f8ff; }
+.app.light .editor-pane textarea,
+.app.light .editor-pane pre { background: rgba(255, 255, 255, .9); }
