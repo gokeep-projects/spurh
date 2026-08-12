@@ -121,13 +121,13 @@
 </div>
 
 <style>
-  .crypto-panel { display: flex; flex-direction: column; gap: 7px; width: 100%; min-width: 0; }
+  .crypto-panel { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
   .crypto-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .crypto-head-ico { display: inline-flex; color: var(--accent); }
   .crypto-head-ico :global(svg) { width: 14px; height: 14px; }
   .crypto-head b { font-size: var(--fs-sm); font-weight: 700; }
   .crypto-head small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-2); font-size: var(--fs-xs); }
-  .crypto-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 11px; background: color-mix(in srgb, var(--panel) 96%, var(--accent-soft)); }
+  .crypto-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 7px 8px; border: 1px solid transparent; border-radius: 12px; background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, transparent), color-mix(in srgb, var(--c-cyan) 14%, transparent) 55%, color-mix(in srgb, var(--c-magenta) 18%, transparent)) border-box; box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 3%, transparent), 0 4px 14px color-mix(in srgb, var(--accent) 6%, transparent); }
   .crypto-grp { display: inline-flex; align-items: center; gap: 4px; margin-right: 2px; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
   /* svelte-ignore css_unused_selector */
   .crypto-grp :global(svg) { width: 12px; height: 12px; }

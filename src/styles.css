@@ -6389,3 +6389,10 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .model-field .model-input-wrap:hover .model-fetch-link,
 .model-field .model-input-wrap:focus-within .model-fetch-link { opacity: 1; }
 .remote-terminal.collapsed { display: none; }
+
+/* ============ v65: ??????? / AI???? / ????????? ============ */
+.app select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23818cf8' stroke-width='1.6' stroke-linecap='round'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 26px; }
+.ai-card { background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); }
+.ai-card::after { opacity: .9; }
+.crypto-grp { padding: 2px 8px; border-radius: 7px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.crypto-chips button { border-radius: 8px; }
