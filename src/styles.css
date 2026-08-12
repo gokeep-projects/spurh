@@ -1718,7 +1718,7 @@ kbd {
   height: min(720px, calc(100vh - 24px));
   overflow: hidden;
   display: grid;
-  grid-template-rows: 64px minmax(0, 1fr);
+  grid-template-rows: 56px minmax(0, 1fr);
   border-radius: 20px;
   background:
     linear-gradient(var(--glass-strong), var(--glass-strong)) padding-box,
@@ -5977,7 +5977,7 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   border-radius: 10px;
   box-shadow: 0 6px 18px rgba(129, 140, 248, .38);
 }
-.settings-header .modal-icon svg { width: 16px; height: 16px; }
+.settings-header .modal-icon svg { width: 18px; height: 18px; }
 .config-fields {
   display: flex;
   flex-direction: column;
