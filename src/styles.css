@@ -6048,3 +6048,9 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 @media (max-height: 720px) {
   .net-head { flex: 0 1 auto; max-height: 56%; overflow-y: auto; scrollbar-width: thin; }
 }
+
+/* v18d) trace topology keeps flowing under reduced-motion (like about page) */
+@media (prefers-reduced-motion: reduce) {
+  .topo-edge { animation: topo-dash 1.2s linear infinite !important; }
+  .topo-local .local-ring { animation: local-ring 2s ease-out infinite !important; }
+}
