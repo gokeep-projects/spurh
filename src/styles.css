@@ -5810,16 +5810,21 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app .sidebar-foot button { height: 36px; padding: 0 12px; border-radius: 10px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .settings-modal.about-mode .about-logo-ring { animation: about-logo-ring-spin 16s linear infinite !important; }
-  .settings-modal.about-mode .about-scanline { animation: about-scan 14s linear infinite !important; }
-  .settings-modal.about-mode .about-eq i { animation: about-eq-bounce 2.8s ease-in-out infinite !important; }
-  .settings-modal.about-mode .about-live i { animation: about-live-pulse 3s ease-in-out infinite !important; }
-  .settings-modal.about-mode .about-live::before { animation: about-live-ripple 5s ease-out infinite !important; }
-  .settings-modal.about-mode .about-ring.live svg { animation: about-ring-breathe 5s ease-in-out infinite !important; }
-  .settings-modal.about-mode .about-ticker-track { animation: about-ticker 46s linear infinite !important; }
-  .settings-modal.about-mode .about-orb-a { animation: about-orb-float 16s ease-in-out infinite !important; }
-  .settings-modal.about-mode .about-orb-b { animation: about-orb-float 19s ease-in-out infinite reverse !important; }
-  .settings-modal.about-mode .about-particles i { animation: about-rise 14s linear infinite !important; }
+  .settings-modal.about-mode .about-logo-ring { animation: about-logo-ring-spin 6s linear infinite !important; }
+  .settings-modal.about-mode .about-logo-cone { animation: about-cone-spin 4.5s linear infinite !important; }
+  .settings-modal.about-mode .about-scanline { animation: about-scan 6s linear infinite !important; }
+  .settings-modal.about-mode .about-eq i { animation: about-eq-bounce 1.4s ease-in-out infinite !important; }
+  .settings-modal.about-mode .about-live i { animation: about-live-pulse 1.8s ease-in-out infinite !important; }
+  .settings-modal.about-mode .about-live::before { animation: about-live-ripple 2s ease-out infinite !important; }
+  .settings-modal.about-mode .about-ring.live svg { animation: about-ring-breathe 2.4s ease-in-out infinite !important; }
+  .settings-modal.about-mode .about-ticker-track { animation: about-ticker 18s linear infinite !important; }
+  .settings-modal.about-mode .about-orb-a { animation: about-orb-float 9s ease-in-out infinite !important; }
+  .settings-modal.about-mode .about-orb-b { animation: about-orb-float 11s ease-in-out infinite reverse !important; }
+  .settings-modal.about-mode .about-particles i { animation: about-rise 8s linear infinite !important; }
+  .settings-modal.about-mode .about-title { animation: about-title-flow 5s linear infinite !important; }
+  .settings-modal.about-mode .about-hero { animation: about-hero-breathe 6s ease-in-out infinite !important; }
+  .settings-modal.about-mode .about-stage { animation: about-stage-in .5s cubic-bezier(.22, .9, .35, 1) both !important; }
+  .settings-modal.about-mode .about-aurora { animation: about-aurora-drift 10s ease-in-out infinite alternate !important; }
 }
 .app.light .editor-input,
 .app.light .result-view,
