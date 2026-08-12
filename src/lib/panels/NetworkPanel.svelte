@@ -643,7 +643,7 @@ const MIME_TYPES: Array<[string, string]> = [
             <button onclick={() => zoomTrace(-0.2)} title="缩小" disabled={traceZoom <= MIN_ZOOM}>−</button>
             <b>{Math.round(traceZoom * 100)}%</b>
             <button onclick={() => zoomTrace(0.2)} title="放大" disabled={traceZoom >= MAX_ZOOM}>＋</button>
-            <button onclick={() => (traceZoom = 1)} title="重置缩放" disabled={traceZoom === 1}>⟳</button>
+            <button onclick={() => { traceZoom = 1; tracePan = { x: 0, y: 0 }; }} title="重置视图" disabled={traceZoom === 1 && tracePan.x === 0 && tracePan.y === 0}>⟳</button>
           </span>
         </div>
         <div class="topo-wrap" bind:this={topoWrapEl} onwheel={onTopoWheel} onpointerdown={onTopoPanStart} onpointermove={onTopoPanMove} onpointerup={onTopoPanEnd} onpointerleave={onTopoPanEnd} class:panning={dragging} style={traceZoom !== 1 || tracePan.x !== 0 || tracePan.y !== 0 ? `transform: translate(${tracePan.x}px, ${tracePan.y}px) scale(${traceZoom});` : ''}>

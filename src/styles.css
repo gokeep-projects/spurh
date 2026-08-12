@@ -112,7 +112,7 @@ button { cursor: pointer; border: 0; background: none; }
   flex-direction: column;
   color: var(--text);
   font-size: var(--app-font-size, 14px);
-  font-family: var(--app-font-family, "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", "HarmonyOS Sans SC", "MiSans", ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--app-font-family, "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", ui-sans-serif, system-ui, sans-serif);
   background:
     radial-gradient(58vw 44vh at 82% -8%, rgba(139, 92, 246, .13), transparent 62%),
     radial-gradient(52vw 40vh at 6% 108%, rgba(34, 211, 238, .1), transparent 60%),
@@ -3692,7 +3692,7 @@ kbd {
 /* ── 全局字号档位：让“设置→字号”对组件真正生效（替换硬编码 13/13.5px 等） ── */
 .app {
   --fs: var(--app-font-size, 14px);
-  --fs-xxs: calc(var(--fs) - 1px);
+  --fs-xxs: max(12px, calc(var(--fs) - 1px));
   --fs-xs: var(--fs);
   --fs-sm: var(--fs);
   --fs-lg: calc(var(--fs) + 1.5px);

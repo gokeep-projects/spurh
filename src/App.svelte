@@ -40,7 +40,7 @@
   };
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'Segoe UI Variable Text', 'Segoe UI Variable Display', 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', ui-sans-serif, system-ui, sans-serif",
+    '系统默认': "'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Segoe UI Variable Text', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', ui-sans-serif, system-ui, sans-serif",
     '微软雅黑': "'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', sans-serif",
     '等线': "'DengXian', 'DengXian Light', 'HarmonyOS Sans SC', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'SimHei', '黑体', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif",
