@@ -38,9 +38,6 @@
   const SETTINGS_TAB_HINTS: Record<SettingsTab, string> = {
     general: '主题 · 启动 · 托盘 · 顶栏显示', ai: '服务商配置 · 模型管理', shortcuts: '全局绑定 · 点击后直接按下新组合', tools: '侧栏与聚焦框中的工具显示', about: '版本信息 · 本地优先 · AI 增强',
   };
-  const SETTINGS_TAB_ICONS: Record<SettingsTab, string> = {
-    general: UI_ICONS.sliders, ai: UI_ICONS.sparkle, shortcuts: UI_ICONS.keyboard, tools: UI_ICONS.grid, about: UI_ICONS.info,
-  };
 
   const FONT_STACKS: Record<string, string> = {
     '系统默认': "'Segoe UI Variable Text', 'Segoe UI Variable Display', 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', ui-sans-serif, system-ui, sans-serif",
@@ -214,15 +211,8 @@
   let aboutTagline = $state('');
   let aboutPanelsShown = $state(0);
   let aboutStageEl = $state<HTMLDivElement | undefined>(undefined);
-  const aboutChipWords = [
-    { t: 'JSON 格式化', i: 0 }, { t: '时间戳转换', i: 1 }, { t: '文本处理', i: 2 },
-    { t: '随机生成', i: 3 }, { t: '加解密', i: 4 }, { t: 'Cron 表达式', i: 5 },
-    { t: '编码转换', i: 6 }, { t: '正则表达式', i: 7 }, { t: '数据库工具', i: 8 },
-    { t: '网络工具', i: 9 }, { t: '远程连接', i: 10 }, { t: 'AI 增强', i: 11 },
-    { t: '本地优先', i: 12 }, { t: '隐私安全', i: 13 },
-  ];
+
   const aboutPhrases = ['AI Native Developer Toolbox', '本地优先 · 数据不出设备', '粘贴即用 · 一步完成', '11 个工具 · 一个入口'];
-  const aboutToolNames = ['JSON 格式化', '时间戳转换', '文本处理', '随机生成', '加解密', 'Cron 表达式', '编码转换', '正则表达式', '数据库工具', '网络工具', '远程连接'];
   const BUILD_STAMP = __BUILD_DATE__; // 构建标记来自 vite define
   
   function startAboutCanvas(canvas: HTMLCanvasElement, stage: HTMLElement, isLight: boolean): () => void {
@@ -1900,7 +1890,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   {#if settingsOpen}
     <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) { event.stopPropagation(); } }}>
       <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
-        <header class="settings-header"><span class="settings-head-icon" aria-hidden="true">{@html SETTINGS_TAB_ICONS[settingsTab]}</span><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
+        <header class="settings-header"><span class="settings-head-icon" aria-hidden="true">{@html UI_ICONS.settings}</span><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">
           <nav class="settings-nav">
             <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b></div></button>
@@ -2087,12 +2077,6 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                     <div class="about-version">
                       <div class="about-ver-head"><b>v0.1.0</b><small>构建 {BUILD_STAMP}</small></div>
                       <p class="about-ver-line">本地优先 · 数据不出设备 · 即开即用</p>
-                    </div>
-                    <div class="about-chips">
-                      {#each aboutChipWords as w}<span style={`--i:${w.i}`}>{w.t}</span>{/each}
-                    </div>
-                    <div class="about-ticker" aria-hidden="true">
-                      <span class="about-ticker-track">{#each aboutToolNames as n}<i>{n}</i>{/each}{#each aboutToolNames as n}<i>{n}</i>{/each}</span>
                     </div>
                   </div>
                 </div>

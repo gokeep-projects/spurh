@@ -2510,62 +2510,6 @@ kbd {
   font-variant-numeric: tabular-nums;
   letter-spacing: .3px;
 }
-.about-ticker {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  background: var(--w-025);
-  padding: 8px 0;
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-}
-.about-ticker-track {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  white-space: nowrap;
-  width: max-content;
-  animation: about-ticker 26s linear infinite;
-}
-.about-ticker-track i {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-style: normal;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  padding: 0 9px;
-}
-.about-ticker-track i::before {
-  content: "";
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--c-cyan);
-  box-shadow: 0 0 6px var(--c-cyan);
-}
-@keyframes about-ticker {
-  to { transform: translateX(-50%); }
-}
-.about-chips {
-  position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0;
-}
-.about-chips span {
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--muted);
-  border: 1px solid var(--line);
-  background: var(--w-04);
-  transition: all var(--transition);
-}
-.about-chips span:hover { color: var(--c-cyan); border-color: rgba(34, 211, 238, .45); transform: translateY(-1px); }
-.about-stage .about-grid { position: relative; }
 .about-stage .about-grid article { background: var(--w-03); }
 .about-actions {
   position: relative;
@@ -3955,7 +3899,6 @@ kbd {
   border: 1px solid rgba(35, 58, 122, .14);
 }
 .app.light .about-term { background: rgba(35, 58, 122, .05); }
-.app.light .about-ticker,
 .app.light .about-status,
 .app.light .about-ring,
 .app.light .about-metrics span {
@@ -4120,12 +4063,11 @@ kbd {
 .settings-modal.about-mode .about-ring{gap:2px;padding:7px 3px 6px}
 .settings-modal.about-mode .about-ring svg{width:38px;height:38px}
 .settings-modal.about-mode .about-ring b{font-size:calc(var(--fs) - 2px);top:13px}
-.settings-modal.about-mode .about-ticker{padding:6px 0}
 @keyframes about-stage-in{0%{opacity:0;transform:translateY(14px)scale(.985)}
 to{opacity:1;transform:translateY(0)scale(1)}}
 .settings-modal.about-mode .about-stage{animation:.45s cubic-bezier(.22,.9,.3,1.2) both about-stage-in}
 .settings-modal.about-mode .about-stage .about-hero{animation:.55s cubic-bezier(.22,.9,.3,1.2) 60ms both about-stage-in}
-.settings-modal.about-mode .about-stage .about-status,.settings-modal.about-mode .about-stage .about-version,.settings-modal.about-mode .about-stage .about-rings,.settings-modal.about-mode .about-stage .about-term,.settings-modal.about-mode .about-stage .about-ticker{animation:.5s cubic-bezier(.22,.9,.3,1.2) .12s both about-stage-in}
+.settings-modal.about-mode .about-stage .about-status,.settings-modal.about-mode .about-stage .about-version,.settings-modal.about-mode .about-stage .about-rings,.settings-modal.about-mode .about-stage .about-term{animation:.5s cubic-bezier(.22,.9,.3,1.2) .12s both about-stage-in}
 
 /* ==== About premium dynamics ==== */
 .settings-modal.about-mode .about-grid article{transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
@@ -4700,28 +4642,12 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   54% { opacity: 0; }
   100% { top: 4%; opacity: 0; }
 }
-.settings-modal.about-mode .about-chips span {
-  position: relative;
-  transition: transform .18s ease, box-shadow .2s ease, color .2s ease;
-}
-.settings-modal.about-mode .about-chips span:hover {
-  transform: translateY(-2px) scale(1.06);
-  color: var(--c-cyan);
-  box-shadow: 0 6px 18px rgba(34, 211, 238, .22);
-}
 .settings-modal.about-mode .term-caret {
   animation: about-caret-blink .85s steps(1) infinite;
 }
 @keyframes about-caret-blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
-}
-.settings-modal.about-mode .about-ticker {
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-}
-.app.light .settings-modal.about-mode .about-stage::after {
-  opacity: .55;
 }
 .app.light .settings-modal.about-mode .about-scanline {
   opacity: .4;
@@ -4886,16 +4812,6 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .settings-modal.about-mode .about-ver-head b { font-size: 15px; }
 .settings-modal.about-mode .about-ring .ring-fill { filter: drop-shadow(0 0 4px currentColor); }
 .settings-modal.about-mode .about-ring b { font-size: max(13px, calc(var(--fs) + .5px)); top: 14px; }
-.settings-modal.about-mode .about-ticker {
-  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
-  background: var(--w-03);
-}
-.settings-modal.about-mode .about-term header { background: color-mix(in srgb, var(--c-violet) 10%, transparent); }
-.settings-modal.about-mode .about-chips span {
-  border-color: color-mix(in srgb, var(--accent) 26%, var(--line));
-  background: var(--w-04);
-}
-
 
 /* ============ ??? v6 ???? (2026-08-12) ============ */
 .settings-modal.about-mode .about-stage { box-shadow: 0 0 0 1px rgba(129,140,248,.18), 0 0 44px rgba(99,102,241,.18), 0 24px 70px rgba(0,0,0,.35); }
@@ -4975,8 +4891,6 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   100% { transform: translateY(120px); opacity: 0; }
 }
 .settings-modal.about-mode .about-term-body p.cmd { color: var(--c-cyan); text-shadow: 0 0 10px rgba(34,211,238,.35); }
-.settings-modal.about-mode .about-ticker { padding: 9px 0; }
-.settings-modal.about-mode .about-ticker-track i { font-weight: 600; }
 
 /* ??????? */
 .app.light .settings-modal.about-mode .about-hero::after {
@@ -5691,29 +5605,6 @@ to{opacity:1;transform:translateY(0)scale(1)}}
     0 30px 80px rgba(37, 48, 100, .3),
     0 0 50px rgba(99, 102, 241, .14);
 }
-.about-chips span {
-  position: relative;
-  overflow: hidden;
-}
-.about-chips span::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 42%;
-  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .14), transparent);
-  transform: skewX(-16deg);
-  animation: about-chip-shine 4.5s ease-in-out infinite;
-  animation-delay: calc(var(--i, 0) * .35s);
-  pointer-events: none;
-}
-@keyframes about-chip-shine {
-  0%, 55% { left: -60%; }
-  85%, 100% { left: 130%; }
-}
-.app.light .about-chips span::after {
-  background: linear-gradient(105deg, transparent, rgba(109, 40, 217, .16), transparent);
-}
 
 /* ============================================================
    v12b) 娴呰壊涓婚闈㈡澘鐫€鑹茶皟浼橈細浠庣函鐧芥敼涓哄喎璋冭摑鐧?   ============================================================ */
@@ -5807,7 +5698,6 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   .settings-modal.about-mode .about-live i { animation: about-live-pulse 1.8s ease-in-out infinite !important; }
   .settings-modal.about-mode .about-live::before { animation: about-live-ripple 2s ease-out infinite !important; }
   .settings-modal.about-mode .about-ring.live svg { animation: about-ring-breathe 2.4s ease-in-out infinite !important; }
-  .settings-modal.about-mode .about-ticker-track { animation: about-ticker 18s linear infinite !important; }
   .settings-modal.about-mode .about-orb-a { animation: about-orb-float 9s ease-in-out infinite !important; }
   .settings-modal.about-mode .about-orb-b { animation: about-orb-float 11s ease-in-out infinite reverse !important; }
   .settings-modal.about-mode .about-particles i { animation: about-rise 8s linear infinite !important; }
