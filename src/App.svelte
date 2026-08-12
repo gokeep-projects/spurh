@@ -958,7 +958,9 @@
       };
       const before = stripStr(value.slice(0, start));
       const depth = depthOf(before);
-      const trailingOpener = /[{\[(]\s*$/.test(before);
+      // 仅当前行以开放括号结尾才算 trailingOpener（避免 \s 跨行匹配导致空行回车重复插空行）
+      const currentLineBefore = before.slice(before.lastIndexOf('\n') + 1);
+      const trailingOpener = /[{\[(][ \t]*$/.test(currentLineBefore);
       const nextNonWs = value.slice(end).match(/^\s*(\S)/)?.[1] ?? '';
       const nextIndent = '  '.repeat(depth);
       if (trailingOpener && '}])'.includes(nextNonWs)) {

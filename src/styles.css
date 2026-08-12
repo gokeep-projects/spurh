@@ -5008,3 +5008,102 @@ to{opacity:1;transform:translateY(0)scale(1)}}
     linear-gradient(90deg, rgba(14,116,144,.04) 1px, transparent 1px);
   background-size: 18px 18px;
 }
+
+
+/* ============================================================
+   Spurh v7 视觉与性能修复层 (2026-08-12)
+   1) 浅色主题：工作区底色加深 + 面板更白，告别“白蒙蒙”
+   2) 深色主题：面板与背景拉开层次，卡片可辨
+   3) 关于页：logo 轨道卫星 + 实况环流光
+   4) prefers-reduced-motion 降级，避免低性能设备卡顿
+   ============================================================ */
+
+/* ---------- 1) 浅色主题层次 ---------- */
+.app.light .workspace {
+  background:
+    radial-gradient(52vw 36vh at 86% -8%, rgba(109, 40, 217, .22), transparent 62%),
+    radial-gradient(46vw 34vh at -4% 106%, rgba(14, 116, 144, .18), transparent 60%),
+    #aebad8;
+}
+.app.light .editor-input,
+.app.light .result-view,
+.app.light .json-tree,
+.app.light .result-raw {
+  background: #e9effa;
+}
+.app.light .tool-controls {
+  background: rgba(255, 255, 255, .97);
+  border-color: rgba(35, 58, 122, .5);
+  box-shadow: 0 16px 38px rgba(35, 58, 122, .2);
+}
+.app.light .editor-pane {
+  box-shadow: 0 20px 48px rgba(35, 58, 122, .26), 0 2px 8px rgba(35, 58, 122, .1);
+}
+
+/* ---------- 2) 深色主题层次 ---------- */
+.app:not(.light):not(.aurora):not(.forest) .workspace {
+  background:
+    radial-gradient(52vw 36vh at 88% -6%, rgba(139, 92, 246, .1), transparent 60%),
+    radial-gradient(40vw 30vh at -6% 108%, rgba(34, 211, 238, .07), transparent 58%),
+    #060913;
+}
+.app:not(.light):not(.aurora):not(.forest) .tool-controls {
+  background: rgba(18, 23, 46, .94);
+  border-color: rgba(140, 158, 255, .3);
+}
+.app:not(.light):not(.aurora):not(.forest) .editor-grid {
+  background: rgba(20, 26, 52, .94);
+  border-color: rgba(140, 158, 255, .3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
+}
+.app:not(.light):not(.aurora):not(.forest) .editor-pane > header {
+  background: rgba(140, 158, 255, .05);
+}
+.app:not(.light):not(.aurora):not(.forest) .editor-input,
+.app:not(.light):not(.aurora):not(.forest) .result-view {
+  background: #0c1122;
+}
+
+/* ---------- 3) 关于页：logo 轨道卫星 ---------- */
+.settings-modal.about-mode .about-logo-wrap::after {
+  content: "";
+  position: absolute;
+  inset: -30px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34, 211, 238, .95) 0 3px, transparent 4px),
+    radial-gradient(circle at 100% 50%, rgba(232, 121, 249, .95) 0 3px, transparent 4px),
+    radial-gradient(circle at 0% 50%, rgba(129, 140, 248, .9) 0 2.5px, transparent 3.5px);
+  animation: about-satellite 8s linear infinite;
+  pointer-events: none;
+  opacity: .85;
+}
+@keyframes about-satellite {
+  to { transform: rotate(360deg); }
+}
+.app.light .settings-modal.about-mode .about-logo-wrap::after {
+  opacity: .7;
+}
+
+/* 关于页：实况环流光 */
+.settings-modal.about-mode .about-ring .ring-fill {
+  filter: drop-shadow(0 0 3px currentColor);
+}
+.settings-modal.about-mode .about-ring.live .ring-fill {
+  animation: about-ring-glow 2.4s ease-in-out infinite;
+}
+@keyframes about-ring-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px currentColor); }
+  50% { filter: drop-shadow(0 0 8px currentColor); }
+}
+
+/* ---------- 4) 动画降级 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .app *,
+  .app *::before,
+  .app *::after {
+    animation-duration: .001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001s !important;
+  }
+}
