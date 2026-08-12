@@ -665,10 +665,10 @@
   .rs-empty { padding: 26px 10px; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.8; text-align: center; }
   .remote-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
   .remote-toolbar { min-height: 54px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 8px 13px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .rt-identity { min-width: 0; display: flex; align-items: center; gap: 10px; }
-  .rt-identity > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .rt-identity b { overflow: hidden; font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
-  .rt-identity small { color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', monospace; }
+  .rt-identity { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; }
+  .rt-identity > div { min-width: 0; max-width: 100%; display: flex; flex-direction: column; gap: 2px; }
+  .rt-identity b { max-width: 100%; overflow: hidden; font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
+  .rt-identity small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', monospace; }
   .rt-status { display: flex; align-items: center; gap: 7px; padding: 5px 10px; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .2s ease; }
   .rt-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-2); }
   .rt-status.connected { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); background: var(--accent-soft); }
