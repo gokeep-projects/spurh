@@ -65,8 +65,7 @@
   let grantPrivs = $state<Record<string, Set<string>>>({});
   const DEFAULT_PRIVS = new Set(['SELECT', 'INSERT', 'UPDATE', 'DELETE']);
   function privsFor(key: string): Set<string> {
-    if (!grantPrivs[key]) grantPrivs = { ...grantPrivs, [key]: new Set(DEFAULT_PRIVS) };
-    return grantPrivs[key];
+    return grantPrivs[key] ?? DEFAULT_PRIVS;
   }
   let grantBusy = $state(false);
   let grantMsg = $state('');
@@ -102,6 +101,7 @@
     try {
       const lines = await safeInvoke<string[]>('sql_user_grants', { profile: profileOf(conn), name: u.name, host: u.host });
       grantsMap = { ...grantsMap, [key]: lines };
+      if (!grantPrivs[key]) grantPrivs = { ...grantPrivs, [key]: new Set(DEFAULT_PRIVS) };
     } catch (cause) {
       grantsError = (cause instanceof Error ? cause.message : String(cause)) + '（' + key + '）';
     } finally {
