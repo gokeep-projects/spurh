@@ -40,7 +40,7 @@
   };
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', ui-sans-serif, system-ui, sans-serif",
+    '系统默认': "'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Segoe UI Variable Text', 'Segoe UI', ui-sans-serif, system-ui, sans-serif",
     '微软雅黑': "'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', sans-serif",
     '等线': "'DengXian', 'DengXian Light', 'HarmonyOS Sans SC', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'SimHei', '黑体', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif",
@@ -793,8 +793,15 @@
       const nextIndent = '  '.repeat(depth);
       if (trailingOpener && nextNonWs && '}])'.includes(nextNonWs)) {
         event.preventDefault();
-        const insert = '\n' + nextIndent + '\n' + '  '.repeat(Math.max(0, depth - 1));
-        changeInput(value.slice(0, start) + insert + value.slice(end));
+        const rest = value.slice(end);
+        const closer = rest[0];
+        const afterClose = rest.slice(1);
+        const closerIndent = '  '.repeat(Math.max(0, depth - 1));
+        let insert = '\n' + nextIndent + '\n' + closerIndent + closer;
+        // 闭合括号后同一行还有内容：换行到外层缩进行，避免文字被直接拼接在括号后
+        if (afterClose.trim()) insert += '\n' + closerIndent + afterClose.trimStart();
+        else insert += rest.slice(1);
+        changeInput(value.slice(0, start) + insert);
         flushSync();
         target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
         return;
@@ -926,7 +933,10 @@
       if (closeMatch) {
         const newIndent = indent + '  '.repeat(level);
         const afterClose = afterCursor.slice(closeMatch[0].length);
-        const newText = '\n' + newIndent + '\n' + indent + closeMatch[1] + afterClose + value.slice(lineEndPos);
+        // 闭合括号后同一行还有内容：换行到新缩进行，避免文字被直接拼接在括号后
+        let newText = '\n' + newIndent + '\n' + indent + closeMatch[1];
+        if (afterClose.trim()) newText += '\n' + indent + afterClose.trimStart();
+        newText += value.slice(lineEndPos);
         changeInput(value.slice(0, start) + newText);
         flushSync();
         target.selectionStart = target.selectionEnd = start + 1 + newIndent.length;

@@ -112,7 +112,7 @@ button { cursor: pointer; border: 0; background: none; }
   flex-direction: column;
   color: var(--text);
   font-size: var(--app-font-size, 14px);
-  font-family: var(--app-font-family, "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--app-font-family, "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif);
   background:
     radial-gradient(58vw 44vh at 82% -8%, rgba(139, 92, 246, .13), transparent 62%),
     radial-gradient(52vw 40vh at 6% 108%, rgba(34, 211, 238, .1), transparent 60%),
@@ -1965,7 +1965,7 @@ kbd {
 }
 .model-field input:focus, .model-field select:focus { border-color: rgba(129, 140, 248, .6); box-shadow: 0 0 0 3px rgba(129, 140, 248, .14); }
 .model-field input[type="password"] { font-family: ui-monospace, Consolas, monospace; letter-spacing: 1px; }
-.model-field > div { position: relative; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.model-field > div { position: relative; display: flex; align-items: center; gap: 7px; flex-wrap: nowrap; }
 .model-field > div input, .model-field > div select { flex: 1; min-width: 0; }
 .model-field button {
   position: static;
@@ -4481,6 +4481,12 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   width: 100%;
   margin: 12px auto;
   position: relative;
+}
+.output-scroll .stream-preview,
+.output-scroll .answer-preview {
+  width: min(560px, calc(100% - 24px));
+  margin-left: auto;
+  margin-right: auto;
 }
 .output-scroll .stream-preview {
   background: linear-gradient(160deg, rgba(232, 121, 249, .07), rgba(34, 211, 238, .05) 60%, rgba(139, 92, 246, .07));
