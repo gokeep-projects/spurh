@@ -1305,7 +1305,7 @@
             </button>
             <div class="sql-conn-ops">
               <button title="编辑连接" onclick={() => openEditConnFor(conn)}><span>{@html UI_ICONS.sliders}</span></button>
-              <button class:confirm={confirmDeleteId === conn.id} title="删除连接" onclick={() => deleteConn(conn.id)}><span>{confirmDeleteId === conn.id ? '确认' : UI_ICONS.trash}</span></button>
+              <button class:confirm={confirmDeleteId === conn.id} title="删除连接" onclick={() => deleteConn(conn.id)}>{#if confirmDeleteId === conn.id}<span>确认</span>{:else}<span>{@html UI_ICONS.trash}</span>{/if}</button>
             </div>
           </div>
         {/each}
