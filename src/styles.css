@@ -3551,7 +3551,7 @@ kbd {
 .visibility-entry-icon svg { width: 16px; height: 16px; }
 .visibility-entry-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .visibility-entry-copy b { font-size: var(--fs-xs); font-weight: 700; }
-.visibility-entry-copy small { font-size: var(--fs-xs); color: var(--muted-2); }
+.visibility-entry-copy small { overflow: hidden; font-size: var(--fs-xs); color: var(--muted-2); text-overflow: ellipsis; white-space: nowrap; }
 .visibility-entry-arrow {
   font-size: var(--fs-lg);
   color: var(--c-cyan);
@@ -6196,7 +6196,7 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .ts-pick-box .ts-now-inline { order: 4; }
 
 
-/* ============ v49) \u8bbe\u7f6e\u5934\u90e8\u56fe\u6807\u6062\u590d\uff1a\u968f tab \u53d8\u5316 + \u6d45\u8272\u805a\u7126\u6846\u4fee\u590d ============ */
+/* ============ v57) \u8bbe\u7f6e\u5934\u90e8\u56fe\u6807\u7edf\u4e00\u4e3a\u9f7f\u8f6e\uff08\u4e0e\u9876\u680f/\u4fa7\u680f\u5165\u53e3\u4e00\u81f4\uff0c\u4e0d\u968f tab \u53d8\u5316\uff09 ============ */
 .settings-header .settings-head-icon {
   flex: 0 0 auto;
   display: grid;

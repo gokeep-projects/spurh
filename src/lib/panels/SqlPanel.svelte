@@ -1256,14 +1256,18 @@
     const sr = side.getBoundingClientRect();
     const tipHeight = 30;
     // 宽度按完整表名估算，最多 430px，确保完整展示不再被截断
-    const width = Math.min(430, Math.max(140, Math.round(name.length * 7.4 + 28)));
+    let tipWidth = Math.min(430, Math.max(140, Math.round(name.length * 7.4 + 28)));
     // 优先浮在侧栏右侧（编辑区一侧），空间不足再放左侧，绝不覆盖当前行
     let left = sr.right + 10;
-    if (left + width > window.innerWidth - 12) left = sr.left - width - 10;
+    if (left + tipWidth > window.innerWidth - 12) left = sr.left - tipWidth - 10;
     let top = row.top - tipHeight - 6;
     if (top < sr.top + 4) top = row.bottom + 6;
     if (top + tipHeight > window.innerHeight - 8) top = row.bottom + 6;
-    treeTip = { name, left, top, width };
+    // ???????????????????????????????????
+    tipWidth = Math.min(tipWidth, window.innerWidth - 16);
+    left = Math.max(8, Math.min(left, window.innerWidth - tipWidth - 8));
+    top = Math.max(8, Math.min(top, window.innerHeight - tipHeight - 8));
+    treeTip = { name, left, top, width: tipWidth };
   }
 
 </script>
@@ -1372,7 +1376,7 @@
       {/if}
       {#if contextMenu}
         <button type="button" class="sql-ctx-backdrop" aria-label="关闭菜单" tabindex="-1" oncontextmenu={(event) => event.preventDefault()} onclick={() => (contextMenu = null)}></button>
-        <div class="sql-ctx" style={`left:${Math.min(contextMenu.x, window.innerWidth - 200)}px;top:${Math.min(contextMenu.y, window.innerHeight - 180)}px`}>
+        <div class="sql-ctx" style={`left:${Math.max(8, Math.min(contextMenu.x, window.innerWidth - 200))}px;top:${Math.max(8, Math.min(contextMenu.y, window.innerHeight - 180))}px`}>
           <b>{contextMenu.table}</b>
           <button disabled={exporting} onclick={() => doExport(false)}>导出表结构</button>
           <button disabled={exporting} onclick={() => doExport(true)}>导出结构 + 数据</button>
@@ -1386,7 +1390,7 @@
       {/if}
       {#if cellMenu}
         <button type="button" class="sql-ctx-backdrop" aria-label="关闭菜单" tabindex="-1" oncontextmenu={(event) => event.preventDefault()} onclick={() => (cellMenu = null)}></button>
-        <div class="sql-cell-menu" style={`left:${Math.min(cellMenu.x, window.innerWidth - 190)}px;top:${Math.min(cellMenu.y, window.innerHeight - 140)}px`}>
+        <div class="sql-cell-menu" style={`left:${Math.max(8, Math.min(cellMenu.x, window.innerWidth - 190))}px;top:${Math.max(8, Math.min(cellMenu.y, window.innerHeight - 140))}px`}>
           <b>单元格操作</b>
           <button onclick={copyCellValue}>复制单元格</button>
           <button onclick={copyRowJson}>复制整行 JSON</button>
@@ -1395,7 +1399,7 @@
       {/if}
       {#if connMenu}
         <button type="button" class="sql-ctx-backdrop" aria-label="关闭菜单" tabindex="-1" oncontextmenu={(event) => event.preventDefault()} onclick={() => (connMenu = null)}></button>
-        <div class="sql-cell-menu" style={`left:${Math.min(connMenu.x, window.innerWidth - 190)}px;top:${Math.min(connMenu.y, window.innerHeight - 170)}px`}>
+        <div class="sql-cell-menu" style={`left:${Math.max(8, Math.min(connMenu.x, window.innerWidth - 190))}px;top:${Math.max(8, Math.min(connMenu.y, window.innerHeight - 170))}px`}>
           <b>连接操作</b>
           <button onclick={() => connMenuAction('connect')}>连接</button>
           <button onclick={() => connMenuAction('edit')}>编辑</button>
@@ -1405,7 +1409,7 @@
       {/if}
       {#if dbMenu}
         <button type="button" class="sql-ctx-backdrop" aria-label="关闭菜单" tabindex="-1" oncontextmenu={(event) => event.preventDefault()} onclick={() => (dbMenu = null)}></button>
-        <div class="sql-cell-menu" style={`left:${Math.min(dbMenu.x, window.innerWidth - 190)}px;top:${Math.min(dbMenu.y, window.innerHeight - 140)}px`}>
+        <div class="sql-cell-menu" style={`left:${Math.max(8, Math.min(dbMenu.x, window.innerWidth - 190))}px;top:${Math.max(8, Math.min(dbMenu.y, window.innerHeight - 140))}px`}>
           <b>{dbMenu.name}</b>
           <button onclick={() => dbMenuAction('open')}>打开</button>
           <button onclick={() => dbMenuAction('refresh')}>刷新表列表</button>

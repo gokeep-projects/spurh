@@ -413,7 +413,7 @@
   .code-with-lines > pre { flex: 1; min-width: 0; margin: 0; padding: 14px; color: var(--text); font: 450 var(--fs-sm)/1.62 ui-monospace, 'Cascadia Code', Consolas, monospace; tab-size: 2; white-space: pre; overflow: auto; }
   small { color: var(--muted); }
   .time-hero { position: relative; overflow: hidden; padding: 24px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--panel)), var(--panel) 65%, color-mix(in srgb, var(--c-cyan) 8%, var(--panel))); box-shadow: 0 10px 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent); }
-  .time-hero::after { content: ""; position: absolute; inset: -60% -30% auto; height: 80%; background: radial-gradient(45% 65% at 30% 0%, color-mix(in srgb, var(--c-cyan) 14%, transparent), transparent 70%); pointer-events: none; }
+  .time-hero::after { content: ""; position: absolute; inset: -60% 0 auto; height: 80%; background: radial-gradient(45% 65% at 30% 0%, color-mix(in srgb, var(--c-cyan) 14%, transparent), transparent 70%); pointer-events: none; }
   .time-hero-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
   .time-hero-top small { display: block; font-size: var(--fs-xs); letter-spacing: 1.2px; text-transform: uppercase; }
   .time-hero-tz { display: inline-flex; padding: 2px 8px; color: var(--accent); font-size: var(--fs-xs); border-radius: 999px; background: var(--accent-soft); }
