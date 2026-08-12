@@ -89,6 +89,11 @@
     }
   }
 
+  /** 一键填入当前 Unix 秒级时间戳（时间戳 → 日期 模式的“现在”快捷） */
+  function fillNowTimestamp(): void {
+    onChangeInput(String(Math.floor(Date.now() / 1000)));
+  }
+
   /** 手动切换模式：进入 to-unix 时清空共享输入残留的非日期文本（如旧时间戳），避免被插件误解析 */
   function switchMode(id: string): void {
     const residual = session.input.trim();
@@ -250,7 +255,10 @@
     <div class="ts-row">
       <label class="ts-field">
         <span>时间戳</span>
-        <input value={session.input} placeholder="例如 1700000000 或 1700000000000" spellcheck="false" oninput={(e) => handleInput(e.currentTarget.value)} />
+        <div class="ts-input-wrap ts-ts-wrap">
+          <input value={session.input} placeholder="例如 1700000000 或 1700000000000" spellcheck="false" oninput={(e) => handleInput(e.currentTarget.value)} />
+          <button class="ts-now-inline" onclick={() => fillNowTimestamp()} title="填入当前时间戳">现在</button>
+        </div>
       </label>
       <label class="ts-field ts-narrow">
         <span>单位</span>
@@ -402,6 +410,9 @@
   .ts-input-wrap input[type="datetime-local"]:focus, .ts-input-wrap .ts-dt-text:focus { position: relative; z-index: 1; }
   .ts-input-wrap .ts-now-inline { right: 4px; }
   .ts-input-wrap input { height: 44px; padding-left: 36px; padding-right: 60px; border: 1.5px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 3%, var(--bg)), var(--bg)); color: var(--text); font: 550 var(--fs-sm) 'Cascadia Code', Consolas, monospace; outline: 0; box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent); transition: border-color .15s ease, box-shadow .2s ease, background .15s ease; }
+  .ts-input-wrap.ts-ts-wrap { width: 100%; }
+  .ts-input-wrap.ts-ts-wrap input { padding-left: 12px; padding-right: 64px; }
+  .ts-input-wrap.ts-ts-wrap .ts-now-inline { right: 5px; }
   .ts-input-wrap input::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
   .ts-input-wrap input:hover { border-color: var(--line-strong); }
   .ts-input-wrap input:focus { border-color: color-mix(in srgb, var(--accent) 65%, var(--line)); box-shadow: 0 0 0 3.5px var(--accent-soft), 0 0 16px color-mix(in srgb, var(--accent) 14%, transparent); background: color-mix(in srgb, var(--accent) 3%, var(--bg)); }

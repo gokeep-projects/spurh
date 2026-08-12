@@ -1821,7 +1821,7 @@
               <span class="sql-db-picker">
                 <input list="sql-db-list" bind:value={d.database} placeholder="全部（留空则连接后选择）" spellcheck="false" />
                 <datalist id="sql-db-list">{#each dbList as name}<option value={name}></option>{/each}</datalist>
-                <button class="sql-btn ghost" disabled={dbFetching} onclick={fetchFormDatabases}>{dbFetching ? '拉取中…' : '拉取数据库'}</button>
+                <button class="sql-btn ghost" disabled={dbFetching || !d.host.trim() || !d.user.trim()} title={(!d.host.trim() || !d.user.trim()) ? '请先填写主机与用户名' : '从服务器拉取数据库列表'} onclick={fetchFormDatabases}>{dbFetching ? '拉取中…' : '拉取数据库'}</button>
               </span>
             </label>
           {:else}
