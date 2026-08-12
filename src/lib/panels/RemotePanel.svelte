@@ -510,7 +510,7 @@
           <span class="rt-sep"></span>
           <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => { sysPanel = true; loadSysInfo(); }} title="查看主机系统/内存/磁盘/负载">资源信息</button>
           <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => (filePanel = true)} title="上传 / 下载文件（基于 cat）">传输文件</button>
-          <button class="rt-quiet" disabled={activeStatus.status !== 'connected'} onclick={() => aiCmdElement?.focus()} title="用 AI 根据自然语言生成命令并发送到终端">AI 命令</button>
+          <button class="rt-quiet" onclick={() => aiCmdElement?.focus()} title="用 AI 根据自然语言生成命令并发送到终端">AI 命令</button>
           <span class="rt-sep"></span>
           <button class="rt-quiet" onclick={editSession}>编辑</button>
           <button class="rt-quiet danger" onclick={() => deleteSession(active.id)}>删除</button>
@@ -542,6 +542,21 @@
             <button class="rt-ai-btn" disabled={aiCmdBusy || !aiCmdInput.trim()} onclick={aiCommand}>{aiCmdBusy ? '生成中…' : '生成并发送'}</button>
           </div>
           {#if aiCmdError}<span class="rt-ai-error" title={aiCmdError}>{aiCmdError}</span>{/if}
+        </div>
+      {:else}
+        <div class="rt-cmdbar rt-cmdbar-idle">
+          <span class="rt-cmdbar-title">快捷命令</span>
+          {#each QUICK_PRIMARY as item}
+            <button class="rt-cmd-chip" disabled title={item.cmd}>{item.label}</button>
+          {/each}
+          <span class="rt-cmdbar-grow"></span>
+          <div class="rt-ai">
+            <span class="rt-ai-ico" title="AI 生成命令">{@html UI_ICONS.sparkle}</span>
+            <input bind:this={aiCmdElement} value={aiCmdInput} oninput={(e) => (aiCmdInput = e.currentTarget.value)} placeholder="例如：查看服务器上有几个文件 / 查询磁盘剩余空间" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && aiCommand()} />
+            <button class="rt-ai-btn" disabled={aiCmdBusy || !aiCmdInput.trim()} onclick={aiCommand}>{aiCmdBusy ? '生成中…' : '生成并发送'}</button>
+          </div>
+          {#if aiCmdError}<span class="rt-ai-error" title={aiCmdError}>{aiCmdError}</span>{/if}
+          <span class="rt-cmdbar-idle-hint">连接后可一键发送快捷命令</span>
         </div>
       {/if}
       {#if sysPanel}
@@ -639,6 +654,10 @@
   .rt-cmdbar-title { color: var(--muted-2); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .3px; margin-right: 2px; }
   .rt-cmd-chip { height: 26px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid var(--line); border-radius: 999px; background: transparent; transition: all .15s ease; }
   .rt-cmd-chip:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .rt-cmd-chip:disabled { opacity: .45; cursor: default; }
+  .rt-cmd-chip:disabled:hover { color: var(--muted); border-color: var(--line); background: transparent; }
+  .rt-cmdbar-idle { opacity: .88; }
+  .rt-cmdbar-idle-hint { flex: 0 0 auto; color: var(--muted-2); font-size: var(--fs-tiny); }
   .rt-cmd-chip.more { color: var(--muted-2); }
   .rt-cmdbar-grow { flex: 1; }
   .rt-ai { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; justify-content: flex-end; }

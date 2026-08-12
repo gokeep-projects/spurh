@@ -602,6 +602,10 @@ pub async fn net_traceroute(host: String) -> Result<Vec<TraceHop>, String> {
         return Err("主机名不能以 - 开头".into());
     }
     let dest = resolve_ipv4(&host).await?;
+    // 回环地址：Windows IcmpSendEcho 对 127.0.0.0/8 与 ::1 不响应，直接返回本机一跳，避免误报超时
+    if dest.is_loopback() {
+        return Ok(vec![TraceHop { hop: 1, ip: dest.to_string(), ms: vec![1] }]);
+    }
     tokio::task::spawn_blocking(move || run_traceroute_blocking(dest, |_| {}))
         .await
         .map_err(|error| format!("链路追踪任务失败：{error}"))?
@@ -825,6 +829,12 @@ pub async fn net_traceroute_stream(
         return Err("主机名不能以 - 开头".into());
     }
     let dest = resolve_ipv4(&host).await?;
+    // 回环地址：Windows IcmpSendEcho 对 127.0.0.0/8 与 ::1 不响应，直接返回本机一跳，避免误报超时
+    if dest.is_loopback() {
+        let hop = TraceHop { hop: 1, ip: dest.to_string(), ms: vec![1] };
+        let _ = channel.send(hop.clone());
+        return Ok(vec![hop]);
+    }
     tokio::task::spawn_blocking(move || {
         run_traceroute_blocking(dest, |hop| {
             if channel.send(hop).is_err() {

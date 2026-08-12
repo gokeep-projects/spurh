@@ -64,8 +64,9 @@ body {
   background: var(--bg0);
   color: var(--text);
   overflow: hidden;
-  -webkit-font-smoothing: antialiased;
 }
+/* Windows: ClearType subpixel rendering, avoid thin/ugly text */
+@media (min-resolution: 1dppx) { body { -webkit-font-smoothing: auto; } }
 button, input, textarea, select {
   font-family: var(--app-font-family, inherit);
   font-size: var(--app-font-size, 14px);
@@ -2021,7 +2022,11 @@ kbd {
   display: grid;
   place-items: center;
   box-shadow: none;
+  opacity: 0;
+  transition: opacity .18s ease, border-color var(--transition), color var(--transition);
 }
+.model-field .model-input-wrap:hover .model-fetch,
+.model-field .model-input-wrap:focus-within .model-fetch { opacity: 1; }
 .model-field .model-fetch svg { width: 13px; height: 13px; }
 .model-fetch.loading svg { animation: ai-spin 1s linear infinite; }
 @keyframes ai-spin { to { transform: rotate(360deg); } }
