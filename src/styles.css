@@ -1063,7 +1063,8 @@ kbd {
   display: flex;
   flex-direction: column;
   padding: 0 18px 16px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background:
     radial-gradient(46vw 34vh at 88% -6%, rgba(139, 92, 246, .1), transparent 60%),
     radial-gradient(40vw 30vh at -6% 108%, rgba(34, 211, 238, .08), transparent 58%);
@@ -1156,9 +1157,9 @@ kbd {
 
 /* ─── 工具控制栏 ─── */
 .tool-controls {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow-y: auto;
+  overflow: visible;
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -2739,11 +2740,8 @@ kbd {
   opacity: .7;
   display: none;
 }
-/* custom panel action bars stay visible when tool-controls scrolls */
+/* custom panel action bars flow naturally after the panel (tool-controls no longer scrolls internally) */
 .cron-actions, .regex-actions {
-  position: sticky;
-  bottom: 6px;
-  z-index: 5;
   width: 100%;
   box-sizing: border-box;
   padding: 7px 9px;

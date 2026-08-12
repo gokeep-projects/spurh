@@ -374,9 +374,8 @@
   .cron-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: start; }
   @media (max-width: 900px) {
     .cron-layout { grid-template-columns: 1fr; }
-    /* 有限高度下：预览/解释置顶始终可见，配置区内部滚动 */
+    /* 预览置顶，配置区全部展开（工作区整体滚动，避免嵌套滚动导致控件被隐藏裁切） */
     .cron-preview-panel { order: -1; }
-    .cron-config { max-height: min(42vh, 320px); overflow-y: auto; }
   }
 
   .cron-config { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 7px; min-width: 0; align-items: stretch; }

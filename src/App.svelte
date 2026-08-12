@@ -32,9 +32,6 @@
   type ThemeMode = 'light' | 'dark' | 'system' | 'aurora' | 'forest';
   type SettingsTab = 'general' | 'ai' | 'about' | 'shortcuts' | 'tools';
 
-  const SETTINGS_TAB_ICONS: Record<SettingsTab, string> = {
-    general: UI_ICONS.settings, ai: UI_ICONS.sparkle, shortcuts: UI_ICONS.keyboard, tools: UI_ICONS.grid, about: UI_ICONS.info,
-  };
   const SETTINGS_TAB_TITLES: Record<SettingsTab, string> = {
     general: '通用设置', ai: 'AI 模型', shortcuts: '快捷键', tools: '工具管理', about: '关于 Spurh',
   };
@@ -1703,7 +1700,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
         </button>
       {/if}
       {#if appSettings.topBarSettings}
-        <button class:configured={isAiConfigured(aiConfig)} class="settings-button" onclick={() => openSettings()}><span>{@html UI_ICONS.settings}</span>设置</button>
+        <button class:configured={isAiConfigured(aiConfig)} class="settings-button" title="设置" aria-label="设置" onclick={() => openSettings()}><span>{@html UI_ICONS.settings}</span>设置</button>
       {/if}
     </div>
   </header>
@@ -1717,7 +1714,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
       </div>
       <nav class="tool-list">
         {#each visiblePlugins as plugin}
-          <button class:active={activePluginId === plugin.id} onclick={() => selectPlugin(plugin.id)}>
+          <button class:active={activePluginId === plugin.id} title={plugin.name} onclick={() => selectPlugin(plugin.id)}>
             <span class="tool-icon">{@html iconHtml(plugin.icon)}</span><span class="tool-name"><b>{plugin.name}</b></span>
           </button>
         {/each}
@@ -1877,7 +1874,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
   {#if settingsOpen}
     <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) { event.stopPropagation(); } }}>
       <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
-        <header class="settings-header"><span class="settings-head-icon" title={SETTINGS_TAB_TITLES[settingsTab]}>{@html SETTINGS_TAB_ICONS[settingsTab]}</span><div class="settings-head-copy"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><p>{SETTINGS_TAB_HINTS[settingsTab]}</p></div><button onclick={() => (settingsOpen = false)} aria-label="关闭">{@html UI_ICONS.close}</button></header>
+        <header class="settings-header"><span class="settings-head-icon" title="设置">{@html UI_ICONS.settings}</span><div class="settings-head-copy"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><p>{SETTINGS_TAB_HINTS[settingsTab]}</p></div><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">
           <nav class="settings-nav">
             <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b></div></button>
