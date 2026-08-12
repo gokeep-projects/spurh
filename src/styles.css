@@ -1534,7 +1534,7 @@ kbd {
   animation: fade-in .14s ease-out;
 }
 @keyframes fade-in { from { opacity: 0; } }
-.palette, .clip-overlay {
+.palette {
   width: min(600px, 100%);
   overflow: hidden;
   border-radius: 18px;
@@ -1619,25 +1619,6 @@ kbd {
   border-top: 1px solid var(--line);
 }
 .palette-footer span { display: flex; align-items: center; gap: 5px; }
-.clip-overlay-results { max-height: min(480px, calc(100vh - 200px)); display: flex; flex-direction: column; gap: 3px; padding: 8px; overflow-y: auto; }
-.clip-overlay-results button {
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 8px 11px;
-  text-align: left;
-  border: 1px solid transparent;
-  border-radius: 11px;
-  transition: all var(--transition);
-}
-.clip-overlay-results button:hover { background: var(--w-05); }
-.clip-overlay-results button.active { border-color: rgba(129, 140, 248, .45); background: rgba(129, 140, 248, .12); }
-.clip-overlay-icon { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 auto; color: var(--c-cyan); border: 1px solid var(--line); border-radius: 9px; background: var(--w-04); }
-.clip-overlay-icon svg { width: 14px; height: 14px; }
-.clip-overlay-results code { min-width: 0; flex: 1; overflow: hidden; font-size: var(--fs-xs); font-family: ui-monospace, Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
-.clip-overlay-results small { flex: 0 0 auto; color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; }
-.clip-overlay-results button i { color: var(--c-cyan); font-size: var(--fs-xs); font-style: normal; }
 
 /* ─── 模态框 ─── */
 /* 设置弹窗打开时顶栏（含聚焦框下拉）提升到弹窗之上，避免下拉列表被弹窗遮挡 */
@@ -2798,7 +2779,6 @@ kbd {
   border: 1px solid rgba(34, 211, 238, .28);
 }
 .file-notice svg { width: 14px; height: 14px; }
-.log-file-error { color: var(--c-red); }
 .diag { font-size: var(--fs-xs); line-height: 1.7; }
 .diag-inline { display: inline; }
 .success { color: var(--c-green); }
@@ -2895,8 +2875,8 @@ kbd {
 
 .ts-field:focus, .ts-row input:focus, .options input:focus, .cron-config input:focus,
 .crypto-key-row input:focus, .regex-pat input:focus, .regex-repl input:focus,
-.sql-filter input:focus, .log-input:focus, .net-field input:focus,
-.remote-search input:focus, .clip-search input:focus, .sql-editor:focus,
+.sql-filter input:focus, .net-field input:focus,
+.remote-search input:focus, .sql-editor:focus,
 .sql-form input:focus, .sql-form select:focus, .rt-connect input:focus {
   border-color: rgba(129, 140, 248, .6);
   box-shadow: 0 0 0 3px rgba(129, 140, 248, .14);
@@ -3294,13 +3274,6 @@ kbd {
 
 
 
-.log-level.ERROR, .log-level.FATAL { color: var(--c-red); background: rgba(251, 113, 133, .09); border-color: rgba(251, 113, 133, .35); }
-
-.log-level.WARN { color: var(--c-amber); background: rgba(251, 191, 36, .09); border-color: rgba(251, 191, 36, .35); }
-
-.log-level.INFO { color: var(--c-cyan); background: rgba(34, 211, 238, .09); border-color: rgba(34, 211, 238, .35); }
-
-.log-level.DEBUG, .log-level.TRACE { color: var(--muted); background: var(--w-05); border-color: var(--line); }
 
 
 
@@ -3949,9 +3922,7 @@ kbd {
 .app.light .ts-field input, .app.light .ts-field select,
 .app.light .crypto-key-row input, .app.light .cron-config input,
 .app.light .regex-pat input, .app.light .regex-repl input,
-.app.light .sql-filter input, .app.light .log-input,
-.app.light .net-field input, .app.light .remote-search input,
-.app.light .clip-search input, .app.light .sql-form input, .app.light .sql-form select,
+.app.light .sql-filter input, .app.light .net-field input, .app.light .remote-search input, .app.light .sql-form input, .app.light .sql-form select,
 .app.light .rt-input, .app.light .form-input, .app.light .rt-connect input {
   background: #e6eefa;
   border-color: rgba(35, 58, 122, .55);
@@ -3960,8 +3931,8 @@ kbd {
 .app.light .ts-field input:hover, .app.light .ts-field select:hover,
 .app.light .crypto-key-row input:hover, .app.light .cron-config input:hover,
 .app.light .regex-pat input:hover, .app.light .regex-repl input:hover,
-.app.light .sql-filter input:hover, .app.light .log-input:hover,
-.app.light .net-field input:hover, .app.light .remote-search input:hover,
+.app.light .sql-filter input:hover, .app.light .net-field input:hover,
+.app.light .remote-search input:hover,
 .app.light .sql-form input:hover, .app.light .sql-form select:hover,
 .app.light .rt-input:hover, .app.light .form-input:hover {
   border-color: rgba(35, 58, 122, .8);
@@ -3971,8 +3942,8 @@ kbd {
 .app.light .ts-field input:focus, .app.light .ts-field select:focus,
 .app.light .crypto-key-row input:focus, .app.light .cron-config input:focus,
 .app.light .regex-pat input:focus, .app.light .regex-repl input:focus,
-.app.light .sql-filter input:focus, .app.light .log-input:focus,
-.app.light .net-field input:focus, .app.light .remote-search input:focus,
+.app.light .sql-filter input:focus, .app.light .net-field input:focus,
+.app.light .remote-search input:focus,
 .app.light .sql-form input:focus, .app.light .sql-form select:focus,
 .app.light .rt-input:focus, .app.light .form-input:focus {
   background: #ffffff;
@@ -5699,7 +5670,6 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app.light .brand:hover,
 .app.light .settings-nav button:hover,
 .app.light .palette-group button:hover,
-.app.light .clip-overlay-results button:hover,
 .app.light .profile-list > button:hover,
 .app.light .setting-row:hover,
 .app.light .tool-list button:hover {
