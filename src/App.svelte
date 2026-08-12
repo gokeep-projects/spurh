@@ -56,6 +56,7 @@
     topBarSettings: boolean;
     fontSizeMigrated?: boolean;
     fontSizeMigrated2?: boolean;
+    fontSizeMigrated3?: boolean;
   };
 
   type ContextInfo = { path: string; content: string };
@@ -80,11 +81,16 @@
       const parsed = stored ? JSON.parse(stored) : {};
       // 字号：用户手动档位直接采用（默认 14），仅接受 12–20 合理范围
       const userFontSize = typeof parsed.fontSize === 'number' && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : fallback.fontSize;
+      // 一次性迁移：历史遗留字号统一重置为默认 14px（用户要求默认 14）
+      if (!parsed.fontSizeMigrated3) {
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...parsed, fontSize: 14, fontSizeMigrated3: true })); } catch { /* ignore */ }
+      }
+      const fontSize = parsed.fontSizeMigrated3 ? userFontSize : 14;
       return {
         ...fallback,
         ...parsed,
         hiddenTools: Array.isArray(parsed.hiddenTools) ? parsed.hiddenTools : fallback.hiddenTools,
-        fontSize: userFontSize,
+        fontSize,
         fontFamily: FONT_STACKS[parsed.fontFamily] ? parsed.fontFamily : '系统默认',
       };
     } catch {
@@ -2029,7 +2035,9 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                   {:else}
                     <input list="rm" bind:value={aiDraft.model} placeholder="输入或拉取" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
                   {/if}
-                  <button disabled={modelListLoading || !aiDraft.endpoint} onclick={loadRemoteModels}><span>{@html UI_ICONS.refresh}</span>{modelListLoading ? '拉取中…' : '拉取模型'}</button>
+                  {#if aiDraft.endpoint.trim()}
+                    <button disabled={modelListLoading} onclick={loadRemoteModels} title="从当前地址拉取模型列表"><span>{@html UI_ICONS.refresh}</span>{modelListLoading ? '拉取中…' : '拉取模型'}</button>
+                  {/if}
                 </div></label>
                 <label><span>密钥</span><span class="ai-secret">
                   <input type={aiKeyVisible ? 'text' : 'password'} bind:value={aiDraft.apiKey} placeholder={aiDraft.provider === 'ollama' ? '可留空' : 'sk-…'} autocomplete="off" />

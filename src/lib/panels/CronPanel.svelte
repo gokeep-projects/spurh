@@ -170,6 +170,17 @@
 
   let examplesOpen = $state(false);
   const EXAMPLES_SHOWN = 8;
+  // 默认展示的常用表达式（按使用频率排序）
+  const EXAMPLES_FAVORITES = [
+    { label: '每分钟', expr: '* * * * *' },
+    { label: '每 5 分钟', expr: '*/5 * * * *' },
+    { label: '每 30 分钟', expr: '*/30 * * * *' },
+    { label: '每小时', expr: '0 * * * *' },
+    { label: '每天 00:00（凌晨）', expr: '0 0 * * *' },
+    { label: '每天 09:00', expr: '0 9 * * *' },
+    { label: '工作日 09:00', expr: '0 9 * * 1-5' },
+    { label: '每周一 09:00', expr: '0 9 * * 1' },
+  ];
   const EXAMPLE_GROUPS = [
     { g: '按间隔', pat: /^(\*\/|每 |每小时)/, items: [] as Array<{ label: string; expr: string }> },
     { g: '每天', pat: /^每天|^工作日每小时/, items: [] as Array<{ label: string; expr: string }> },
@@ -236,7 +247,7 @@
 
       <div class="cron-examples" class:open={examplesOpen}>
         <span class="cron-examples-label">常用</span>
-        {#each EXAMPLES.slice(0, EXAMPLES_SHOWN) as ex}
+        {#each EXAMPLES_FAVORITES as ex}
           <button class:active={type === 'custom' && (session.options.customExpr || '').trim() === ex.expr} title={ex.expr} onclick={() => applyExample(ex.expr)}>{ex.label}</button>
         {/each}
         <button class="cron-examples-more" onclick={() => (examplesOpen = !examplesOpen)} title={examplesOpen ? '收起全部表达式' : '展开全部常用表达式'}>{examplesOpen ? '收起 ▲' : `更多 ${EXAMPLES.length} 个 ▼`}</button>
