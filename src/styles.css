@@ -6195,6 +6195,8 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .settings-header .settings-head-icon svg { width: 17px; height: 17px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
 .settings-header .settings-head-icon:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 4px var(--accent-soft), 0 6px 18px color-mix(in srgb, var(--accent) 22%, transparent); }
 .settings-header .settings-head-icon:hover svg { transform: rotate(14deg) scale(1.08); }
+.settings-header .settings-head-icon { animation: settings-icon-in .3s cubic-bezier(.34, 1.56, .64, 1); }
+@keyframes settings-icon-in { from { transform: rotate(-16deg) scale(.72); opacity: 0; } to { transform: rotate(0) scale(1); opacity: 1; } }
 
 /* \u6d45\u8272\u4e3b\u9898\uff1a\u805a\u7126\u6846\u83b7\u7126\u65f6\u4e0d\u518d\u7528\u6df1\u8272\u80cc\u666f\uff08\u4fee\u590d\u8f93\u5165\u4e0d\u53ef\u89c1\uff09 */
 .app.light .dispatcher:focus-within {
