@@ -5972,12 +5972,12 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .settings-header .modal-icon {
   margin: 0;
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  box-shadow: 0 6px 18px rgba(129, 140, 248, .38);
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  box-shadow: 0 6px 18px rgba(129, 140, 248, .42);
 }
-.settings-header .modal-icon svg { width: 18px; height: 18px; }
+.settings-header .modal-icon svg { width: 20px; height: 20px; }
 .config-fields {
   display: flex;
   flex-direction: column;

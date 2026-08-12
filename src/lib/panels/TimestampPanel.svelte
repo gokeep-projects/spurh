@@ -343,7 +343,7 @@
 <style>
   .ts-panel { display: flex; flex-direction: column; gap: 12px; }
   .ts-panel-clock { display: inline-flex; align-items: center; gap: 9px; align-self: flex-start; padding: 6px 14px 6px 10px; border: 1px solid color-mix(in srgb, var(--c-green) 34%, var(--line)); border-radius: 999px; background: linear-gradient(120deg, color-mix(in srgb, var(--c-green) 9%, var(--panel)), var(--panel)); box-shadow: 0 3px 12px color-mix(in srgb, var(--c-green) 10%, transparent); }
-  .ts-panel-clock b { font: 650 var(--fs-sm) 'Cascadia Code', Consolas, monospace; color: var(--c-green); font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+  .ts-panel-clock b { font: 700 var(--fs-lg) 'Cascadia Code', Consolas, monospace; color: var(--c-green); font-variant-numeric: tabular-nums; letter-spacing: .6px; }
   .ts-panel-clock small { color: var(--muted); font-size: var(--fs-xs); }
   .ts-clock-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-green) 55%, transparent); animation: tsPulse 2s ease-out infinite; }
   @keyframes tsPulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-green) 50%, transparent); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
