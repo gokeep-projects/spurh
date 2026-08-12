@@ -382,6 +382,7 @@
     let binary = '';
     for (const byte of bytes) binary += String.fromCharCode(byte);
     safeInvoke('ssh_write', { sessionId: active.id, data: btoa(binary) }).catch(() => undefined);
+    showQuickHint(`已发送：${cmd}`);
   }
 
   /** AI 命令助手：自然语言 → shell 命令 → 发送到终端 */

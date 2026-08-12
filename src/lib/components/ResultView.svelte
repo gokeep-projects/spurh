@@ -33,6 +33,14 @@
     } catch { return false; }
   }
 
+  /** JSON 输出行号：与高亮 pre 同字号/行高，保证逐行对齐 */
+  function lineNumbersHtml(output: string): string {
+    const count = output.split('\n').length;
+    let html = '';
+    for (let index = 1; index <= count; index++) html += `<i>${index}</i>`;
+    return html;
+  }
+
   async function copyText(value: string, key = ''): Promise<void> {
     await copyTextNative(value);
     copiedKey = key;
@@ -350,7 +358,14 @@
         </div>
       </div>
     {:else}
-      <pre class:plain={result.language === 'text'} class:highlighted={result.language === 'json'}>{@html highlightCode(result.output, result.language)}</pre>
+      {#if result.language === 'json'}
+        <div class="code-with-lines">
+          <div class="code-lines" aria-hidden="true">{@html lineNumbersHtml(result.output)}</div>
+          <pre class="highlighted">{@html highlightCode(result.output, 'json')}</pre>
+        </div>
+      {:else}
+        <pre class:plain={result.language === 'text'} class:highlighted={result.language === 'json'}>{@html highlightCode(result.output, result.language)}</pre>
+      {/if}
     {/if}
   {/if}
 </div>
@@ -390,6 +405,10 @@
   :global(.ai-answer-body .ai-code) { margin: 0 0 11px; padding: 12px 14px; overflow: auto; color: var(--text); font: 450 var(--fs-xs)/1.6 ui-monospace, 'Cascadia Code', Consolas, monospace; white-space: pre; border: 1px solid var(--line); border-radius: 11px; background: var(--bg); }
   .result-view > pre { width: 100%; min-height: 100%; margin: 0; color: var(--text); font: 450 var(--fs-sm)/1.62 ui-monospace, 'Cascadia Code', Consolas, monospace; tab-size: 2; white-space: pre; overflow: auto; }
   .result-view > pre.plain { font-family: inherit; font-size: var(--fs-lg); }
+  .code-with-lines { display: flex; align-items: stretch; width: 100%; min-height: 100%; }
+  .code-lines { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; padding: 0 11px 0 0; margin-right: 13px; color: var(--muted-2); font: 450 var(--fs-sm)/1.62 ui-monospace, 'Cascadia Code', Consolas, monospace; border-right: 1px solid var(--line); background: var(--w-02); user-select: none; -webkit-user-select: none; }
+  .code-lines i { display: block; font-style: normal; }
+  .code-with-lines > pre { flex: 1; min-width: 0; margin: 0; color: var(--text); font: 450 var(--fs-sm)/1.62 ui-monospace, 'Cascadia Code', Consolas, monospace; tab-size: 2; white-space: pre; overflow: auto; }
   small { color: var(--muted); }
   .time-hero { position: relative; overflow: hidden; padding: 24px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--panel)), var(--panel) 65%, color-mix(in srgb, var(--c-cyan) 8%, var(--panel))); box-shadow: 0 10px 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent); }
   .time-hero::after { content: ""; position: absolute; inset: -60% -30% auto; height: 80%; background: radial-gradient(45% 65% at 30% 0%, color-mix(in srgb, var(--c-cyan) 14%, transparent), transparent 70%); pointer-events: none; }
