@@ -498,9 +498,16 @@
           }
         }
         if (!sparkStatsAvailable) {
-          // 统计不可用时不再用假正弦数据，避免误导；首轮立即拉取系统统计，仅浏览器预览显示“—”
+          // 统计不可用时降级展示（浏览器预览）：内存取 JS 堆提示，避免误导性“—”
+          let heapText = '—';
+          try {
+            const pm = (performance as unknown as { memory?: { usedJSHeapSize?: number } }).memory;
+            if (pm && typeof pm.usedJSHeapSize === 'number' && pm.usedJSHeapSize > 0) {
+              heapText = (pm.usedJSHeapSize / 1048576).toFixed(0) + ' MB';
+            }
+          } catch { /* 忽略 */ }
           aboutLive = { mem: 0, cpu: 0 };
-          aboutHeap = '—';
+          aboutHeap = heapText;
           aboutCpu = '--';
           sparkHistory = [...sparkHistory, [0, 0] as [number, number]].slice(-44);
         }
@@ -931,8 +938,6 @@
             return;
           }
           if (/[\w\u4e00-\u9fff]/.test(prevChar)) return; // 单词/中文后不自动补引号
-        } else if (nextChar === closer) {
-          return; // 已有闭合符（如补全后再次输入）不重复补
         }
         event.preventDefault();
         changeInput(value.slice(0, start) + event.key + closer + value.slice(end));
@@ -980,7 +985,12 @@
         const leadWs = lineRest.match(/^[ \t]*/)?.[0] ?? '';
         const sameLine = start > 0 && value[start - 1] !== '\n' && lineRest.trim() !== '';
         if (sameLine) {
-          const insert = '\n' + nextIndent + '\n' + closerIndent + lineRest.slice(leadWs.length);
+          // 多个自动闭合符逐行放置、缩进逐级递减（与格式化输出一致，避免 }}} 挤在一行）
+          const restTrim = lineRest.slice(leadWs.length);
+          const closerLines = /^[}\])]+$/.test(restTrim)
+            ? [...restTrim].map((ch, i) => '  '.repeat(Math.max(0, depth - 1 - i)) + ch).join('\n')
+            : closerIndent + restTrim;
+          const insert = '\n' + nextIndent + '\n' + closerLines;
           changeInput(value.slice(0, start) + insert + rest.slice(lineRest.length));
           flushSync();
           target.selectionStart = target.selectionEnd = start + 1 + nextIndent.length;
@@ -1136,42 +1146,62 @@
         target.selectionStart = target.selectionEnd = start + insert.length;
       return;
     }
-    // 输入闭合括号时自动配对
+    // 输入闭合括号时自动配对：在纯空白行输入 } ] ) 时，按层级对齐并吸收自动补全的闭合符
     const CLOSERS: Record<string, string> = { '}': '{', ']': '[', ')': '(' };
     if (event.key.length === 1 && CLOSERS[event.key]) {
       const cLineStart = value.lastIndexOf('\n', start - 1) + 1;
       const before = value.slice(cLineStart, start);
       if (/^[\t ]*$/.test(before)) {
+        // 从光标往前找匹配的开放符（跳过已闭合层级）
         let depth = 0;
+        let openIndex = -1;
         for (let i = start - 1; i >= 0; i--) {
           const ch = value[i];
           if (ch === event.key) depth++;
           else if (ch === CLOSERS[event.key]) {
-            if (depth === 0) {
-              const openLineStart = value.lastIndexOf('\n', i - 1) + 1;
-              const openIndent = (value.slice(openLineStart, i).match(/^[\t ]*/) || [''])[0];
-              if (before.length > openIndent.length) {
-                event.preventDefault();
-                // 光标后可能已有自动配对的闭合括号（同行或下一行），替换时跳过，避免重复
-                let tail = value.slice(start);
-                if (tail.startsWith(event.key)) tail = tail.slice(1);
-                else if (tail.startsWith('\n' + event.key)) tail = tail.slice(2);
-                changeInput(value.slice(0, cLineStart) + openIndent + event.key + tail);
-                flushSync();
-        target.selectionStart = target.selectionEnd = cLineStart + openIndent.length + 1;
-                return;
-              }
-            } else depth--;
+            if (depth === 0) { openIndex = i; break; }
+            depth--;
           }
+        }
+        if (openIndex >= 0) {
+          event.preventDefault();
+          // 目标缩进 = 当前空行缩进向上一级（不高于 0）
+          const targetIndent = ' '.repeat(Math.max(0, before.length - 2));
+          // 吸收自动补全的闭合符（同行或下一行整行），避免重复闭合
+          let tail = value.slice(start);
+          if (tail.startsWith(event.key)) {
+            tail = tail.slice(1);
+          } else if (tail.startsWith('\n')) {
+            const nl = tail.indexOf('\n', 1);
+            const line = nl < 0 ? tail.slice(1) : tail.slice(1, nl);
+            // 吸收整行闭合符时保留换行，让后续闭合符独立成行（与格式化输出一致）
+            if (line.trim() === event.key) tail = nl < 0 ? '' : tail.slice(nl);
+          }
+          changeInput(value.slice(0, cLineStart) + targetIndent + event.key + tail);
+          flushSync();
+          target.selectionStart = target.selectionEnd = cLineStart + targetIndent.length + 1;
+          return;
+        }
+      } else if (value[start] === '\n') {
+        // 光标后整行是闭合符（自动补全残留）：在光标处插入并吸收该行
+        const lineEnd = value.indexOf('\n', start + 1);
+        const endPos = lineEnd < 0 ? value.length : lineEnd;
+        const nextLine = value.slice(start + 1, endPos);
+        if (nextLine.trim() === event.key && !before.trim().endsWith(event.key)) {
+          event.preventDefault();
+          changeInput(value.slice(0, start) + event.key + value.slice(endPos));
+          flushSync();
+          target.selectionStart = target.selectionEnd = start + 1;
+          return;
         }
       }
     }
 
 const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'", '`': '`' };
     if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
-      // 先检查跳过：" ' ` 同时是开/闭符号，必须优先于配对插入，否则每次输入引号都会重复插入
+      // 先检查跳过：引号类同时是开/闭符号，必须优先于配对插入；闭合括号紧跟光标时跳过（吸收自动补全）
       const isCloser = Object.values(PAIRS).includes(event.key);
-      if (isCloser && value[start] === event.key) {
+      if ((isCloser || CLOSERS[event.key]) && value[start] === event.key) {
         event.preventDefault();
         target.selectionStart = target.selectionEnd = start + 1;
         return;
