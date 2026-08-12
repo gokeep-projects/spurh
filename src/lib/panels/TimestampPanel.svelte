@@ -493,7 +493,7 @@
   .ts-live-clock small { color: var(--muted-2); font-size: var(--fs-xs); }
 
 /* 自定义日期选择器 */
-  .ts-pick-box { position: relative; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 12px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(160deg, var(--w-04), var(--w-02)); transition: border-color .15s ease, box-shadow .2s ease, transform .15s ease; flex-wrap: wrap; row-gap: 4px; height: auto; min-height: 44px; padding-bottom: 6px; }
+  .ts-pick-box { position: relative; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 12px; border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line)); border-radius: 12px; background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 5%, var(--w-04)), var(--w-02)); transition: border-color .15s ease, box-shadow .2s ease, transform .15s ease; flex-wrap: wrap; row-gap: 4px; height: auto; min-height: 44px; padding-bottom: 6px; }
   .ts-pick-box:not(:has(.ts-time-presets)) { height: 44px; padding-bottom: 6px; }
   .ts-pick-box:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 14%, transparent); }
   .ts-pick-box.open { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 6px 22px color-mix(in srgb, var(--accent) 16%, transparent); }
