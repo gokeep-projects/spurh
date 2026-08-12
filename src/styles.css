@@ -6027,3 +6027,24 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   width: min(960px, calc(100vw - 24px));
   height: min(720px, calc(100vh - 48px));
 }
+
+/* v18a) SQL connection card: hover ops as overlay, no text reflow */
+.sql-conn { padding-right: 42px; }
+.sql-conn-ops {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  z-index: 3;
+  padding: 2px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: -12px 0 14px -8px var(--panel);
+}
+
+/* v18b) short viewports: cap TCP/UDP toolbar height, scroll inside */
+@media (max-height: 720px) {
+  .net-head { flex: 0 1 auto; max-height: 56%; overflow-y: auto; scrollbar-width: thin; }
+}
