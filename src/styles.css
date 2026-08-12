@@ -5216,3 +5216,180 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .app.light .about-metrics span {
   box-shadow: 0 2px 10px rgba(35, 58, 122, .08);
 }
+
+
+/* ============================================================
+   Spurh v9 交互与视觉精修层 (2026-08-12)
+   1) 时间戳/日期输入框: 渐变描边 + 聚焦辉光
+   2) AI 回答面板: 更紧凑居中 + 流光边框
+   3) 加解密分组按钮紧凑化
+   4) 网络拓扑节点呼吸辉光 + 连线渐变
+   5) 设置-拉取模型按钮小型化
+   ============================================================ */
+
+/* ---------- 1) 输入框统一定制(时间戳等面板) ---------- */
+.ts-field input, .ts-field select,
+.ts-time-input,
+.ts-pick-box {
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--line)) !important;
+  background:
+    linear-gradient(var(--bg), var(--bg)) padding-box,
+    linear-gradient(120deg, color-mix(in srgb, var(--c-cyan) 30%, transparent), color-mix(in srgb, var(--accent) 30%, transparent), color-mix(in srgb, var(--c-magenta) 26%, transparent)) border-box !important;
+  border: 1px solid transparent !important;
+  transition: box-shadow .2s ease, transform .15s ease;
+}
+.ts-field input:hover, .ts-field select:hover,
+.ts-time-input:hover,
+.ts-pick-box:hover {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent), 0 3px 10px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.ts-field input:focus, .ts-field select:focus,
+.ts-time-input:focus,
+.ts-pick-box:focus-within {
+  box-shadow:
+    0 0 0 3px var(--accent-soft),
+    0 0 18px color-mix(in srgb, var(--accent) 16%, transparent);
+  transform: translateY(-1px);
+}
+/* 选择日期后的高亮反馈 */
+.ts-pick-date:has(+ .ts-pick-sep + .ts-time-input:not([value=""])) b,
+.ts-pick-date b:not(:empty) {
+  color: var(--c-cyan);
+}
+.ts-inline-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--c-cyan) 8%, transparent) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: ts-card-shine 2.8s ease-in-out infinite;
+}
+@keyframes ts-card-shine {
+  0% { transform: translateX(-100%); }
+  55%, 100% { transform: translateX(100%); }
+}
+
+/* ---------- 2) AI 回答面板更紧凑炫酷 ---------- */
+.ai-answer {
+  width: min(92%, 560px) !important;
+  max-height: min(30vh, 280px) !important;
+}
+.ai-answer::before {
+  animation-duration: 4s !important;
+}
+.ai-content pre {
+  width: min(100%, 560px) !important;
+  position: relative;
+}
+.ai-content pre::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: conic-gradient(from 0deg, transparent 10%, color-mix(in srgb, var(--c-cyan) 55%, transparent) 28%, color-mix(in srgb, var(--accent) 55%, transparent) 50%, transparent 72%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: aiBorderSpin 5s linear infinite;
+}
+
+/* ---------- 3) 加解密分组紧凑化 ---------- */
+.crypto-chips button {
+  height: 20px !important;
+  padding: 0 7px !important;
+  font-size: var(--fs-xs) !important;
+  border-radius: 5px !important;
+}
+.crypto-grp {
+  font-size: var(--fs-xs) !important;
+}
+.crypto-chips {
+  gap: 3px !important;
+  padding: 3px 5px !important;
+}
+.crypto-key-row .secret-wrap input {
+  height: 28px !important;
+}
+
+/* ---------- 4) 网络拓扑节点呼吸辉光 ---------- */
+.topo-node circle:not(.node-halo) {
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+  stroke-width: 1.6;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 40%, transparent));
+}
+.topo-node .node-halo {
+  animation: topo-halo 2.2s ease-in-out infinite;
+}
+.topo-node.pending .node-halo {
+  animation-duration: .9s;
+}
+@keyframes topo-halo {
+  0%, 100% { opacity: .25; transform: scale(.92); }
+  50% { opacity: .8; transform: scale(1.08); }
+}
+.topo-local .local-core,
+.topo-local .local-ring {
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c-cyan) 55%, transparent));
+}
+.topo-target.reached .target-halo {
+  animation: topo-halo 1.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c-green) 60%, transparent));
+}
+.topo-edge {
+  stroke: color-mix(in srgb, var(--accent) 45%, var(--line)) !important;
+  stroke-width: 1.6 !important;
+  stroke-dasharray: 5 4;
+  animation: topo-edge-flow 1.1s linear infinite;
+}
+@keyframes topo-edge-flow {
+  to { stroke-dashoffset: -9; }
+}
+
+/* ---------- 5) 设置-拉取模型按钮小型化 ---------- */
+.model-field div > button {
+  height: 28px !important;
+  padding: 0 10px !important;
+  font-size: var(--fs-xs) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  white-space: nowrap;
+}
+
+/* ---------- 6) 远程连接快捷命令条精致化 ---------- */
+.rt-cmd-chip {
+  height: 24px !important;
+  padding: 0 10px !important;
+}
+.rt-cmdbar {
+  gap: 5px !important;
+}
+
+/* ---------- 7) 设置弹窗浅色对比度 ---------- */
+.app.light .settings-nav button.active {
+  background: linear-gradient(120deg, color-mix(in srgb, var(--c-cyan) 18%, #fff), color-mix(in srgb, var(--accent) 20%, #fff)) !important;
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
+}
+.app.light .config-fields input,
+.app.light .config-fields select {
+  background: #fff !important;
+  border-color: rgba(35, 58, 122, .3) !important;
+}
+
+
+/* ---------- v9 补充: idle 拓扑流动虚线 + 目标呼吸 ---------- */
+.topo-edge.idle-edge {
+  stroke: color-mix(in srgb, var(--accent) 40%, var(--line)) !important;
+  stroke-width: 1.6 !important;
+  stroke-dasharray: 6 5 !important;
+  animation: topo-edge-flow 1.4s linear infinite !important;
+}
+.topo-target.idle-target .target-halo {
+  animation: topo-halo 2.4s ease-in-out infinite;
+}
+.topo-target.idle-target {
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 45%, transparent));
+}

@@ -1865,6 +1865,9 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
           </button>
         {/each}
       </nav>
+      <footer class="sidebar-foot">
+        <button onclick={() => openSettings()} title="打开设置" aria-label="打开设置"><span>{@html UI_ICONS.settings}</span><b>设置</b></button>
+      </footer>
     </aside>
 
     <main class="workspace">
