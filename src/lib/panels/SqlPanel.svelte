@@ -1930,8 +1930,11 @@
   .sql-quick-conn i { color: var(--accent); font-size: var(--fs-tiny); font-style: normal; }
 
   /* ── 库表树 ── */
-  .sql-tree { min-height: 0; flex: 1; padding: 6px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
-  .sql-tree::-webkit-scrollbar { display: none; }
+  .sql-tree { min-height: 0; flex: 1; padding: 6px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; scrollbar-gutter: stable; }
+  .sql-tree:hover { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 38%, transparent) transparent; }
+  .sql-tree:hover::-webkit-scrollbar { display: block; width: 5px; }
+  .sql-tree:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 38%, transparent); border-radius: 3px; }
+  .sql-tree::-webkit-scrollbar { display: none; width: 5px; }
   .sql-tables { overflow-y: auto; scrollbar-width: none; }
   .sql-tables::-webkit-scrollbar { display: none; }
   .sql-db { position: relative; }
