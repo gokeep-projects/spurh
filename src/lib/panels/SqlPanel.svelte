@@ -1249,14 +1249,18 @@
   /* 表名过长时的面板内提示卡：fixed 定位并钳制在侧栏内，绝不越界 */
   let treeTip = $state<{ name: string; left: number; top: number; width: number } | null>(null);
   function showTableTip(event: MouseEvent, name: string): void {
-    if (name.length <= 26) { treeTip = null; return; }
-    const row = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const rowEl = event.currentTarget as HTMLElement;
+    const label = rowEl.querySelector('b');
+    const clipped = label ? label.scrollWidth > label.clientWidth + 1 : name.length > 26;
+    if (!clipped) { treeTip = null; return; }
+    const row = rowEl.getBoundingClientRect();
     const side = document.querySelector<HTMLElement>('.sql-side');
     if (!side) return;
     const sr = side.getBoundingClientRect();
     const tipHeight = 30;
     // 宽度按完整表名估算，最多 430px，确保完整展示不再被截断
-    let tipWidth = Math.min(430, Math.max(140, Math.round(name.length * 7.4 + 28)));
+    const textWidth = label ? label.scrollWidth : Math.round(name.length * 7.4 + 28);
+    let tipWidth = Math.min(430, Math.max(140, Math.round(textWidth + 24)));
     // 优先浮在侧栏右侧（编辑区一侧），空间不足再放左侧，绝不覆盖当前行
     let left = sr.right + 10;
     if (left + tipWidth > window.innerWidth - 12) left = sr.left - tipWidth - 10;
