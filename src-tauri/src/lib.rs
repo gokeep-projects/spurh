@@ -572,6 +572,22 @@ fn read_text_flexible(bytes: &[u8]) -> Result<String, String> {
     }
 }
 
+/// 在系统文件管理器中定位文件（Windows Explorer /select）
+#[tauri::command]
+fn reveal_in_folder(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let mut cmd = std::process::Command::new("explorer");
+        cmd.arg("/select,").arg(&path);
+        cmd.spawn().map_err(|e| format!("打开文件夹失败：{e}"))?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = path;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 async fn open_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
     let bytes = std::fs::read(&path).map_err(|e| format!("无法读取文件 {}：{e}", path))?;
@@ -1027,6 +1043,7 @@ pub fn run(cli_args: Vec<String>) {
             set_context_menu_enabled,
             get_context_menu_enabled,
             open_file,
+            reveal_in_folder,
             take_pending_open,
             clipboard::read_clipboard,
             clipboard::clipboard_write_text,

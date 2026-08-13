@@ -9,6 +9,13 @@
   let copiedKey = $state('');
   let exportState = $state('');
   let exportPath = $state('');
+  async function revealExport(): Promise<void> {
+    if (!exportPath) return;
+    try {
+      const { safeInvoke } = await import('../env');
+      await safeInvoke('reveal_in_folder', { path: exportPath });
+    } catch { /* ignore */ }
+  }
 
   function record(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -198,6 +205,7 @@
       <button class="export-btn" onclick={() => (useTreeView = !useTreeView)} title={useTreeView ? '切换为格式化文本' : '切换为折叠树视图'}>{useTreeView ? '文本' : '树视图'}</button>
     {/if}
     {#if result.output}<button class="export-btn" onclick={exportResult} title={exportPath ? `已保存到 ${exportPath}（路径已复制到剪贴板）` : '导出结果到文件'}>{exportState || '导出'}</button>{/if}
+    {#if exportPath}<button class="export-btn" onclick={revealExport} title="在系统文件管理器中定位已导出的文件">打开文件夹</button>{/if}
   </div>
   {#if result.view === 'timestamp' && Object.keys(data).length}
     {@const heroData = withHeroExtra(data)}
