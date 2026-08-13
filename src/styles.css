@@ -217,7 +217,6 @@ button { cursor: pointer; border: 0; background: none; }
     radial-gradient(46vw 38vh at 22% 28%, color-mix(in srgb, var(--c-violet) 17%, transparent), transparent 62%),
     radial-gradient(40vw 32vh at 74% 22%, color-mix(in srgb, var(--c-cyan) 13%, transparent), transparent 60%),
     radial-gradient(48vw 40vh at 50% 88%, color-mix(in srgb, var(--c-magenta) 12%, transparent), transparent 64%);
-  filter: blur(12px);
   mix-blend-mode: screen;
   animation: appAurora 26s ease-in-out infinite alternate;
 }
@@ -493,7 +492,7 @@ kbd {
 /* 鈹€鈹€ 鑱氱劍妗嗕笅鎷?鈹€鈹€ */
 .dispatch-matches {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 12px);
   left: 50%;
   transform: translateX(-50%);
   width: min(560px, calc(100vw - 32px));
@@ -6221,26 +6220,22 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .ts-pick-box .ts-now-inline { order: 4; }
 
 
-/* ============ v57) \u8bbe\u7f6e\u5934\u90e8\u56fe\u6807\u7edf\u4e00\u4e3a\u9f7f\u8f6e\uff08\u4e0e\u9876\u680f/\u4fa7\u680f\u5165\u53e3\u4e00\u81f4\uff0c\u4e0d\u968f tab \u53d8\u5316\uff09 ============ */
+/* ============ /* ============ v72) 设置头部图标：简洁纯图标，随标签页切换，不再是大色块按钮 ============ */
 .settings-header .settings-head-icon {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
   color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 14%, transparent);
-  transition: all var(--transition);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  transition: color var(--transition), background var(--transition), transform var(--transition);
 }
-.settings-header .settings-head-icon svg { width: 20px; height: 20px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
-.settings-header .settings-head-icon:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 4px var(--accent-soft), 0 6px 18px color-mix(in srgb, var(--accent) 22%, transparent); }
-.settings-header .settings-head-icon:hover svg { transform: scale(1.1); }
+.settings-header .settings-head-icon svg { width: 18px; height: 18px; }
+.settings-header .settings-head-icon:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); transform: scale(1.06); }
 .settings-header .settings-head-icon { animation: settings-icon-in .3s cubic-bezier(.34, 1.56, .64, 1); }
 @keyframes settings-icon-in { from { transform: translateY(5px) scale(.82); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
-
 /* \u6d45\u8272\u4e3b\u9898\uff1a\u805a\u7126\u6846\u83b7\u7126\u65f6\u4e0d\u518d\u7528\u6df1\u8272\u80cc\u666f\uff08\u4fee\u590d\u8f93\u5165\u4e0d\u53ef\u89c1\uff09 */
 .app.light .dispatcher:focus-within {
   border-color: transparent;
@@ -6275,8 +6270,7 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   background: linear-gradient(180deg, rgba(255, 255, 255, .74), rgba(240, 244, 253, .52));
   border-right: 1px solid rgba(35, 58, 122, .14);
 }
-.settings-header .settings-head-icon { width: 30px; height: 30px; border-radius: 9px; }
-.settings-header .settings-head-icon svg { width: 20px; height: 20px; }
+.settings-header .settings-head-icon svg { width: 18px; height: 18px; }
 .settings-header h2 { font-size: 17px; letter-spacing: .3px; }
 @media (max-width: 880px) {
   .settings-layout { grid-template-columns: 168px minmax(0, 1fr); }
