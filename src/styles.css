@@ -6256,7 +6256,7 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   border-right: 1px solid rgba(35, 58, 122, .14);
 }
 .settings-header .settings-head-icon { width: 30px; height: 30px; border-radius: 9px; }
-.settings-header .settings-head-icon svg { width: 15px; height: 15px; }
+.settings-header .settings-head-icon svg { width: 20px; height: 20px; }
 .settings-header h2 { font-size: 17px; letter-spacing: .3px; }
 @media (max-width: 880px) {
   .settings-layout { grid-template-columns: 168px minmax(0, 1fr); }
