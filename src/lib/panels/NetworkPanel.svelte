@@ -688,6 +688,9 @@ const MIME_TYPES: Array<[string, string]> = [
               {@const last = nodePos(traceHops.length - 1)}
               {@const targetY = last.y + 64}
               <line class="topo-edge" x1={last.x} y1={last.y} x2={TRACE_SPINE} y2={targetY} />
+              <circle class="topo-flow-dot target-flow" r="2.4">
+                <animateMotion dur="1.1s" repeatCount="indefinite" path={`M ${last.x} ${last.y} L ${TRACE_SPINE} ${targetY}`} />
+              </circle>
               <g class="topo-target" class:reached={traceReached} class:timeout={!traceReached && !tracing} transform={`translate(${TRACE_SPINE} ${targetY})`}>
                 <circle class="target-halo" r="22" />
                 <circle r="16" />
@@ -881,6 +884,7 @@ const MIME_TYPES: Array<[string, string]> = [
   .trace-topo { display: block; min-width: 100%; }
   .topo-edge { stroke: var(--line-2); stroke-width: 1.6; stroke-dasharray: 5 5; animation: topo-dash 1.6s linear infinite; opacity: .8; }
   .topo-flow-dot { fill: var(--c-cyan); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c-cyan) 80%, transparent)); }
+  .topo-flow-dot.target-flow { fill: var(--c-magenta); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-magenta) 85%, transparent)); }
   @keyframes topo-dash { to { stroke-dashoffset: -20; } }
   .topo-local .local-ring { fill: color-mix(in srgb, var(--c-green) 12%, transparent); stroke: var(--c-green); stroke-width: 1.5; animation: local-ring 2.4s ease-out infinite; transform-origin: center; }
   @keyframes local-ring { 0% { transform: scale(.75); opacity: .9; } 100% { transform: scale(1.35); opacity: 0; } }
