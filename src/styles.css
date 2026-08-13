@@ -1774,6 +1774,21 @@ kbd {
   padding: 0 18px;
   border-bottom: 1px solid var(--line);
 }
+
+.settings-header .settings-head-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--w-05);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  transition: transform var(--transition), color var(--transition), border-color var(--transition);
+}
+.settings-header .settings-head-icon svg { width: 15px; height: 15px; }
+.settings-header .settings-head-icon:hover { color: var(--c-cyan); border-color: color-mix(in srgb, var(--c-cyan) 40%, var(--line)); transform: scale(1.04); }
 .settings-header h2 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: .2px; }
 .settings-hint { margin: 0 0 12px; font-size: var(--fs-xs); color: var(--muted); line-height: 1.5; }
 .settings-header > button {
@@ -2037,7 +2052,10 @@ kbd {
 .model-field .model-input-wrap > select { padding-right: 40px; }
 .model-field .model-count { color: var(--muted-2); font-size: var(--fs-xs); }
 .model-field-actions { display: inline-flex; align-items: center; gap: 8px; }
-.model-field .model-fetch-btn { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 650; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 8px; background: var(--accent-soft); transition: all var(--transition); }
+.model-field .model-fetch-btn { height: 28px; margin-left: 8px; padding: 0 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; color: var(--accent); font-size: var(--fs-xs); font-weight: 650; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 8px; background: var(--accent-soft); transition: all var(--transition); }
+.model-field .model-fetch-btn .fetch-ico { display: grid; place-items: center; }
+.model-field .model-fetch-btn .fetch-ico svg { width: 12px; height: 12px; }
+.model-field .model-fetch-btn.loading .fetch-ico svg { animation: ai-spin 1s linear infinite; }
 .model-field .model-fetch-btn:hover:not(:disabled) { color: #fff; border-color: transparent; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 30%, transparent); }
 .model-field .model-fetch-btn:disabled { cursor: not-allowed; opacity: .55; }
 .model-field .model-fetch-btn.loading { color: var(--accent); background: var(--accent-soft); }
@@ -2853,6 +2871,12 @@ kbd {
 .app :where(input:disabled, select:disabled, textarea:disabled) { opacity: .55; cursor: not-allowed; }
 .app :where(input::placeholder, textarea::placeholder) { color: var(--muted-2); }
 /* 编辑器文本域保持自身布局，不受全局基线影响 */
+.app .editor-input textarea,
+.app .editor-input pre.input-hl {
+  font: 450 var(--fs-sm)/1.62 ui-monospace, 'Cascadia Code', Consolas, monospace;
+  tab-size: 2;
+  letter-spacing: 0;
+}
 .app .editor-input textarea {
   height: 100%;
   padding: 14px;
@@ -4601,13 +4625,8 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   border-color: rgba(35, 58, 122, .5);
 }
 /* 输入/结果区文字与语法高亮在浅蓝灰底上保持清晰 */
-.app.light .editor-input .syntax-key { color: #6d28d9; }
-.app.light .editor-input .syntax-string { color: #047857; }
-.app.light .editor-input .syntax-number { color: #b45309; }
-.app.light .editor-input .syntax-boolean { color: #0e7490; }
 .app.light .editor-input { color: #1c2440; }
 /* 左右高亮配色一致：结果区与输入区使用同一套语法色 */
-.app.light .editor-input .syntax-key { color: #7c3aed; }
 
 /* ===== Final override v5.3: light theme contrast + about page dynamics ===== */
 .app.light {
@@ -6407,7 +6426,7 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 
 /* ============ v63: 字体/控件统一、AI卡片紧凑、拉取按钮克制 ============ */
 .app :where(input, select, textarea, button) { font-size: var(--fs); }
-.ai-card { width: min(520px, 100%); transition: transform .25s ease, box-shadow .25s ease; }
+.ai-card { width: min(400px, 100%); transition: transform .25s ease, box-shadow .25s ease; }
 .ai-card-wrap:hover .ai-card { transform: translateY(-2px); box-shadow: 0 22px 56px color-mix(in srgb, var(--accent) 22%, transparent); }
 .ai-card::before { animation-duration: 3.2s; }
 .model-field .model-fetch-link { opacity: .55; }

@@ -1958,7 +1958,7 @@ function renderMarkdown(text: string): string {
   {#if settingsOpen}
     <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) { event.stopPropagation(); } }}>
       <div class="settings-modal" class:about-mode={settingsTab === 'about'} role="dialog" aria-modal="true">
-        <header class="settings-header"><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
+        <header class="settings-header">{#key settingsTab}<span class="settings-head-icon" aria-hidden="true" title="设置">{@html settingsTab === 'general' ? UI_ICONS.settings : settingsTab === 'ai' ? UI_ICONS.sparkle : settingsTab === 'shortcuts' ? UI_ICONS.keyboard : settingsTab === 'tools' ? UI_ICONS.grid : UI_ICONS.info}</span>{/key}<h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">
           <nav class="settings-nav">
             <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.settings}</span><div><b>通用</b></div></button>
@@ -2046,14 +2046,14 @@ function renderMarkdown(text: string): string {
               <div class="config-fields">
                 <label><span>名称</span><input bind:value={aiDraft.name} placeholder="例如：日常" /></label>
                 <label><span>地址</span><input bind:value={aiDraft.endpoint} placeholder="https://api.example.com/v1" onchange={loadRemoteModels} title="填写完成后回车或失焦自动拉取模型列表" /></label>
-                <label class="model-field"><span class="model-field-label"><em>模型</em><span class="model-field-actions">{#if modelList.length > 0}<small class="model-count">{modelList.length} 个可用</small>{/if}{#if aiDraft.endpoint.trim()}<button class="model-fetch-btn" class:loading={modelListLoading} disabled={modelListLoading} onclick={loadRemoteModels} title={modelListLoading ? '拉取中…' : '从当前地址拉取模型列表'}>{modelListLoading ? '拉取中…' : '拉取模型'}</button>{/if}</span></span>
+                <label class="model-field"><span class="model-field-label"><em>模型</em>{#if modelList.length > 0}<small class="model-count">{modelList.length} 个可用</small>{/if}</span>
                   <span class="model-input-wrap">
                     {#if modelList.length > 0}
                       <select bind:value={aiDraft.model}><option value="">-- 选择 --</option>{#each modelList as model}<option value={model.id}>{model.id}</option>{/each}</select>
                     {:else}
                       <input list="rm" bind:value={aiDraft.model} placeholder="输入模型名，回车或失焦自动拉取" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
                     {/if}
-                  </span>
+                  {#if aiDraft.endpoint.trim()}<button class="model-fetch-btn" class:loading={modelListLoading} disabled={modelListLoading} onclick={loadRemoteModels} title={modelListLoading ? '拉取中…' : '从当前地址拉取模型列表'}><span class="fetch-ico">{@html UI_ICONS.refresh}</span><span class="fetch-label">{modelListLoading ? '拉取中' : '拉取'}</span></button>{/if}</span>
                 </label>
                 <label><span>密钥</span><span class="ai-secret">
                   <input type={aiKeyVisible ? 'text' : 'password'} bind:value={aiDraft.apiKey} placeholder={aiDraft.provider === 'ollama' ? '可留空' : 'sk-…'} autocomplete="off" />

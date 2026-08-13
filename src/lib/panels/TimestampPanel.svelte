@@ -200,6 +200,12 @@
     return () => { if (tsClockTimer) clearInterval(tsClockTimer); };
   });
 
+  const nowTz = $derived(Intl.DateTimeFormat().resolvedOptions().timeZone || '本地');
+  const nowWeekday = $derived((() => {
+    const d = new Date();
+    return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()];
+  })());
+
   /** 日期文本直填草稿：支持 2024-11-15 10:30 / 2024/11/15 等写法，解析成功后同步到日历控件 */
   let dtTextDraft = $state('');
   function handleDtText(value: string): void {
@@ -427,7 +433,25 @@
       <span class="ts-live-label">结果实时显示在右侧</span>
       <button class="ts-now" onclick={refreshNow}><span>{@html UI_ICONS.refresh}</span>刷新</button>
     </div>
-    <p class="ts-tip">当前时间的本地 / UTC 与 Unix 秒 / 毫秒会同步展示，适合作为时间戳速查。</p>
+    {#key tsClock}
+    <div class="ts-inline-card ts-now-hero">
+      <div class="ts-inline-local">
+        <span>本地时间 · {nowTz}</span>
+        <b>{tsClock}</b>
+        <em>{nowWeekday}</em>
+      </div>
+      <div class="ts-inline-cols">
+        <button class="ts-chip" onclick={() => copyTs(String(Math.floor(Date.now() / 1000)), 'sec')} title="点击复制">
+          <small>Unix 秒</small><b>{String(Math.floor(Date.now() / 1000))}</b>{copiedTs === 'sec' ? '✓ 已复制' : '复制'}
+        </button>
+        <button class="ts-chip" onclick={() => copyTs(String(Date.now()), 'ms')} title="点击复制">
+          <small>Unix 毫秒</small><b>{String(Date.now())}</b>{copiedTs === 'ms' ? '✓ 已复制' : '复制'}
+        </button>
+      </div>
+      <div class="ts-inline-utc"><small>UTC</small><b>{new Date().toISOString().replace('T', ' ').slice(0, 19)}</b></div>
+    </div>
+    {/key}
+    <p class="ts-tip">当前时间的本地 / UTC 与 Unix 秒 / 毫秒同步展示，点击即可复制。</p>
   {/if}
 </div>
 
@@ -586,9 +610,12 @@
   .ts-pick-date:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 16%, transparent); transform: translateY(-1px); }
   .ts-pick-date:active { transform: translateY(0); }
   .ts-pick-date::before { content: ""; width: 13px; height: 13px; border-radius: 4px; border: 1.5px solid var(--accent); background: linear-gradient(135deg, color-mix(in srgb, var(--c-cyan) 30%, transparent), color-mix(in srgb, var(--c-magenta) 26%, transparent)); }
-  .ts-time-input { height: 38px; width: 156px; padding: 0 12px; font: 650 var(--fs-sm) 'Cascadia Code', Consolas, monospace; text-align: center; letter-spacing: 1px; color: var(--text); border: 1.5px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 10px; outline: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, var(--bg)), var(--bg)); caret-color: var(--accent); transition: border-color .18s ease, box-shadow .2s ease, background .2s ease; }
-  .ts-time-input:focus { border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, var(--bg)), var(--bg)); box-shadow: 0 0 0 3.5px var(--accent-soft), 0 0 18px color-mix(in srgb, var(--accent) 16%, transparent); }
+  .ts-time-input { height: 36px; width: 142px; padding: 0 12px; font: 650 var(--fs-sm) 'Cascadia Code', Consolas, monospace; text-align: center; letter-spacing: 1px; color: var(--text); border: 1px solid var(--line-2); border-radius: 10px; outline: 0; background: var(--w-03); caret-color: var(--accent); transition: border-color .18s ease, box-shadow .2s ease, background .2s ease; }
+  .ts-time-input:focus { border-color: color-mix(in srgb, var(--accent) 65%, var(--line)); background: var(--w-05); box-shadow: 0 0 0 3px var(--accent-soft); }
   .ts-time-input::placeholder { color: var(--muted-2); letter-spacing: .5px; }
   .ts-field .ts-pick-date:focus, .ts-time-input:focus { border-color: color-mix(in srgb, var(--accent) 65%, var(--line)); box-shadow: 0 0 0 3.5px var(--accent-soft), 0 0 16px color-mix(in srgb, var(--accent) 14%, transparent); outline: 0; }
   .ts-row { display: flex; align-items: center; gap: 10px; }
+
+  .ts-now-hero { margin-top: 2px; border-color: color-mix(in srgb, var(--c-green) 30%, var(--line)); }
+  .ts-now-hero .ts-inline-local b { font-size: var(--fs-lg); color: var(--c-green); }
 </style>

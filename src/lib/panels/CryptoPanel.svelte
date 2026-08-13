@@ -131,7 +131,7 @@
   .crypto-grp { display: inline-flex; align-items: center; gap: 4px; margin-right: 2px; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
   /* svelte-ignore css_unused_selector */
   .crypto-grp :global(svg) { width: 12px; height: 12px; }
-  .crypto-chips button { position: relative; width: auto; min-width: 0; flex: 0 0 auto; height: 20px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid var(--line); border-radius: 6px; background: var(--w-03); white-space: nowrap; transition: all .15s ease; }
+  .crypto-chips button { position: relative; width: auto; min-width: 0; flex: 0 0 auto; height: 24px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); font-weight: 600; border: 1px solid var(--line); border-radius: 7px; background: var(--w-03); white-space: nowrap; transition: all .15s ease; }
   .crypto-chips button:hover:not(.active) { color: var(--text); border-color: var(--line-strong); background: var(--hover); transform: translateY(-1px); }
   .crypto-chips button.active { color: #fff; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); background-size: 180% 100%; border-color: transparent; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent); animation: cryptoGlow 2.4s ease infinite; }
   @keyframes cryptoGlow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
