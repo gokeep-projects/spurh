@@ -101,6 +101,7 @@
     { label: '每 10 秒', expr: '*/10 * * * * *' },
     { label: '每 30 秒', expr: '*/30 * * * * *' },
     { label: '每小时', expr: '0 * * * *' },
+    { label: '每 2 小时', expr: '0 */2 * * *' },
     { label: '每小时 15 分', expr: '15 * * * *' },
     { label: '每小时 30 分', expr: '30 * * * *' },
     { label: '每小时 45 分', expr: '45 * * * *' },
@@ -185,6 +186,7 @@
   const EXAMPLES_FAVORITES = [
     { label: '每分钟', expr: '* * * * *' },
     { label: '每 5 分钟', expr: '*/5 * * * *' },
+    { label: '每 10 分钟', expr: '*/10 * * * *' },
     { label: '每 30 分钟', expr: '*/30 * * * *' },
     { label: '每小时', expr: '0 * * * *' },
     { label: '每天 00:00（凌晨）', expr: '0 0 * * *' },

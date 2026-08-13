@@ -207,6 +207,26 @@ button { cursor: pointer; border: 0; background: none; }
   --transition: .2s cubic-bezier(.4, 0, .2, 1);
 }
 .app.light::before { display: none; }
+.app::after {
+  content: "";
+  position: fixed;
+  inset: -18%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(46vw 38vh at 22% 28%, color-mix(in srgb, var(--c-violet) 17%, transparent), transparent 62%),
+    radial-gradient(40vw 32vh at 74% 22%, color-mix(in srgb, var(--c-cyan) 13%, transparent), transparent 60%),
+    radial-gradient(48vw 40vh at 50% 88%, color-mix(in srgb, var(--c-magenta) 12%, transparent), transparent 64%);
+  filter: blur(12px);
+  mix-blend-mode: screen;
+  animation: appAurora 26s ease-in-out infinite alternate;
+}
+@keyframes appAurora {
+  0% { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+  50% { transform: translate3d(2%, 1.6%, 0) scale(1.07); }
+  100% { transform: translate3d(-1%, 2.2%, 0) scale(1.03); }
+}
+.app.light::after { display: none; }
 
 /* 浅色主题下的对比度调整：拉高关键文本/边框对比度 */
 .app.light .ai-button {
