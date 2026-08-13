@@ -6241,22 +6241,7 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 
 
 /* ============ /* ============ v72) 设置头部图标：简洁纯图标，随标签页切换，不再是大色块按钮 ============ */
-.settings-header .settings-head-icon {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--w-04);
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 20%, transparent);
-  transition: transform var(--transition), filter var(--transition), border-color var(--transition);
-}
-.settings-header .settings-head-icon svg { width: 26px; height: 26px; display: block; }
-.settings-header .settings-head-icon:hover { filter: brightness(1.06); transform: scale(1.05); border-color: var(--line-strong); }
-.settings-header .settings-head-icon { animation: settings-icon-in .3s cubic-bezier(.34, 1.56, .64, 1); }
-@keyframes settings-icon-in { from { transform: translateY(5px) scale(.82); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+ }
 /* \u6d45\u8272\u4e3b\u9898\uff1a\u805a\u7126\u6846\u83b7\u7126\u65f6\u4e0d\u518d\u7528\u6df1\u8272\u80cc\u666f\uff08\u4fee\u590d\u8f93\u5165\u4e0d\u53ef\u89c1\uff09 */
 .app.light .dispatcher:focus-within {
   border-color: transparent;
