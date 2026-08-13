@@ -1425,14 +1425,15 @@ kbd {
 .error-box button:hover { background: var(--c-red); color: #fff; }
 .ai-error { margin: 12px 0; }
 .ai-card-wrap { display: flex; justify-content: center; padding: 14px 8px 18px; }
-.ai-card { position: relative; width: min(560px, 100%); display: flex; flex-direction: column; overflow: hidden; border-radius: 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); box-shadow: 0 18px 50px color-mix(in srgb, var(--accent) 16%, transparent); animation: aiCardIn .3s cubic-bezier(.2,.9,.3,1.15); }
+.ai-card { position: relative; width: min(460px, 100%); display: flex; flex-direction: column; overflow: hidden; border-radius: 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--panel) 96%, var(--accent-soft)), var(--panel-2)); box-shadow: 0 18px 50px color-mix(in srgb, var(--accent) 16%, transparent); animation: aiCardIn .3s cubic-bezier(.2,.9,.3,1.15), aiBreath 4.5s ease-in-out 1s infinite; }
+@keyframes aiBreath { 0%, 100% { box-shadow: 0 18px 50px color-mix(in srgb, var(--accent) 14%, transparent); } 50% { box-shadow: 0 20px 62px color-mix(in srgb, var(--accent) 20%, transparent), 0 0 34px color-mix(in srgb, var(--accent) 12%, transparent); } }
 .ai-card::before { content: ""; position: absolute; inset: 0; padding: 1.5px; border-radius: inherit; background: linear-gradient(120deg, transparent 10%, color-mix(in srgb, var(--c-cyan) 60%, transparent) 38%, color-mix(in srgb, var(--c-magenta) 60%, transparent) 62%, transparent 90%); background-size: 240% 100%; animation: aiBorderFlow 5s linear infinite; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; pointer-events: none; }
 .ai-card::after { content: ""; position: absolute; inset: -50% -30% auto; height: 130%; background: radial-gradient(46% 60% at 18% 0%, color-mix(in srgb, var(--c-cyan) 14%, transparent), transparent 70%), radial-gradient(44% 60% at 82% 0%, color-mix(in srgb, var(--c-magenta) 14%, transparent), transparent 70%); opacity: .8; pointer-events: none; animation: aiAurora 8s ease-in-out infinite alternate; }
 @keyframes aiCardIn { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
-.ai-card-head { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line)); }
+.ai-card-head { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line)); }
 .ai-card-ico { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 auto; color: #fff; border-radius: 10px; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 38%, transparent); }
 .ai-card-ico svg { width: 15px; height: 15px; }
-.ai-card-title { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.ai-card-title { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; text-align: center; }
 .ai-card-title b { font-size: var(--fs-sm); font-weight: 750; }
 .ai-card-title small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--fs-xs); }
 .ai-card-actions { display: flex; gap: 6px; flex: 0 0 auto; }
@@ -1440,7 +1441,7 @@ kbd {
 .ai-card-actions button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
 .ai-card-body { position: relative; z-index: 1; margin: 0; padding: 16px 18px; max-height: min(46vh, 420px); overflow: auto; color: var(--text); font-size: var(--fs); font-weight: 450; line-height: 1.75; font-family: inherit; white-space: pre-wrap; word-break: break-word; letter-spacing: .1px; }
 .ai-card-body :global(pre.ai-code), .ai-card-body pre { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: var(--fs-xs); line-height: 1.6; }
-.ai-card-foot { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px; padding: 9px 14px; color: var(--muted); font-size: var(--fs-xs); border-top: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line)); background: color-mix(in srgb, var(--accent) 4%, transparent); }
+.ai-card-foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 14px; color: var(--muted); font-size: var(--fs-xs); border-top: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line)); background: color-mix(in srgb, var(--accent) 4%, transparent); }
 .ai-card-foot i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 8px color-mix(in srgb, var(--c-green) 70%, transparent); animation: aiLive 2s ease infinite; }
 @keyframes aiLive { 50% { opacity: .35; } }
 .error-box .btn-ai { display: inline-flex; align-items: center; gap: 6px; }
@@ -1968,7 +1969,8 @@ kbd {
 .model-chips button:hover { color: var(--c-cyan); border-color: rgba(34, 211, 238, .45); }
 .model-chips button.active { color: #fff; background: var(--grad-main); border-color: transparent; }
 .model-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
-.model-field > span { font-size: var(--fs-xs); color: var(--muted); font-weight: 600; }
+.model-field-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.model-field-label em { font-style: normal; font-size: var(--fs-xs); color: var(--muted); font-weight: 600; }
 .model-field input, .model-field select {
   height: 32px;
   padding: 0 11px;
@@ -1993,30 +1995,25 @@ kbd {
 .model-field .model-input-wrap > input, .model-field .model-input-wrap > select {
   width: 100%;
   box-sizing: border-box;
-  padding-right: 38px;
 }
 .model-field .model-input-wrap > select { width: 100%; }
 .model-field .model-fetch-link {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
   cursor: pointer;
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  border: 1px solid transparent;
   border-radius: 7px;
-  background: var(--accent-soft);
+  background: transparent;
   transition: all var(--transition);
 }
-.model-field .model-fetch-link:hover:not(:disabled) { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 16%, transparent); }
-.model-field .model-fetch-link:disabled { cursor: not-allowed; opacity: .5; }
 .model-field .model-fetch-link svg { width: 12px; height: 12px; }
+.model-field .model-fetch-link i { font-style: normal; }
+.model-field .model-fetch-link:hover:not(:disabled) { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 26%, var(--line)); }
+.model-field .model-fetch-link:disabled { cursor: not-allowed; opacity: .55; }
 .model-fetch-link.loading svg { animation: ai-spin 1s linear infinite; }
 @keyframes ai-spin { to { transform: rotate(360deg); } }
 .config-fields { padding: 12px; border-radius: 12px; background: var(--w-04); border: 1px solid var(--line); }

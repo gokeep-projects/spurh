@@ -41,7 +41,7 @@
 
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'Noto Sans SC', 'MiSans', 'HarmonyOS Sans SC', 'DengXian', 'PingFang SC', 'Segoe UI Variable Text', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', ui-sans-serif, system-ui, sans-serif",
+    '系统默认': "'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'Noto Sans SC', 'MiSans', 'PingFang SC', ui-sans-serif, system-ui, sans-serif",
     '微软雅黑': "'Noto Sans SC', 'MiSans', 'HarmonyOS Sans SC', 'DengXian', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', sans-serif",
     '等线': "'Noto Sans SC', 'DengXian', 'DengXian Light', 'HarmonyOS Sans SC', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'Noto Sans SC', 'SimHei', '黑体', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif",
@@ -1910,7 +1910,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
         <header class="settings-header"><span class="settings-head-icon" aria-hidden="true">{@html UI_ICONS.settings}</span><h2>{SETTINGS_TAB_TITLES[settingsTab]}</h2><button onclick={() => (settingsOpen = false)} aria-label="关闭" title="关闭">{@html UI_ICONS.close}</button></header>
         <div class="settings-layout">
           <nav class="settings-nav">
-            <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.sliders}</span><div><b>通用</b></div></button>
+            <button class:active={settingsTab === 'general'} title="主题 · 启动 · 托盘" onclick={() => (settingsTab = 'general')}><span>{@html UI_ICONS.settings}</span><div><b>通用</b></div></button>
             <button class:active={settingsTab === 'ai'} title="服务商配置" onclick={() => { settingsTab = 'ai'; aiTestStatus = 'idle'; aiTestMessage = ''; }}><span>{@html UI_ICONS.sparkle}</span><div><b>AI 模型</b></div></button>
             <button class:active={settingsTab === 'shortcuts'} title="全局绑定" onclick={() => (settingsTab = 'shortcuts')}><span>{@html UI_ICONS.keyboard}</span><div><b>快捷键</b></div></button>
             <button class:active={settingsTab === 'tools'} title="显示与隐藏" onclick={() => (settingsTab = 'tools')}><span>{@html UI_ICONS.grid}</span><div><b>工具</b></div></button>
@@ -1995,15 +1995,12 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
               <div class="config-fields">
                 <label><span>名称</span><input bind:value={aiDraft.name} placeholder="例如：日常" /></label>
                 <label><span>地址</span><input bind:value={aiDraft.endpoint} placeholder="https://api.example.com/v1" onchange={loadRemoteModels} title="填写完成后回车或失焦自动拉取模型列表" /></label>
-                <label class="model-field"><span>模型</span><div>
+                <label class="model-field"><span class="model-field-label"><em>模型</em>{#if modelList.length > 0 || aiDraft.endpoint.trim()}<button class:loading={modelListLoading} class="model-fetch-link" disabled={modelListLoading} onclick={loadRemoteModels} title={modelListLoading ? '拉取中…' : '重新拉取模型列表'}>{@html UI_ICONS.refresh}<i>{modelListLoading ? '拉取中…' : '拉取列表'}</i></button>{/if}</span><div>
                   <span class="model-input-wrap">
                     {#if modelList.length > 0}
                       <select bind:value={aiDraft.model}><option value="">-- 选择 --</option>{#each modelList as model}<option value={model.id}>{model.id}</option>{/each}</select>
                     {:else}
                       <input list="rm" bind:value={aiDraft.model} placeholder="输入模型名，或拉取列表" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
-                    {/if}
-                    {#if modelList.length > 0 || aiDraft.endpoint.trim()}
-                      <button class:loading={modelListLoading} class="model-fetch-link" disabled={modelListLoading} onclick={loadRemoteModels} title={modelListLoading ? '拉取中…' : '重新拉取模型列表'} aria-label="拉取模型列表">{@html UI_ICONS.refresh}</button>
                     {/if}
                   </span>
                 </div></label>
