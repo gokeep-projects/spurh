@@ -531,7 +531,7 @@
   .ts-time-wrap { position: relative; display: inline-flex; align-items: center; flex: 0 0 auto; }
   .ts-time-wrap .ts-clock-ico { position: absolute; left: 8px; display: inline-flex; color: var(--muted-2); pointer-events: none; }
   .ts-time-wrap .ts-clock-ico :global(svg) { width: 13px; height: 13px; }
-  .ts-time-wrap .ts-time-input { width: 118px; padding: 0 8px 0 27px; text-align: left; }
+  .ts-time-wrap .ts-time-input { width: 118px; padding: 0 27px; text-align: center; }
   .ts-time-presets { display: inline-flex; gap: 4px; flex: 1 1 auto; flex-wrap: wrap; padding-right: 58px; }
   .ts-time-presets button { height: 26px; padding: 0 8px; cursor: pointer; color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', Consolas, monospace; border: 1px solid var(--line-2); border-radius: 7px; background: var(--w-03); transition: all .15s ease; }
   .ts-time-presets button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: var(--accent-soft); }
