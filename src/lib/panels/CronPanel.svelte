@@ -423,7 +423,7 @@
   .cron-preview.error { border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
   .preview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; color: var(--muted); font-size: var(--fs-xs); letter-spacing: 1.5px; }
   .preview-head button { height: 30px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 8px; background: var(--accent-soft); }
-  .cron-preview code { display: block; padding: 8px 10px; color: var(--c-violet); font: 600 13px 'Cascadia Code', monospace; word-break: break-all; border: 1px dashed var(--line-2); border-radius: 8px; background: var(--bg); }
+  .cron-preview code { display: block; max-width: 100%; padding: 8px 10px; color: var(--c-violet); font: 600 13px 'Cascadia Code', monospace; white-space: nowrap; overflow-x: auto; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 35%, transparent) transparent; border: 1px dashed var(--line-2); border-radius: 8px; background: var(--bg); }
   .preview-explain { margin: 8px 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.6; }
   .preview-error { margin: 0; color: var(--danger); font-size: var(--fs-xs); }
   .preview-empty { margin: 0; color: var(--muted-2); font-size: var(--fs-xs); }

@@ -1891,7 +1891,7 @@ kbd {
   height: 4px;
 }
 .font-size-row b { font-size: var(--fs-xs); color: var(--c-cyan); min-width: 34px; text-align: right; }
-.font-preview p { margin: 8px 0 0; padding: 12px 14px; border-radius: 10px; background: var(--w-06); border: 1px solid var(--line); }
+.font-preview p { margin: 8px 0 0; padding: 12px 14px; border-radius: 10px; background: var(--w-06); border: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .settings-error {
   margin-top: 10px;
   padding: 9px 13px;
@@ -5478,6 +5478,7 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 .about-version small,
 .about-ver-head small {
   font-size: 13px !important;
+  white-space: nowrap;
 }
 /* ============================================================
    v12) 瀵规瘮搴?路 涓嬫媺鍙鎬?路 hover 淇 路 鎬ц兘淇灞?   1) 娴呰壊涓婚鍛婂埆鐧借挋钂欙細闈㈡澘鐫€鑹?鎻忚竟+闃村奖寮哄寲锛屽伐浣滃尯鍔犳繁
@@ -6214,11 +6215,11 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 14%, transparent);
   transition: all var(--transition);
 }
-.settings-header .settings-head-icon svg { width: 17px; height: 17px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+.settings-header .settings-head-icon svg { width: 20px; height: 20px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
 .settings-header .settings-head-icon:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 4px var(--accent-soft), 0 6px 18px color-mix(in srgb, var(--accent) 22%, transparent); }
-.settings-header .settings-head-icon:hover svg { transform: rotate(14deg) scale(1.08); }
+.settings-header .settings-head-icon:hover svg { transform: scale(1.1); }
 .settings-header .settings-head-icon { animation: settings-icon-in .3s cubic-bezier(.34, 1.56, .64, 1); }
-@keyframes settings-icon-in { from { transform: rotate(-16deg) scale(.72); opacity: 0; } to { transform: rotate(0) scale(1); opacity: 1; } }
+@keyframes settings-icon-in { from { transform: translateY(5px) scale(.82); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
 
 /* \u6d45\u8272\u4e3b\u9898\uff1a\u805a\u7126\u6846\u83b7\u7126\u65f6\u4e0d\u518d\u7528\u6df1\u8272\u80cc\u666f\uff08\u4fee\u590d\u8f93\u5165\u4e0d\u53ef\u89c1\uff09 */
 .app.light .dispatcher:focus-within {
