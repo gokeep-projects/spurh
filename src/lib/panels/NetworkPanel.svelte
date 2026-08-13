@@ -271,7 +271,7 @@
   const TRACE_HOP_GAP = 104;     // 节点垂直间距
   const TRACE_NODE_L = 300;      // 左侧节点 x
   const TRACE_NODE_R = 560;      // 右侧节点 x
-  let traceHost = $state('127.0.0.1');
+  let traceHost = $state('www.baidu.com');
   let tracing = $state(false);
   let traceHops = $state<TraceHop[]>([]);
   let traceError = $state('');

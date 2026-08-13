@@ -61,6 +61,18 @@
     { label: 'Windows 路径', pattern: '[A-Za-z]:\\\\[^\"<>|?*]+' },
     { label: 'JSON 键', pattern: '"[^"]*"\\s*:' },
     { label: '重复单词', pattern: '\\b(\\w+)\\s+\\1\\b' },
+    { label: '端口号', pattern: '\\b(?:[1-9]\\d{0,3}|[1-5]\\d{4}|6[0-4]\\d{3}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5])\\b' },
+    { label: '纯数字', pattern: '^\\d+$', flags: 'gm' },
+    { label: '浮点数', pattern: '-?\\d+(?:\\.\\d+)?' },
+    { label: '千分位金额', pattern: '\\d{1,3}(?:,\\d{3})+' },
+    { label: '邮政编码', pattern: '\\b[1-9]\\d{5}\\b' },
+    { label: 'QQ 号', pattern: '\\b[1-9]\\d{4,10}\\b' },
+    { label: '银行卡号', pattern: '\\b\\d{16,19}\\b' },
+    { label: 'Base64', pattern: '[A-Za-z0-9+/]{16,}={0,2}' },
+    { label: '车牌号', pattern: '[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-HJ-NP-Z][A-HJ-NP-Z0-9]{4,5}[A-HJ-NP-Z0-9挂学警港澳]' },
+    { label: '带时间戳日志行', pattern: '^\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?\\s+\\S+\\s+.+$', flags: 'gm' },
+    { label: 'HTTP 状态码', pattern: '\\b[1-5]\\d\\d\\b' },
+    { label: '变量名(JS)', pattern: '\\b[a-zA-Z_$][\\w$]*\\b' },
   ];
 
   const FLAGS = [

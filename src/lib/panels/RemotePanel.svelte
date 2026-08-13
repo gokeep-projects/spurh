@@ -728,11 +728,11 @@
   .rs-empty { padding: 26px 10px; color: var(--muted-2); font-size: var(--fs-xs); line-height: 1.8; text-align: center; }
   .remote-main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
   .remote-toolbar { min-height: 54px; flex: 0 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; row-gap: 8px; padding: 8px 13px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .rt-identity { flex: 1 1 220px; min-width: 170px; display: flex; align-items: center; gap: 10px; }
-  .rt-identity > div { min-width: 0; max-width: 100%; display: flex; flex-direction: column; gap: 2px; }
+  .rt-identity { flex: 1 1 220px; min-width: 0; display: flex; align-items: center; gap: 10px; }
+  .rt-identity > div { min-width: 0; max-width: 340px; display: flex; flex-direction: column; gap: 2px; }
   .rt-identity b { max-width: 100%; overflow: hidden; font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
   .rt-identity small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font: 500 var(--fs-xs) 'Cascadia Code', monospace; }
-  .rt-status { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; white-space: nowrap; padding: 5px 10px; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .2s ease; }
+  .rt-status { margin-left: auto; display: flex; align-items: center; gap: 7px; flex: 0 0 auto; white-space: nowrap; padding: 5px 10px; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: all .2s ease; }
   .rt-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-2); }
   .rt-status.connected { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); background: var(--accent-soft); }
   .rt-status.connected i { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
@@ -747,7 +747,7 @@
   .rt-connect { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; cursor: pointer; color: #fff; font-size: var(--fs-sm); font-weight: 700; white-space: nowrap; border: 0; border-radius: 8px; background: var(--btn-gradient); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 20%, transparent); transition: transform .12s ease, box-shadow .15s ease; }
   .rt-connect:hover { transform: translateY(-1px); box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 30%, transparent); }
   .rt-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
-  .rt-quiet { height: 30px; padding: 0 11px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; border: 1px solid var(--line); border-radius: 8px; background: transparent; transition: all .15s ease; }
+  .rt-quiet { height: 30px; padding: 0 10px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; border: 1px solid var(--line); border-radius: 8px; background: transparent; transition: all .15s ease; }
   .rt-quiet:hover { color: var(--text); border-color: var(--line-2); background: var(--hover); }
   .rt-quiet.danger:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 6%, transparent); }
   .remote-tabs { flex: 0 0 auto; display: flex; gap: 4px; padding: 7px 10px 0; border-bottom: 1px solid var(--line); background: var(--panel); }
