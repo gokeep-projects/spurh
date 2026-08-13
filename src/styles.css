@@ -1452,6 +1452,10 @@ kbd {
 .ai-card-head { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line)); }
 .ai-card-ico { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 auto; color: #fff; border-radius: 10px; background: linear-gradient(120deg, var(--c-cyan), var(--accent) 55%, var(--c-magenta)); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 38%, transparent); }
 .ai-card-ico svg { width: 15px; height: 15px; }
+.ai-card .ai-shimmer { position: absolute; inset: 0 auto 0 -60%; width: 55%; z-index: 0; pointer-events: none; background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,.09) 42%, rgba(255,255,255,.16) 50%, rgba(255,255,255,.09) 58%, transparent 100%); transform: skewX(-18deg); animation: aiShimmer 4.2s ease-in-out infinite; }
+@keyframes aiShimmer { 0% { left: -60%; } 55% { left: 130%; } 100% { left: 130%; } }
+.app.light .ai-card .ai-shimmer { background: linear-gradient(105deg, transparent 0%, rgba(79,70,229,.07) 42%, rgba(79,70,229,.13) 50%, rgba(79,70,229,.07) 58%, transparent 100%); }
+
 .ai-card-title { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; text-align: center; }
 .ai-card-title b { font-size: var(--fs-sm); font-weight: 750; }
 .ai-card-title small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--fs-xs); }

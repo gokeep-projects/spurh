@@ -1885,6 +1885,7 @@ function renderMarkdown(text: string): string {
             {:else if activeSession.aiResult}
               <div class="ai-card-wrap">
                 <div class="ai-card">
+                  <i class="ai-shimmer" aria-hidden="true"></i>
                   <header class="ai-card-head">
                     <span class="ai-card-ico">{@html UI_ICONS.sparkle}</span>
                     <div class="ai-card-title"><b>AI 分析结果</b><small>{aiConfig?.model || ''}{activeSession.aiResult.meta?.来源 ? ' · ' + activeSession.aiResult.meta['来源'] : ''}</small></div>

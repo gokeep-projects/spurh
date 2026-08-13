@@ -315,8 +315,8 @@
   .jv-row.match { background: color-mix(in srgb, var(--warn) 16%, transparent); }
   .jv-row.current { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
   .jv-scroll { min-height: 0; flex: 1; overflow: auto; padding: 4px 0 14px; }
-  .jv-row { display: flex; align-items: stretch; min-width: max-content; min-height: 21px; padding-right: 18px; font: 450 13px/21px 'Cascadia Code', Consolas, monospace; color: var(--text); }
-  .jv-row:hover { background: var(--hover); }
+  .jv-row { display: flex; align-items: stretch; min-width: max-content; min-height: 22px; padding-right: 18px; font: 450 14px/22px 'Cascadia Code', Consolas, monospace; color: var(--text); background-image: repeating-linear-gradient(to right, transparent 0 13px, color-mix(in srgb, var(--line) 40%, transparent) 13px 14px); background-attachment: local; }
+  .jv-row:hover { background: linear-gradient(color-mix(in srgb, var(--accent) 7%, transparent), color-mix(in srgb, var(--accent) 7%, transparent)), repeating-linear-gradient(to right, transparent 0 13px, color-mix(in srgb, var(--line) 40%, transparent) 13px 14px); }
   .jv-fold { flex: 0 0 auto; width: 15px; display: grid; place-items: center; padding: 0; cursor: pointer; color: var(--muted-2); border: 0; background: transparent; }
   .jv-fold svg { width: 10.5px; height: 10.5px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: transform .12s ease; }
   .jv-fold.folded svg { transform: rotate(-90deg); }
