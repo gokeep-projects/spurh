@@ -6253,7 +6253,8 @@ to{opacity:1;transform:translateY(0)scale(1)}}
   height: 30px;
   border-radius: 9px;
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
   transition: color var(--transition), background var(--transition), transform var(--transition);
 }
 .settings-header .settings-head-icon svg { width: 18px; height: 18px; }
