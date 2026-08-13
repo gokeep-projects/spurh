@@ -578,7 +578,7 @@
   .ts-now-inline:hover { transform: translateY(-1px); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 22%, transparent); }
   .ts-clear { height: 44px; border-radius: 12px; }
   .ts-quick button { height: 30px; padding: 0 13px; font-size: var(--fs-sm); }
-  .ts-time-input { height: 36px !important; border-radius: 10px !important; }
+  .ts-time-input { height: 38px !important; border-radius: 10px !important; }
   .ts-pick-box { border-radius: 14px; }
   .ts-pick-date { height: 36px; border-radius: 10px; }
 
