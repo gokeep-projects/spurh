@@ -1641,10 +1641,8 @@ kbd {
 .palette-footer span { display: flex; align-items: center; gap: 5px; }
 
 /* ─── 模态框 ─── */
-/* 设置弹窗打开时顶栏（含聚焦框下拉）提升到弹窗之上，避免下拉列表被弹窗遮挡 */
-.app:has(.modal-backdrop) .app-bar {
-  z-index: 260;
-}
+/* 顶栏保持 z-index 100；弹窗遮罩(z=250)打开时顶栏沉入遮罩之下，
+   避免顶栏齿轮图标/聚焦框悬浮在弹窗之上造成错位重叠（小窗口下尤甚） */
 .modal-backdrop {
   position: fixed;
   z-index: 250;
