@@ -6241,7 +6241,6 @@ to{opacity:1;transform:translateY(0)scale(1)}}
 
 
 /* ============ /* ============ v72) 设置头部图标：简洁纯图标，随标签页切换，不再是大色块按钮 ============ */
- }
 /* \u6d45\u8272\u4e3b\u9898\uff1a\u805a\u7126\u6846\u83b7\u7126\u65f6\u4e0d\u518d\u7528\u6df1\u8272\u80cc\u666f\uff08\u4fee\u590d\u8f93\u5165\u4e0d\u53ef\u89c1\uff09 */
 .app.light .dispatcher:focus-within {
   border-color: transparent;
