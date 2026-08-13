@@ -206,6 +206,8 @@
   let aiCmdBusy = $state(false);
   let aiCmdError = $state('');
   let aiCmdElement = $state<HTMLInputElement | undefined>(undefined);
+  /** AI 自然语言示例：点击填入输入框，一键生成并发送 */
+  const AI_EXAMPLES = ['查看服务器上有几个文件', '查询磁盘剩余空间', '查看内存与负载', '找出占用CPU最高的进程', '查看系统启动时间'];
   let sysPanel = $state(false);
   let sysInfo = $state('');
   let sysLoading = $state(false);
@@ -555,9 +557,14 @@
           </div>
           <span class="rt-cmdbar-grow"></span>
           <div class="rt-ai">
-            <span class="rt-ai-ico" title="AI 生成命令">{@html UI_ICONS.sparkle}</span>
-            <input bind:this={aiCmdElement} value={aiCmdInput} oninput={(e) => (aiCmdInput = e.currentTarget.value)} placeholder="例如：查看服务器上有几个文件 / 查询磁盘剩余空间" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && aiCommand()} />
-            <button class="rt-ai-btn" disabled={aiCmdBusy || !aiCmdInput.trim()} onclick={aiCommand}>{aiCmdBusy ? '生成中…' : '生成并发送'}</button>
+            <div class="rt-ai-row">
+              <span class="rt-ai-ico" title="AI 生成命令">{@html UI_ICONS.sparkle}</span>
+              <input bind:this={aiCmdElement} value={aiCmdInput} oninput={(e) => (aiCmdInput = e.currentTarget.value)} placeholder="自然语言描述操作，如：查看服务器上有几个文件" spellcheck="false" onkeydown={(e) => e.key === 'Enter' && aiCommand()} />
+              <button class="rt-ai-btn" disabled={aiCmdBusy || !aiCmdInput.trim()} onclick={aiCommand}>{aiCmdBusy ? '生成中…' : '生成并发送'}</button>
+            </div>
+            {#if !aiCmdInput && !aiCmdBusy}
+              <div class="rt-ai-examples"><span>试试</span>{#each AI_EXAMPLES as ex}<button onclick={() => (aiCmdInput = ex)} title={ex}>{ex}</button>{/each}</div>
+            {/if}
           </div>
           {#if aiCmdError}<span class="rt-ai-error" title={aiCmdError}>{aiCmdError}</span>{/if}
         </div>
@@ -678,7 +685,12 @@
   .rt-cmdbar-idle-hint { flex: 0 0 auto; color: var(--muted-2); font-size: var(--fs-tiny); }
   .rt-cmd-chip.more { color: var(--muted-2); }
   .rt-cmdbar-grow { flex: 1; }
-  .rt-ai { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; justify-content: flex-end; }
+  .rt-ai { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex: 1 1 auto; min-width: 0; }
+  .rt-ai-row { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; justify-content: flex-end; }
+  .rt-ai-examples { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+  .rt-ai-examples > span { color: var(--muted-2); font-size: var(--fs-tiny); }
+  .rt-ai-examples button { height: 20px; padding: 0 8px; cursor: pointer; color: var(--muted); font-size: var(--fs-tiny); white-space: nowrap; border: 1px solid var(--line); border-radius: 999px; background: var(--w-03); transition: all .15s ease; }
+  .rt-ai-examples button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
   .rt-ai-ico { display: grid; place-items: center; width: 26px; height: 26px; flex: 0 0 auto; color: var(--c-violet); border: 1px solid color-mix(in srgb, var(--c-violet) 40%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--c-violet) 10%, transparent); }
   :global(.rt-ai-ico svg) { width: 13px; height: 13px; }
   .rt-ai input { width: min(300px, 34vw); height: 30px; min-width: 120px; padding: 0 11px; color: var(--text); font-size: var(--fs-sm); border: 1px solid var(--line-strong); border-radius: 9px; outline: 0; background: var(--bg2); transition: border-color .15s ease, box-shadow .15s ease; }

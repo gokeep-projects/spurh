@@ -907,7 +907,8 @@ const MIME_TYPES: Array<[string, string]> = [
   .topo-ms { fill: var(--muted); font-size: var(--fs-xs); font-family: 'Cascadia Code', Consolas, monospace; }
   .topo-target circle { stroke-width: 2; stroke-dasharray: 5 4; }
   .topo-target circle:not(.target-halo) { fill: color-mix(in srgb, var(--c-blue) 15%, transparent); stroke: var(--c-blue); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c-blue) 55%, transparent)); }
-  .topo-target .target-halo { fill: none; stroke: var(--c-blue); opacity: .3; }
+  .topo-target .target-halo { fill: none; stroke: var(--c-blue); opacity: .3; transform-box: fill-box; transform-origin: center; animation: target-pulse 2.4s ease-out infinite; }
+  @keyframes target-pulse { 0% { transform: scale(.7); opacity: .55; } 70% { transform: scale(1.55); opacity: 0; } 100% { transform: scale(1.55); opacity: 0; } }
   .topo-target.reached circle:not(.target-halo) { fill: color-mix(in srgb, var(--c-green) 16%, transparent); stroke: var(--c-green); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c-green) 55%, transparent)); }
   .topo-target.reached .target-halo { stroke: var(--c-green); }
   .topo-target.timeout circle:not(.target-halo) { fill: var(--w-05); stroke: var(--c-red); }

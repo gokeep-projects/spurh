@@ -41,7 +41,7 @@
 
 
   const FONT_STACKS: Record<string, string> = {
-    '系统默认': "'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'Noto Sans SC', 'MiSans', 'PingFang SC', ui-sans-serif, system-ui, sans-serif",
+    '系统默认': "'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'DengXian', 'Microsoft YaHei', 'Noto Sans SC', 'MiSans', 'PingFang SC', ui-sans-serif, system-ui, sans-serif",
     '微软雅黑': "'Noto Sans SC', 'MiSans', 'HarmonyOS Sans SC', 'DengXian', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', sans-serif",
     '等线': "'Noto Sans SC', 'DengXian', 'DengXian Light', 'HarmonyOS Sans SC', 'Microsoft YaHei UI', sans-serif",
     '黑体': "'Noto Sans SC', 'SimHei', '黑体', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif",
@@ -1875,8 +1875,8 @@ function renderMarkdown(text: string): string {
               <div class="ai-loading">
                 <div class="ai-orbit" aria-hidden="true"><i></i><i></i></div>
                 <div class="ai-loading-title"><div><b>AI 处理中</b><small>{aiConfig?.model || '正在思考'}</small></div><i>{@html UI_ICONS.sparkle}</i></div>
-                <div class="stream-preview"><header><span>推理</span><i>实时</i></header><p>{activeSession.aiReasoning || activeSession.aiStreamContent || '等待响应…'}</p></div>
-                {#if activeSession.aiStreamContent}<div class="answer-preview">{activeSession.aiStreamContent}</div>{/if}
+                <div class="stream-preview"><header><span>推理</span><i>实时</i></header><p>{activeSession.aiReasoning || activeSession.aiStreamContent || '等待响应…'}{#if !activeSession.aiResult}<i class="ai-caret" aria-hidden="true"></i>{/if}</p></div>
+                {#if activeSession.aiStreamContent}<div class="answer-preview">{activeSession.aiStreamContent}<i class="ai-caret" aria-hidden="true"></i></div>{/if}
               </div>
             {:else if activeSession.aiError}
               <div class="error-box ai-error"><span>{@html UI_ICONS.sparkle}</span><div><b>AI 失败</b><p>{activeSession.aiError}</p><button onclick={() => openSettings('ai')}>检查配置</button></div></div>
