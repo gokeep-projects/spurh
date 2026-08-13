@@ -646,7 +646,7 @@ const MIME_TYPES: Array<[string, string]> = [
             <button onclick={() => { traceZoom = 1; tracePan = { x: 0, y: 0 }; }} title="重置视图" disabled={traceZoom === 1 && tracePan.x === 0 && tracePan.y === 0}>⟳</button>
           </span>
         </div>
-        <div class="topo-wrap" bind:this={topoWrapEl} onwheel|nonpassive={onTopoWheel} onpointerdown={onTopoPanStart} onpointermove={onTopoPanMove} onpointerup={onTopoPanEnd} onpointerleave={onTopoPanEnd} class:panning={dragging} style={traceZoom !== 1 || tracePan.x !== 0 || tracePan.y !== 0 ? `transform: translate(${tracePan.x}px, ${tracePan.y}px) scale(${traceZoom});` : ''}>
+        <div class="topo-wrap" bind:this={topoWrapEl} onwheel={onTopoWheel} onpointerdown={onTopoPanStart} onpointermove={onTopoPanMove} onpointerup={onTopoPanEnd} onpointerleave={onTopoPanEnd} class:panning={dragging} style={traceZoom !== 1 || tracePan.x !== 0 || tracePan.y !== 0 ? `transform: translate(${tracePan.x}px, ${tracePan.y}px) scale(${traceZoom});` : ''}>
           <svg class="trace-topo" viewBox="0 0 {TRACE_W} {traceSvgH}" role="img" aria-label="链路拓扑图">
             <defs>
               <filter id="topo-blur"><feGaussianBlur stdDeviation="4"/></filter>
