@@ -2045,14 +2045,13 @@ function renderMarkdown(text: string): string {
               <div class="config-fields">
                 <label><span>名称</span><input bind:value={aiDraft.name} placeholder="例如：日常" /></label>
                 <label><span>地址</span><input bind:value={aiDraft.endpoint} placeholder="https://api.example.com/v1" onchange={loadRemoteModels} title="填写完成后回车或失焦自动拉取模型列表" /></label>
-                <label class="model-field"><span class="model-field-label"><em>模型</em>{#if modelList.length > 0}<small class="model-count">{modelList.length} 个可用</small>{/if}</span>
+                <label class="model-field"><span class="model-field-label"><em>模型</em><span class="model-field-actions">{#if modelList.length > 0}<small class="model-count">{modelList.length} 个可用</small>{/if}{#if aiDraft.endpoint.trim()}<button class="model-fetch-btn" class:loading={modelListLoading} disabled={modelListLoading} onclick={loadRemoteModels} title={modelListLoading ? '拉取中…' : '从当前地址拉取模型列表'}>{modelListLoading ? '拉取中…' : '拉取模型'}</button>{/if}</span></span>
                   <span class="model-input-wrap">
                     {#if modelList.length > 0}
                       <select bind:value={aiDraft.model}><option value="">-- 选择 --</option>{#each modelList as model}<option value={model.id}>{model.id}</option>{/each}</select>
                     {:else}
                       <input list="rm" bind:value={aiDraft.model} placeholder="输入模型名，回车或失焦自动拉取" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
                     {/if}
-                    {#if aiDraft.endpoint.trim()}<button class="model-fetch-mini" class:loading={modelListLoading} disabled={modelListLoading} onclick={loadRemoteModels} title={modelListLoading ? '拉取中…' : '拉取模型列表'}>{@html UI_ICONS.refresh}</button>{/if}
                   </span>
                 </label>
                 <label><span>密钥</span><span class="ai-secret">

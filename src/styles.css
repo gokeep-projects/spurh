@@ -2032,27 +2032,11 @@ kbd {
 .model-field .model-input-wrap > input,
 .model-field .model-input-wrap > select { padding-right: 40px; }
 .model-field .model-count { color: var(--muted-2); font-size: var(--fs-xs); }
-.model-field .model-fetch-mini {
-  position: absolute;
-  right: 5px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 24px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  cursor: pointer;
-  color: var(--muted);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--w-06);
-  transition: all var(--transition);
-}
-.model-field .model-fetch-mini svg { width: 12px; height: 12px; }
-.model-field .model-fetch-mini:hover:not(:disabled) { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
-.model-field .model-fetch-mini:disabled { cursor: not-allowed; opacity: .5; }
-.model-field .model-fetch-mini.loading svg { animation: ai-spin 1s linear infinite; }
+.model-field-actions { display: inline-flex; align-items: center; gap: 8px; }
+.model-field .model-fetch-btn { height: 24px; padding: 0 10px; cursor: pointer; color: var(--accent); font-size: var(--fs-xs); font-weight: 650; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 8px; background: var(--accent-soft); transition: all var(--transition); }
+.model-field .model-fetch-btn:hover:not(:disabled) { color: #fff; border-color: transparent; background: var(--btn-gradient); box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 30%, transparent); }
+.model-field .model-fetch-btn:disabled { cursor: not-allowed; opacity: .55; }
+.model-field .model-fetch-btn.loading { color: var(--accent); background: var(--accent-soft); }
 .model-field .model-fetch-link {
   display: inline-flex;
   align-items: center;
@@ -3759,11 +3743,11 @@ kbd {
 /* ── 全局字号档位：让“设置→字号”对组件真正生效（替换硬编码 13/13.5px 等） ── */
 .app {
   --fs: var(--app-font-size, 14px);
-  --fs-xxs: max(13px, calc(var(--fs) - 1px));
+  --fs-xxs: max(14px, calc(var(--fs) - 1px));
   --fs-xs: var(--fs);
   --fs-sm: var(--fs);
   --fs-lg: calc(var(--fs) + 1.5px);
-  --fs-tiny: max(13px, calc(var(--fs) - 1px));
+  --fs-tiny: max(14px, calc(var(--fs) - 1px));
 }
 /* ═══════════════════════════════════════════════════════════════
    表面层级修复（最终覆盖，置于文件末尾）
