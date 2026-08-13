@@ -21,7 +21,7 @@
   function nowValue(): string {
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   }
 
   /** 常用时间快捷预设：统一由 presetValue() 计算值，保证高亮与回填一致 */
@@ -274,7 +274,7 @@
     onChangeOption('pickDateTime', `${dm[1]}-${dm[2]}-${dm[3]}T${p(hh)}:${p(mm)}:${p(ss)}`);
     flashPicked();
   }
-  const timeText = $derived((session.options.pickDateTime || '').replace('T', ' ').slice(11, 19) || '00:00:00');
+  const timeText = $derived((() => { const t = (session.options.pickDateTime || '').replace('T', ' ').slice(11, 19); if (!t) return '00:00:00'; const parts = t.split(':'); while (parts.length < 3) parts.push('00'); return parts.slice(0, 3).join(':'); })());
   const dateText = $derived((session.options.pickDateTime || '').slice(0, 10) || '');
   /** 选中日期对应的星期几（供选择按钮实时反馈） */
   const dateWeekday = $derived((() => {
@@ -586,7 +586,7 @@
   .ts-pick-date:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 16%, transparent); transform: translateY(-1px); }
   .ts-pick-date:active { transform: translateY(0); }
   .ts-pick-date::before { content: ""; width: 13px; height: 13px; border-radius: 4px; border: 1.5px solid var(--accent); background: linear-gradient(135deg, color-mix(in srgb, var(--c-cyan) 30%, transparent), color-mix(in srgb, var(--c-magenta) 26%, transparent)); }
-  .ts-time-input { height: 38px; width: 118px; padding: 0 12px; font: 650 var(--fs-sm) 'Cascadia Code', Consolas, monospace; text-align: center; letter-spacing: 1px; color: var(--text); border: 1.5px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 10px; outline: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, var(--bg)), var(--bg)); caret-color: var(--accent); transition: border-color .18s ease, box-shadow .2s ease, background .2s ease; }
+  .ts-time-input { height: 38px; width: 156px; padding: 0 12px; font: 650 var(--fs-sm) 'Cascadia Code', Consolas, monospace; text-align: center; letter-spacing: 1px; color: var(--text); border: 1.5px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 10px; outline: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, var(--bg)), var(--bg)); caret-color: var(--accent); transition: border-color .18s ease, box-shadow .2s ease, background .2s ease; }
   .ts-time-input:focus { border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, var(--bg)), var(--bg)); box-shadow: 0 0 0 3.5px var(--accent-soft), 0 0 18px color-mix(in srgb, var(--accent) 16%, transparent); }
   .ts-time-input::placeholder { color: var(--muted-2); letter-spacing: .5px; }
   .ts-field .ts-pick-date:focus, .ts-time-input:focus { border-color: color-mix(in srgb, var(--accent) 65%, var(--line)); box-shadow: 0 0 0 3.5px var(--accent-soft), 0 0 16px color-mix(in srgb, var(--accent) 14%, transparent); outline: 0; }
