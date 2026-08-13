@@ -2027,6 +2027,30 @@ kbd {
   box-sizing: border-box;
 }
 .model-field .model-input-wrap > select { width: 100%; }
+.model-field .model-input-wrap > input,
+.model-field .model-input-wrap > select { padding-right: 40px; }
+.model-field .model-count { color: var(--muted-2); font-size: var(--fs-xs); }
+.model-field .model-fetch-mini {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--w-06);
+  transition: all var(--transition);
+}
+.model-field .model-fetch-mini svg { width: 12px; height: 12px; }
+.model-field .model-fetch-mini:hover:not(:disabled) { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-soft); }
+.model-field .model-fetch-mini:disabled { cursor: not-allowed; opacity: .5; }
+.model-field .model-fetch-mini.loading svg { animation: ai-spin 1s linear infinite; }
 .model-field .model-fetch-link {
   display: inline-flex;
   align-items: center;

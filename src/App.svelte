@@ -2045,15 +2045,16 @@ function renderMarkdown(text: string): string {
               <div class="config-fields">
                 <label><span>名称</span><input bind:value={aiDraft.name} placeholder="例如：日常" /></label>
                 <label><span>地址</span><input bind:value={aiDraft.endpoint} placeholder="https://api.example.com/v1" onchange={loadRemoteModels} title="填写完成后回车或失焦自动拉取模型列表" /></label>
-                <label class="model-field"><span class="model-field-label"><em>模型</em>{#if modelList.length > 0 || aiDraft.endpoint.trim()}<button class:loading={modelListLoading} class="model-fetch-link" disabled={modelListLoading} onclick={loadRemoteModels} title={modelListLoading ? '拉取中…' : '重新拉取模型列表'}>{@html UI_ICONS.refresh}<i>{modelListLoading ? '拉取中…' : '拉取列表'}</i></button>{/if}</span><div>
+                <label class="model-field"><span class="model-field-label"><em>模型</em>{#if modelList.length > 0}<small class="model-count">{modelList.length} 个可用</small>{/if}</span>
                   <span class="model-input-wrap">
                     {#if modelList.length > 0}
                       <select bind:value={aiDraft.model}><option value="">-- 选择 --</option>{#each modelList as model}<option value={model.id}>{model.id}</option>{/each}</select>
                     {:else}
-                      <input list="rm" bind:value={aiDraft.model} placeholder="输入模型名，或拉取列表" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
+                      <input list="rm" bind:value={aiDraft.model} placeholder="输入模型名，回车或失焦自动拉取" /><datalist id="rm">{#each modelList as m}<option value={m.id}>{m.id}</option>{/each}</datalist>
                     {/if}
+                    {#if aiDraft.endpoint.trim()}<button class="model-fetch-mini" class:loading={modelListLoading} disabled={modelListLoading} onclick={loadRemoteModels} title={modelListLoading ? '拉取中…' : '拉取模型列表'}>{@html UI_ICONS.refresh}</button>{/if}
                   </span>
-                </div></label>
+                </label>
                 <label><span>密钥</span><span class="ai-secret">
                   <input type={aiKeyVisible ? 'text' : 'password'} bind:value={aiDraft.apiKey} placeholder={aiDraft.provider === 'ollama' ? '可留空' : 'sk-…'} autocomplete="off" />
                   <button class="ai-secret-toggle" onclick={() => (aiKeyVisible = !aiKeyVisible)} title={aiKeyVisible ? '隐藏密钥' : '显示密钥'}>{@html aiKeyVisible ? UI_ICONS.eyeOff : UI_ICONS.eye}</button>
