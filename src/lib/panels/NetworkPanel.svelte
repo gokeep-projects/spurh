@@ -831,10 +831,10 @@ const MIME_TYPES: Array<[string, string]> = [
   .port-copy-all { height: 24px; padding: 0 10px; cursor: pointer; color: var(--c-cyan); font-size: var(--fs-xs); font-weight: 600; border: 1px solid color-mix(in srgb, var(--c-cyan) 40%, var(--line)); border-radius: 999px; background: transparent; transition: all var(--transition); }
   .port-copy-all:hover { background: color-mix(in srgb, var(--c-cyan) 10%, transparent); box-shadow: 0 0 12px color-mix(in srgb, var(--c-cyan) 25%, transparent); }
   .port-open-chips { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--c-green) 28%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--c-green) 4%, var(--panel)); }
-  .port-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; cursor: pointer; color: var(--text); border: 1px solid color-mix(in srgb, var(--c-green) 34%, var(--line)); border-radius: 999px; background: var(--panel); transition: all var(--transition); }
+  .port-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; cursor: pointer; color: var(--text); white-space: nowrap; border: 1px solid color-mix(in srgb, var(--c-green) 34%, var(--line)); border-radius: 999px; background: var(--panel); transition: all var(--transition); }
   .port-chip:hover { transform: translateY(-1px); border-color: var(--c-green); box-shadow: 0 4px 14px color-mix(in srgb, var(--c-green) 22%, transparent); }
   .port-chip b { color: var(--c-green); font-size: var(--fs-xs); font-weight: 700; }
-  .port-chip small { color: var(--muted); font-size: var(--fs-xs); }
+  .port-chip small { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
   .port-table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
   .port-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
   .port-table th { position: sticky; top: 0; padding: 8px 12px; color: var(--muted-2); font-size: var(--fs-xs); font-weight: 600; text-align: left; background: var(--panel-2); border-bottom: 1px solid var(--line); }
