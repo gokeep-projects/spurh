@@ -19,7 +19,7 @@
     passphrase: string;
   };
 
-  const FONT_KEY = 'spurh.terminal.fontSize.v1';
+  const FONT_KEY = 'spurh.terminal.fontSize.v2';
 
   let { session, active, onState }: {
     session: RemoteSession;
@@ -43,7 +43,7 @@
 
   function loadFontSize(): number {
     const raw = Number(localStorage.getItem(FONT_KEY));
-    return raw >= 10 && raw <= 24 ? raw : 13;
+    return raw >= 10 && raw <= 24 ? raw : 14;
   }
 
   function saveFontSize(size: number): void {
