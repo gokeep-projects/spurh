@@ -1660,6 +1660,56 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
     hotkeyError = '';
     applyHotkeys().catch(() => undefined);
   }
+
+/** AI 输出轻量 Markdown 渲染：先转义 HTML 再逐块加工，杜绝注入；代码块复用 highlightCode */
+function renderMarkdown(text: string): string {
+  const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const inline = (line: string): string => {
+    let out = esc(line);
+    out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
+    out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+    out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    return out;
+  };
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  const html: string[] = [];
+  let i = 0;
+  let inCode = false;
+  let codeLang = '';
+  let codeBuf: string[] = [];
+  const flushCode = (): void => {
+    if (!inCode) return;
+    const lang = /^(json|sql|bash|sh|shell|python|js|javascript|ts|typescript|yaml|xml|html|css)$/i.test(codeLang) ? codeLang.toLowerCase() : 'text';
+    const body = highlightCode(codeBuf.join('\n'), lang === 'json' ? 'json' : 'text');
+    html.push('<pre class="ai-code" data-lang="' + esc(codeLang) + '"><code>' + body + '</code></pre>');
+    inCode = false;
+    codeBuf = [];
+  };
+  while (i < lines.length) {
+    const line = lines[i];
+    const fence = line.match(/^```([\w+-]*)\s*$/);
+    if (fence) {
+      if (!inCode) { inCode = true; codeLang = fence[1] || ''; } else flushCode();
+      i++;
+      continue;
+    }
+    if (inCode) { codeBuf.push(line); i++; continue; }
+    const t = line.trim();
+    if (!t) { i++; continue; }
+    const h = t.match(/^(#{1,4})\s+(.*)$/);
+    if (h) { const lv = h[1].length; html.push('<h' + lv + '>' + inline(h[2]) + '</h' + lv + '>'); i++; continue; }
+    const li = t.match(/^[-*•]\s+(.*)$/) || t.match(/^\d+\.\s+(.*)$/);
+    if (li) { html.push('<li>' + inline(li[1]) + '</li>'); i++; continue; }
+    const qt = t.match(/^>\s?(.*)$/);
+    if (qt) { html.push('<blockquote>' + inline(qt[1]) + '</blockquote>'); i++; continue; }
+    html.push('<p>' + inline(line) + '</p>');
+    i++;
+  }
+  flushCode();
+  return html.join('');
+}
+
 </script>
 <svelte:window onkeydown={handleWindowKeydown} ondragover={handleFileDragOver} ondragleave={handleFileDragLeave} ondrop={handleFileDrop} onresize={handleWindowResize} />
 
@@ -1843,7 +1893,7 @@ const PAIRS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '"': '"', 
                       <button class="quiet-button" onclick={applyAiResult} title="将 AI 结果写回输入区">应用</button>
                     </div>
                   </header>
-                  <pre class="ai-card-body">{activeSession.aiResult.output}</pre>
+                  <div class="ai-card-body ai-md">{@html renderMarkdown(activeSession.aiResult.output)}</div>
                   {#if activeSession.aiResult.summary}<footer class="ai-card-foot"><i></i>{activeSession.aiResult.summary}</footer>{/if}
                 </div>
               </div>

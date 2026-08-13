@@ -1439,8 +1439,19 @@ kbd {
 .ai-card-actions { display: flex; gap: 6px; flex: 0 0 auto; }
 .ai-card-actions button { height: 28px; padding: 0 12px; cursor: pointer; color: var(--muted); font-size: var(--fs-xs); border: 1px solid var(--line); border-radius: 8px; background: var(--w-04); transition: all .15s ease; }
 .ai-card-actions button:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
-.ai-card-body { position: relative; z-index: 1; margin: 0; padding: 16px 18px; max-height: min(46vh, 420px); overflow: auto; color: var(--text); font-size: var(--fs); font-weight: 450; line-height: 1.75; font-family: inherit; white-space: pre-wrap; word-break: break-word; letter-spacing: .1px; }
-.ai-card-body :global(pre.ai-code), .ai-card-body pre { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: var(--fs-xs); line-height: 1.6; }
+.ai-card-body { position: relative; z-index: 1; margin: 0; padding: 16px 18px; max-height: min(46vh, 420px); overflow: auto; color: var(--text); font-size: var(--fs); font-weight: 450; line-height: 1.75; font-family: inherit; word-break: break-word; letter-spacing: .1px; }
+.ai-card-body p { margin: 0 0 10px; }
+.ai-card-body p:last-child { margin-bottom: 0; }
+.ai-card-body h3, .ai-card-body h4 { margin: 14px 0 8px; font-weight: 750; line-height: 1.4; }
+.ai-card-body h3 { font-size: calc(var(--fs) + 2px); }
+.ai-card-body h4 { font-size: var(--fs); }
+.ai-card-body li { margin: 3px 0 3px 18px; list-style: disc; }
+.ai-card-body blockquote { margin: 8px 0; padding: 6px 12px; color: var(--muted); border-left: 3px solid color-mix(in srgb, var(--accent) 55%, var(--line)); border-radius: 0 8px 8px 0; background: var(--w-03); }
+.ai-card-body code { padding: 1px 6px; color: color-mix(in srgb, var(--c-cyan) 80%, var(--text)); font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: .92em; border: 1px solid var(--line); border-radius: 6px; background: var(--w-04); }
+.ai-card-body pre.ai-code { margin: 10px 0; padding: 12px 14px; overflow: auto; font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: var(--fs-xs); line-height: 1.6; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--bg) 88%, var(--accent-soft)); }
+.ai-card-body pre.ai-code code { padding: 0; color: inherit; border: 0; background: transparent; }
+.ai-card-body a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.ai-card-body a:hover { filter: brightness(1.15); }
 .ai-card-foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 14px; color: var(--muted); font-size: var(--fs-xs); border-top: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line)); background: color-mix(in srgb, var(--accent) 4%, transparent); }
 .ai-card-foot i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 8px color-mix(in srgb, var(--c-green) 70%, transparent); animation: aiLive 2s ease infinite; }
 @keyframes aiLive { 50% { opacity: .35; } }
